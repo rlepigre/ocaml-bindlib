@@ -1,0 +1,107 @@
+This directory contains the source of the bindlib library for
+Objective-Caml (tested with version 1.07)
+
+--------
+Abstract
+--------
+This library provides reasonable tools to write programs manipulating
+data structures with binders and variables. See the documentation 
+in the doc directory.
+
+------------
+Installation
+------------
+
+This library only works with ocaml version 3.09.x.
+
+make checkconfig
+  Check the guessed value of BINDIR and LIBDIR. If it does not suit you,
+  edit the Makefile
+
+make
+  Compiles the library
+
+make check
+  Tests the library
+
+make install
+  To install every thing
+
+-------------
+Documentation
+-------------
+
+The documentation is available in the doc folder.
+
+-------
+History
+-------
+
+Version 3.0 August 2006:
+
+  - almost complete rewriting adding handling of variable, names and renaming
+  
+  - much more controled complexity thanks to a two stages construction of the
+    data structures
+
+  - simplified use thanks to a camlp4 extension
+
+  - Still no SML version ... but I might still provide one if somone asks.
+
+Version 2.1 January, 15th, 1998:
+
+  - added bind_val family of functions.
+  
+  - added is_closed and related functions.
+
+  - added bind_pair, bind_list and related modules
+
+  - more complex examples available.
+
+  - only an objective-caml version at the moment 
+
+Version 2.0 November, 21th, 1997 (not really distributed):
+
+  - complete rewriting (no more strange restrictions) !
+
+  - only an objective-caml version at the moment 
+
+Version 1.2 November, 15th, 1995:
+
+  - Provide an SML version.
+
+  - Correct a bug (this bug could only appear with the native 
+    Caml-Special-Light compiler).
+
+  - The function cumul-abs is not provided anymore (the library decide 
+    by itself how it should optimized abstraction).
+
+  - The price to pay: start_term can only be called while no other
+    construction is already started. Another function local_start is
+    provided to start a new construction of a term inside another.
+
+Version 1.1, October, 17th, 1995:
+
+  - Correct a major bug: when more than one variable is bound outside
+    of the current sequence of binding, then the version 1.0 does not
+    work at all. This bug has now been corrected.
+
+  - The library now raises the exception "Binlib_error" instead of
+    "Invalid_argument".
+
+  - The memory usage has been optimised to take in account binder
+    which binds a variable with no occurrence. In the benchmark this
+    is not visible, but other examples shows an improvement of a factor
+    greater than 2 !
+
+  - The library only works for terms with less than 32768 free
+    variables in each sub-term. An exception is raised if you
+    use too many variables.
+
+  - The library has now been tested on a bigger scale and should be
+    more reliable (I hope)
+
+Version 1.0, September, 27th, 1995:
+
+  - first public version
+
