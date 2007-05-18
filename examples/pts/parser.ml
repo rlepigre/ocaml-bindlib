@@ -14,7 +14,7 @@ module Make(Pts: PtsType) =
     open BasicPts
 
     let keywords = [
-      "("; ")"; "{"; "}"; "["; "]"; "?";
+      "("; ")"; "/\\"; "."; "\\"; "?";
       "->"; ":"; "="; ","; ";"; "let"; "load"
     ] @ Pts.keywords
 
@@ -53,11 +53,11 @@ module Make(Pts: PtsType) =
       |	[< >] -> t
 
     and parse_expr' env = parser
-      	[< 'Kwd "{"; l = parse_ident_list; 'Kwd ":"; t = parse_expr' env;
-	  'Kwd "}"; str >] -> 
+      	[< 'Kwd "/\\"; l = parse_ident_list; 'Kwd ":"; t = parse_expr' env;
+	  'Kwd "."; str >] -> 
 	    build_binder l (fun f -> Pi(^t, f^)) env str
-      |	[< 'Kwd "["; l = parse_ident_list; 'Kwd ":"; t = parse_expr' env;
-	  'Kwd "]"; str >] -> 
+      |	[< 'Kwd "\\"; l = parse_ident_list; 'Kwd ":"; t = parse_expr' env;
+	  'Kwd "."; str >] -> 
 	    build_binder l (fun f -> Lambda(^t, f^)) env str
       | [< t = parse_app env; t' = parse_arrow env t >] ->
  	  t'

@@ -1,31 +1,31 @@
 
 load "test.F";
 
-let And = [A,B:*]{X:*} ((A -> B -> X) -> X) : {A,B:*} *;
+let And = \A,B:*./\X:*. ((A -> B -> X) -> X) : /\A,B:*. *;
 
-let pair = [A,B:*][a:A][b:B][X:*][f:A -> B -> X] f a b :
-   {A,B:*} A -> B -> And A B;
+let pair = \A,B:*.\a:A.\b:B.\X:*.\f:A -> B -> X. f a b :
+   /\A,B:*. A -> B -> And A B;
 
-let fst = [A,B:*][p: And A B] p A ([x:A][y:B] x) : {A,B:*} And A B -> A;
-let snd = [A,B:*][p: And A B] p B ([x:A][y:B] y) : {A,B:*} And A B -> B;
+let fst = \A,B:*.\p: And A B. p A (\x:A.\y:B. x) : /\A,B:*. And A B -> A;
+let snd = \A,B:*.\p: And A B. p B (\x:A.\y:B. y) : /\A,B:*. And A B -> B;
 
 let pn = Nat -> * : #;
 
 let True = Idt : *;
-let False = {X:*} X : *;
+let False = /\X:*. X : *;
 
-let Sigma = [A:*][B:A -> *]{X:*} ({a:A} B a -> X) -> X : {A:*}{B:A -> *} *;
+let Sigma = \A:*.\B:A -> *./\X:*. (/\a:A. B a -> X) -> X : /\A:*./\B:A -> *. *;
 
-let pair' = [A:*][B:A -> *][a:A][b:B a][X:*][f:{a:A} B a -> X] f a b :
-   {A:*}{B:A -> *}{a:A} B a -> Sigma A B;
+let pair' = \A:*.\B:A -> *.\a:A.\b:B a.\X:*.\f:/\a:A. B a -> X. f a b :
+   /\A:*./\B:A -> *./\a:A. B a -> Sigma A B;
 
-let fst' = [A:*][B:A -> *][p: Sigma A B] p A ([a:A][b:B a] a) : 
-  {A:*}{B:A -> *}Sigma A B -> A;
-let sig_elim = [C,A:*][B:A -> *][h:{a:A} B a -> C][p:Sigma A B] p C h :
-  {C,A:*}{B:A -> *} ({a:A} B a -> C) -> Sigma A B -> C
+let fst' = \A:*.\B:A -> *.\p: Sigma A B. p A (\a:A.\b:B a. a) : 
+  /\A:*./\B:A -> *.Sigma A B -> A;
+let sig_elim = \C,A:*.\B:A -> *.\h:/\a:A. B a -> C.\p:Sigma A B. p C h :
+  /\C,A:*./\B:A -> *. (/\a:A. B a -> C) -> Sigma A B -> C
 ;
 
-let PNat = [x : Nat] {X:Nat -> *}
-  (X n0 -> {y:Nat} (X y -> X (succ y)) -> X x)
+let PNat = \x : Nat. /\X:Nat -> *.
+  (X n0 -> /\y:Nat. (X y -> X (succ y)) -> X x)
 : Nat -> *;
 

@@ -5,7 +5,7 @@ CAMLDEP = ocamldep -pp ../../camlp4bop -I ../..
 FILES = genlex.ml basic.ml globals.ml print.ml type_check.ml \
 	action.ml file.ml parser.ml main.ml
 
-VFILES = F.ml CoC.ml
+VFILES = F.ml CoC.ml lntt.ml
 
 OFILES = $(FILES:.ml=.cmo)
 
@@ -22,6 +22,8 @@ F.slow : F.cmo $(OFILES)
 F.opt : F.cmx $(XFILES)
 CoC.slow : CoC.cmo $(OFILES)
 CoC.opt : CoC.cmx $(XFILES)
+lntt.slow : lntt.cmo $(OFILES)
+lntt.opt : lntt.cmx $(XFILES)
 
 depend: 
 	- rm depend;\

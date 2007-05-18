@@ -27,7 +27,7 @@ module Make(Pts: PtsType) =
 
     	| Lambda(t,f) ->
     	    if b >= abs_lvl then print_string "(";
-    	    print_string "[";
+    	    print_string "\\";
 	    begin match f with bind fVar x in u ->
 	      let name = name_of x in
 	      print_string name;
@@ -42,7 +42,7 @@ module Make(Pts: PtsType) =
                 | e ->
 		    print_string ":";
 		    fn ini_lvl t;
-		    print_string "] ";
+		    print_string ". ";
 		    fn (abs_lvl - 1) e
 	      in gn u;
     	      if b >= abs_lvl then print_string ")"
@@ -58,7 +58,7 @@ module Make(Pts: PtsType) =
 
     	| Pi(t,f) ->
     	    if b >= abs_lvl then print_string "(";
-    	    print_string "{";
+    	    print_string "/\\";
 	    begin match f with bind fVar x in u ->
 	      let name = name_of x in
 	      print_string name;
@@ -73,7 +73,7 @@ module Make(Pts: PtsType) =
                 | e ->
 		    print_string ":";
 		    fn ini_lvl t;
-		    print_string "} ";
+		    print_string ".";
 		    fn (abs_lvl - 1) e
 	      in gn u;
     	      if b >= abs_lvl then print_string ")"

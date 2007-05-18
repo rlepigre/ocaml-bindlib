@@ -66,20 +66,22 @@ module Make(Pts: PtsType) =
 	  get_axiom s1
 
       |	Pi(e1,f2), [] ->
-            let s1 = infer_sort [] e1 in
-	    let s2 = infer_sort [] 
-		(subst f2 (csthyp (binder_name f2) None e1)) in
-	    get_rule s1 s2
-
+          begin
+	    let s1 = infer_sort [] e1 in
+	    match f2 with bind (constant_hyp e1) x in g ->
+	      let s2 = infer_sort [] g in
+	      get_rule s1 s2
+	  end
       |	App(e1,e2), _ ->
           infer_sort (e2::args) e1
 
       |	Lambda(t,f), (a::args') ->
-	  let _ = infer_sort [] t in
-	  type_check a t;
-	  infer_sort args' 
-	      (subst f (csthyp (binder_name f) (Some a) t))
-
+	  begin 
+	    let _ = infer_sort [] t in
+            type_check a t;
+	    match f with bind (valued_hyp t a) x in g ->
+	      infer_sort args' g 
+	  end
       |	Def d, args ->
 	  begin
 	    let rec unwind t args = 

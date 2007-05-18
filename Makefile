@@ -130,7 +130,7 @@ compile-doc:
 distrib: compile-doc clean
 	cd ..; tar cvzf $(ROOTDIR)/archive/$(ROOTDIR).tgz \
 	  --exclude cache --exclude pts --exclude archive\
-	  $(ROOTDIR)
+	  --exclude _darcs $(ROOTDIR)
 
 dum:
 

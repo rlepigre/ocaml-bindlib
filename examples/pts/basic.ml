@@ -36,7 +36,7 @@ module Make(Pts: PtsType) =
       | Pi of expr * (expr, expr) binder
       |	Def of def
 
-      |	FVar of expr var  (* used by normalize *)
+      |	FVar of expr variable  (* used by normalize *)
 
     and def =
   	{ def_name : string; 
@@ -72,6 +72,10 @@ module Make(Pts: PtsType) =
 	   def_islocal = true
 	 }
 	   
+    let constant_hyp t x = csthyp (name_of x) None t
+
+    let valued_hyp t v x = csthyp (name_of x) (Some v) t
+      
     let rec equal e1 e2 = match e1, e2 with
       App(e1,e1'), App(e2,e2') -> 
 	equal e1 e2 && equal e1' e2'

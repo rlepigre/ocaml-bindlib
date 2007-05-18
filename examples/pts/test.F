@@ -1,17 +1,17 @@
-let Idt = {X:*} X -> X : *;
-let idt = [X:*] [x:X] x : Idt;
+let Idt = /\X:*. X -> X : *;
+let idt = \X:*. \x:X. x : Idt;
 
-let Nat = {X:*} (X -> X) -> X -> X : *;
+let Nat = /\X:*. (X -> X) -> X -> X : *;
 
-let zero = [X:*] [f:X->X] [a:X] a : Nat;
-let succ = [n:Nat] [X:*] [f:X->X] [a:X] f (n X f a) : Nat -> Nat;
-let add = [n,p:Nat] [X:*] [f:X->X] [a:X] n X f (p X f a) : Nat -> Nat -> Nat;
-let mul = [n,p:Nat] [X:*] [f:X->X] [a:X] n X (p X f) a : Nat -> Nat -> Nat;
-let exp = [n,p:Nat] [X:*] p (X -> X) (n X) : Nat -> Nat -> Nat;
+let zero = \X:*. \f:X->X. \a:X. a : Nat;
+let succ = \n:Nat. \X:*. \f:X->X. \a:X. f (n X f a) : Nat -> Nat;
+let add = \n,p:Nat. \X:*. \f:X->X. \a:X. n X f (p X f a) : Nat -> Nat -> Nat;
+let mul = \n,p:Nat. \X:*. \f:X->X. \a:X. n X (p X f) a : Nat -> Nat -> Nat;
+let exp = \n,p:Nat. \X:*. p (X -> X) (n X) : Nat -> Nat -> Nat;
 
-let pred = [n:Nat] n (Nat -> Nat -> Nat)
-      ([f:Nat -> Nat -> Nat] [x,y:Nat] f (succ x) x)
-      ([x,y:Nat] y)
+let pred = \n:Nat. n (Nat -> Nat -> Nat)
+      (\f:Nat -> Nat -> Nat. \x,y:Nat. f (succ x) x)
+      (\x,y:Nat. y)
       zero
       zero 
   : Nat -> Nat;
