@@ -128,11 +128,11 @@ let imitate t1 t2 =
             if sh1 <> sh2 then failwith "bug in imitate";
             h
     	| Arrow(s,s'), n ->
-            gn (App(^h, new_avar s nargs^)) s' (n-1)
+            gn (App(^h, new_avar s nargs^) ) s' (n-1)
       	| _ -> failwith "bug in imitate"
       	in gn (^h^) s2 arg2s 
     | Arrow(s,s'), n when n > 0 -> 
-      	Abs(^(^s^), bind (fVar s) x in fn ((s,x)::nargs) s' (n-1)^) 
+      	Abs(^ (^s^), bind (fVar s) x in fn ((s,x)::nargs) s' (n-1) ^) 
     | _ -> failwith "bug in imitate"
   in unbox(fn [] s1 arg1s)
 
@@ -173,16 +173,16 @@ let project t1 t2 =
             	if s2 <> sh2 then raise Exit;
             	h
 	    | Arrow(s,s'), i ->
-          	kn (App(^h, new_avar s nargs^)) s' (i - 1)
+          	kn (App(^h, new_avar s nargs^) ) s' (i - 1)
 	    | _ -> failwith "bug in proj"
             in kn h s0 k
     	| Arrow(s,s'), n -> 
-	    Abs(^(^s^), bind (fVar s) x in
+	    Abs(^ (^s^), bind (fVar s) x in
               let h = match h with
           	Nothing 0 -> Something x
               | Nothing i -> Nothing (i-1)
               | _ -> h in
-              gn h ((s,x)::nargs) s' (n-1)^) 
+              gn h ((s,x)::nargs) s' (n-1) ^) 
     	| _ -> failwith "bug in proj"
         in 
 	(try 
@@ -266,10 +266,12 @@ let print_term t =
       let rec gn nv = function
 	  Abs (s,f) ->
             let name = "x"^(string_of_int nv) in
-	    match f with bind (fVar s) x as name in t ->
-            print_string name;
-            print_string " ";
-            gn (nv + 1) t
+	    begin 
+              match f with bind (fVar s) x as name in t ->
+              print_string name;
+              print_string " ";
+              gn (nv + 1) t
+	    end
 	| t -> 
             print_string "-> ";
             fn nv ini_lvl t
@@ -292,7 +294,7 @@ let print_term t =
 let alpha = Atom "alpha" and beta = Atom "beta" and gamma = Atom "gamma"
 let c1 = Cst {cst_name = "c1"; cst_sort = alpha}
 let c2 = Cst {cst_name = "c2"; cst_sort = alpha}
-let idta = unbox (Abs(^(^alpha^),bind (fVar alpha) x in x^))
+let idta = unbox (Abs(^ (^alpha^),bind (fVar alpha) x in x^) )
 let f = Cst {cst_name = "f"; cst_sort = Arrow(alpha,alpha)}
 
 let test n c1 c2 = 

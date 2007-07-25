@@ -1,6 +1,6 @@
-CAMLC = ocamlc -pp ../../camlp4bop -I ../..
-CAMLO = ocamlopt -pp ../../camlp4bop -I ../..
-CAMLDEP = ocamldep
+CAMLC = ocamlc -pp "../../camlp4bo" -I ../..
+CAMLO = ocamlopt -pp "../../camlp4bo" -I ../..
+CAMLDEP = ocamldep -pp "../../camlp4bo" -I ../..
 
 FILES = genlex.ml basic.ml print.ml globals.ml reduce.ml \
 	action.ml file.ml parser.ml
@@ -21,7 +21,7 @@ crs.opt : $(XFILES)
 
 depend: 
 	- rm depend;\
-	$(CAMLDEP) -pp ../../camlp4bop *.ml *.mli > depend
+	$(CAMLDEP) *.ml *.mli > depend
 
 include depend
 

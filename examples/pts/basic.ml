@@ -97,11 +97,11 @@ module Make(Pts: PtsType) =
       let rec fn t = 
       	match whnf t with
   	  Lambda(t, f) -> 
-	    match f with bind fVar x in t' ->
-	      Lambda(^fn t, bindvar x in fn t'^)
+	    (match f with bind fVar x in t' ->
+	      Lambda(^fn t, bindvar x in fn t'^) )
       	| Pi(t, f) -> 
-	    match f with bind fVar x in t' ->
-	      Pi(^fn t, bindvar x in fn t'^)
+	    (match f with bind fVar x in t' ->
+	      Pi(^fn t, bindvar x in fn t'^) )
       	| t -> 
 	    let rec unwind = function
 	      	FVar x -> bindbox_of x
@@ -114,11 +114,11 @@ module Make(Pts: PtsType) =
       let rec fn t = 
       	match t with
   	  Lambda(t, f) -> 
-	    match f with bind fVar x in t' ->
-	      Lambda(^fn t, bindvar x in fn t'^)
+	    (match f with bind fVar x in t' ->
+	      Lambda(^fn t, bindvar x in fn t'^) )
         | Pi(t, f) -> 
-	    match f with bind fVar x in t' ->
-	      Pi(^fn t, bindvar x in fn t'^)
+	    (match f with bind fVar x in t' ->
+	      Pi(^fn t, bindvar x in fn t'^) )
         | FVar x -> bindbox_of x
 	| App(t1,t2) -> App(^fn t1, fn t2^)
 	| t -> unit t   

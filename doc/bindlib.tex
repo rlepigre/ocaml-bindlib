@@ -6,7 +6,7 @@
 \parindent=0pt
 \parskip=0.8ex
 \title{Bindlib \\ A package for abstract syntax with binder. \\
-          version 3.1}
+          version 3.2}
 \author{Christophe Raffalli \\
 Université de Savoie}
 
@@ -64,10 +64,13 @@ will give the required mathematical definitions.
 
 \section{Using and installing}
 
-This library only works with ocaml version 3.09-x. It was tested with 3.09-2.
+This library only works with ocaml version 3.09.x., 3.10.x and after 
 
 To install the library follow the following steps:
 \begin{description}
+\item [\tt cp Makefile-3.XX Makefile] copy Makefile-3.09 or Makefile-3.10 to Makefile depending upon your
+ocaml version
+
 \item[\tt make checkconfig]:
   check the guessed value of BINDIR and LIBDIR. If it does not suit you,
   edit the Makefile.

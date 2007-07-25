@@ -21,11 +21,11 @@ let rec print_term = function
     print_term t2;
     print_string ")"
 | Abs f ->
-    match f with bind fVar x in t ->
+    (match f with bind fVar x in t ->
       print_string "fun ";
       print_string (name_of x);
       print_string " ";
-      print_term t
+      print_term t)
 | FVar(v) ->
     print_string (name_of v)
 
@@ -48,10 +48,10 @@ let print_term t =
     	print_string "fun ";
         let rec gn nv = function
 	    Abs f ->
-	      match f with bind fVar x in f' ->
+	      (match f with bind fVar x in f' ->
 		print_string (name_of x);
 		print_string " ";
-		gn (nv + 1) f'
+		gn (nv + 1) f')
 	  | t -> 
               print_string "-> ";
               fn nv ini_lvl t
@@ -74,8 +74,8 @@ let rec whnf = function
 let norm t = let rec fn t = 
   match whnf t with
     Abs f -> 
-      match f with bind fVar x in u ->
-      Abs(^ bindvar x in fn u ^)
+      (match f with bind fVar x in u ->
+      Abs(^ bindvar x in fn u ^) )
   | t -> 
       let rec unwind = function
 	  FVar(x) -> bindbox_of x
@@ -91,11 +91,11 @@ let norm' t =
       App(t1,t2) -> fn (t2::stack) t1
     | Abs f -> (match stack with
 	[] ->
-	  match f with bind fVar x in f' ->
-	  Abs(^ bindvar x in fn [] f' ^)
+	  (match f with bind fVar x in f' ->
+	  Abs(^ bindvar x in fn [] f' ^) )
 	| t::stack -> fn stack (subst f t))
     | FVar(x) -> 
-	List.fold_left (fun t u -> App(^t,u^)) (bindbox_of x) (List.map (fn []) stack)
+	List.fold_left (fun t u -> App(^t,u^) ) (bindbox_of x) (List.map (fn []) stack)
   in unbox (fn [] t)
 
 (* right normalisation *)
@@ -112,8 +112,8 @@ let norm_right t =
 	  | _ -> App(^t1', t2'^)
     	end
     | Abs f ->
-	match f with bind fVar x in f' ->
-	  Abs(^ bindvar x in fn f' ^)
+	(match f with bind fVar x in f' ->
+	  Abs(^ bindvar x in fn f' ^) )
     | FVar(x) ->
     	bindbox_of x
   in unbox(fn t)
@@ -126,26 +126,26 @@ let mark t =
       match f with bind fVar y in f' ->
 	Abs(^ bindvar y in phi x f' ^)
   in
-  unbox(Abs(^ bind fVar x in phi x t^))
+  unbox(Abs(^ bind fVar x in phi x t^) )
 
 (* examples of terms *)
-let idt = unbox(Abs(^ bind fVar x in x^))
+let idt = unbox(Abs(^ bind fVar x in x^) )
 
-let delta = unbox(Abs(^ bind fVar x in App(^x,x^)^))
+let delta = unbox(Abs(^ bind fVar x in App(^x,x^) ^) )
 
 let _ = print_string "delta'"
 
-let delta' = unbox(Abs(^ bind fVar x in Abs(^ bind fVar z as "x" in Abs(^ bind fVar y as "x" in App(^z,App(^x,y^)^)^)^)^))
+let delta' = unbox(Abs(^ bind fVar x in Abs(^ bind fVar z as "x" in Abs(^ bind fVar y as "x" in App(^z,App(^x,y^) ^) ^) ^) ^) )
 
 let _ = print_newline ()
 
 let zero = 
-  unbox(Abs(^ bind fVar f in Abs(^ bind fVar x in x ^)^))
+  unbox(Abs(^ bind fVar f in Abs(^ bind fVar x in x ^) ^) )
 
 let tfalse = zero
 
 let ttrue = 
-  unbox(Abs(^ bind fVar f in Abs(^ bind fVar x in f ^)^))
+  unbox(Abs(^ bind fVar f in Abs(^ bind fVar x in f ^) ^) )
 
 let _ =
     let print_bool b =
@@ -168,11 +168,11 @@ let _ =
 let succ = 
   unbox(Abs(^ bind fVar n in Abs(^ bind fVar f in 
               Abs(^ bind fVar x in 
-                App(^f,App(^App(^n,f^),x^)^)^)^)^))
+                App(^f,App(^App(^n,f^),x^) ^) ^) ^) ^) )
 let succ' = 
   unbox(Abs(^ bind fVar n in Abs(^ bind fVar f in 
               Abs(^ bind fVar x in 
-		App(^App(^n,f^),App(^f,x^)^)^)^)^))
+		App(^App(^n,f^),App(^f,x^) ^) ^) ^) ^) ) 
 
 let two = App(succ,App(succ,zero))
 let four = App(two,two) 
@@ -188,11 +188,11 @@ let _ =
 
 let plus =   unbox(Abs(^ bind fVar n in Abs(^ bind fVar m in 
                Abs(^ bind fVar f in 
-               Abs(^ bind fVar x in App(^App(^n, f^),App(^App(^m, f^), x^)^)^)^)^)^))
+               Abs(^ bind fVar x in App(^App(^n, f^),App(^App(^m, f^), x^) ^) ^) ^) ^) ^) )
 
 let mul =   unbox(Abs(^ bind fVar n in Abs(^ bind fVar m in 
                Abs(^ bind fVar f in 
-                App(^n,App(^m,f^)^)^)^)^)) 
+                App(^n,App(^m,f^) ^) ^) ^) ^) ) 
 
 let height = App(App(plus,four) ,four) 
 let ten = App(App(plus,two) ,height) 
@@ -203,9 +203,9 @@ let thousand = App(App(mul,hundred) ,ten)
 let pred = unbox(Abs(^ bind fVar n in
   App(^App(^App(^App(^n,
     Abs(^ bind fVar p in Abs(^ bind fVar x in Abs(^ bind fVar y in
-       App(^App(^p,App(^ (^ succ ^) ,x ^)^),x^)^)^)^)^),
-    Abs(^ bind fVar x in Abs(^ bind fVar y in y^)^)^) ,
-    (^ zero ^)  ^), (^ zero ^) ^)^))
+       App(^App(^p,App(^ (^ succ ^) ,x ^) ^), x^) ^) ^) ^) ^),
+    Abs(^ bind fVar x in Abs(^ bind fVar y in y^) ^) ^) ,
+    (^ zero ^)  ^), (^ zero ^) ^) ^) )
 
 
 let bench () =
@@ -226,11 +226,11 @@ let rec print_term ctxt = function
     print_term ctxt t2;
     print_string ")"
 | Abs f ->
-    match f with bind fVar x for ctxt in t ->
+    (match f with bind fVar x for ctxt in t ->
       print_string "fun ";
       print_string (name_of x);
       print_string " ";
-      print_term ctxt t
+      print_term ctxt t)
 | FVar(v) ->
     print_string (name_of v)
 
@@ -239,8 +239,8 @@ let rec lift_term = function
     FVar(y) -> bindbox_of y
   | App(u,v) -> App(^lift_term u, lift_term v^)
   | Abs(f) ->
-      match f with bind fVar x in u ->
-	Abs(^ bindvar x in lift_term u ^)
+      (match f with bind fVar x in u ->
+	Abs(^ bindvar x in lift_term u ^) )
 
 let print_term t =
   let rec fn = function
@@ -251,11 +251,11 @@ let print_term t =
 	fn t2;
 	print_string ")"
     | Abs f ->
-	match f with bind fVar x in t ->
+	(match f with bind fVar x in t ->
 	  print_string "fun ";
 	  print_string (name_of x);
 	  print_string " ";
-	  fn t
+	  fn t)
     | FVar(v) ->
         print_string (name_of v)
   in

@@ -1,39 +1,51 @@
-open MLast
-open Pcaml 
- 
-let rec mklistupexp _loc top = function
-  | [] -> <:expr< Nvbindlib.unit [] >>
-  | e1::el -> 
-      let _loc = if top then _loc else (fst (MLast.loc_of_expr e1), snd _loc) in
-      <:expr< Nvbindlib.unit_apply2 (fun x y -> [ x::y ]) $e1$ $mklistupexp _loc false el$ >>  
+open Camlp4.PreCast
 
-let mktuppleupexp _loc el =
+module Id : Camlp4.Sig.Id =
+    struct
+      let name = "bindlib"
+      let version = "3.2"
+    end
+
+module Extension (Syntax : Camlp4.Sig.Camlp4Syntax) =
+	struct
+include Syntax
+
+
+let rec mklistupexp loc top = function
+  | [] -> <:expr@loc< Nvbindlib.unit [] >>
+  | e1::el -> 
+      <:expr@loc< Nvbindlib.unit_apply2 (fun x y -> [ x::y ]) $e1$ $mklistupexp loc false el$ >>  
+
+let mktuppleupexp loc el =
   match el with 
     [] ->
-      <:expr< Nvbindlib.unit () >>
+      <:expr@loc< Nvbindlib.unit () >>
   | [e] ->
-      <:expr< Nvbindlib.unit $e$ >>
+      <:expr@loc< Nvbindlib.unit $e$ >>
   | _ ->
       let et, preambule, preambule2, _ =
 	List.fold_left 
 	  (fun (et,ex,el,i) e ->
 	    let namex = "x#"^string_of_int i in
 	    let namey = "y#"^string_of_int i in
-	    (<:expr<$lid:namex$ $lid:"v#"$>>::et),
+	    (match et with
+	      Some et -> Some <:expr@loc<$et$,($lid:namex$ $lid:"v#"$)>>
+	    | None -> Some <:expr@loc<($lid:namex$ $lid:"v#"$)>>),
             (fun next -> 
-	      ex (<:expr<let ($lid:"e#"$, $lid:namey$) = special_apply $lid:"e#"$ $e$ in $next$>>)),
+	      ex (<:expr@loc<let ($lid:"e#"$, $lid:namey$) = special_apply $lid:"e#"$ $e$ in $next$>>)),
 	    (fun next ->
-	      el  (<:expr<let $lid:namex$ = $lid:namey$ $lid:"h#"$ in $next$>>)),
+	      el  (<:expr@loc<let $lid:namex$ = $lid:namey$ $lid:"h#"$ in $next$>>)),
 	    i+1)
-	  ([], 
-	   (fun next -> <:expr<let $lid:"e#"$ = special_start in $next$ >>), 
+	  (None, 
+	   (fun next -> <:expr@loc<let $lid:"e#"$ = special_start in $next$ >>), 
 	   (fun next -> next), 
 	   0)
 	  el
       in 
-      let right = preambule2 <:expr<(fun $lid:"v#"$ -> ($list:List.rev et$))>>
+      let et = match et with None -> <:expr@loc<()>> | Some et -> et in 
+      let right = preambule2 <:expr@loc<(fun $lid:"v#"$ -> ($tup:et$))>>
       in
-      preambule <:expr<special_end $lid:"e#"$ (fun $lid:"h#"$ -> $right$)>>
+      preambule <:expr@loc<special_end $lid:"e#"$ (fun $lid:"h#"$ -> $right$)>>
 
 let mkarrayupexp _loc el =
   let et, preambule, preambule2, _ =
@@ -67,36 +79,45 @@ let mkrecordupexp _loc w le =
       (fun next -> <:expr<let ($lid:"e#"$,$lid:"w#"$) = 
                                  (special_apply special_start $e$) in $next$ >>)
   in
+  let rec rb_to_list = function
+      Ast.RbNil _ -> []
+    | Ast.RbSem(_,a,b) -> rb_to_list a @ rb_to_list b
+    | Ast.RbEq(_,idt,e) -> [idt,e]
+    | Ast.RbAnt _ -> assert false
+  in
   let et, preambule, _ =
     List.fold_left 
       (fun (et,ex,i) (lbl,e) ->
 	let name = "x#"^string_of_int i in
-	(lbl, <:expr<$lid:name$ $lid:"h#"$ $lid:"v#"$>>)::et,
+	(<:rec_binding<$lbl$ = ( $lid:name$ $lid:"h#"$ $lid:"v#"$ ) ; $et$>>),
         (fun next -> 
 	  ex (<:expr<let ($lid:"e#"$, $lid:name$) = special_apply $lid:"e#"$ $e$ in $next$>>)),
 	i+1)
-      ([], start, 0)
-      le
+      (<:rec_binding<>>, start, 0)
+      (rb_to_list le)
   in 
-  preambule <:expr<special_end $ExLid(_loc,"e#")$
-		       (fun $lid:"h#"$ $lid:"v#"$ -> $ExRec(_loc,List.rev et,ew)$)>>
+  match ew with
+    Some ew -> preambule <:expr<special_end $lid:"e#"$
+		       (fun $lid:"h#"$ $lid:"v#"$ -> { ($ew$) with $rec_binding:et$ })>>
+  | None -> preambule <:expr<special_end $lid:"e#"$
+		       (fun $lid:"h#"$ $lid:"v#"$ -> { $et$ })>>
 
-let expr_ident = Grammar.Entry.create gram "bindlib_expr_ident"
-let expr1_semi_list = Grammar.Entry.create gram "bindlib_expr1_semi_list"
-let lbl_expr_list = Grammar.Entry.create Pcaml.gram "bindlib_lbl_expr_list"
-let lbl_expr = Grammar.Entry.create Pcaml.gram "bindlib_lbl_expr"
-let patt_label_ident = Grammar.Entry.create Pcaml.gram "bindlib_patt_label_ident"
+
+let expr1_semi_list = Gram.Entry.mk "bindlib_expr1_semi_list"
+let freshin = Gram.Entry.mk "bindlib_freshin"
+let vbinding = Gram.Entry.mk "bindlib_binding"
+let lbl_expr_list = Gram.Entry.mk "bindlib_lbl_expr_list"
+let lbl_expr = Gram.Entry.mk "bindlib_lbl_expr"
 
 let _ =
-  EXTEND 
+EXTEND Gram
   expr: LEVEL "apply"
-    [ [
-      e1 = SELF; "^^"; e2 = SELF ->
+    [ [ e1 = SELF; "^^"; e2 = SELF ->
 	<:expr<Nvbindlib.bind_apply $e1$ $e2$>>
     | e1 = SELF; "^|^"; e2 = SELF ->
 	<:expr<Nvbindlib.mbind_apply $e1$ $e2$>>
-    | e1 = SELF; "(^"; el = LIST0 expr LEVEL "^" SEP "," ;"^)" ->
-      if Pa_o.is_expr_constr_call e1 then begin
+    | e1 = SELF; "(^"; el = LIST0 expr LEVEL ":=" SEP "," ;"^)" ->
+      if  Ast.is_expr_constructor e1 then begin
 	let e = ref e1 in
 	let n = List.length el in
 	for i = 1 to n do
@@ -118,32 +139,44 @@ let _ =
       end ] ]
     ;
   
-  expr: LEVEL "expr1"
+  expr: LEVEL "top"
     [ [
-    "letvar"; fv = expr LEVEL "simple"; id = LIDENT;
+    "letvar"; fv = expr LEVEL "simple"; id = LIDENT; str = vbinding; _ = freshin;
       "in";  x = expr ->
-	<:expr<let $lid:id$ = Nvbindlib.new_var $fv$ in $x$>>
-  | "letvar"; fv = expr LEVEL "simple"; id = LIDENT; "("; n = expr LEVEL "top";")"; x = expr ->
-      <:expr<let $lid:id$ = Nvbindlib.new_mvar $fv$ $n$ in $x$>>
-  | "match"; e = SELF; "with"; "bind"; fv = expr LEVEL "simple";  
-      id = LIDENT; "in"; g = LIDENT;
-      "->"; f = expr LEVEL "top" -> 
+		    <:expr<let $lid:id$ = Nvbindlib.new_var $fv$
+            in $x$>>
+  | "letvar"; fv = expr LEVEL "simple"; id = LIDENT; "("; n = expr LEVEL "top";")"; 
+	str = vbinding; _ = freshin; "in";  x = expr ->
+	    <:expr<let $lid:id$ = Nvbindlib.new_mvar $fv$
+            in $x$>>
+     ] ];
+
+  match_case0: 
+    [ [
+    "bind"; fv = expr LEVEL "simple";  
+      id = LIDENT; str = vbinding; _ = freshin;  "in"; g = LIDENT;
+      "->"; f = expr -> 
 	let e1 = 
-	  <:expr<let $lid:g$ = Nvbindlib.subst $e$ (Nvbindlib.free_of $lid:id$) in $f$>> 
+	  <:expr<let $lid:g$ = Nvbindlib.subst $lid:"#e"$ (Nvbindlib.free_of $lid:id$) in $f$>> 
 	in
-	<:expr<let $lid:id$ = Nvbindlib.new_var $fv$ in $e1$>> 
-  | "match"; e = SELF; "with"; "bind"; fv = expr LEVEL "simple";  
-      id = LIDENT; "("; arity = LIDENT; ")"; "in"; g = LIDENT;
+	let e2 = 
+	    <:expr<let $lid:id$ = Nvbindlib.new_var $fv$ in $e1$>> 
+	in
+	<:match_case<
+        $lid:"#e"$ -> $e2$>>
+  | "bind"; fv = expr LEVEL "simple";  
+      id = LIDENT; "("; arity = LIDENT; ")"; 
+	str = vbinding; _ = freshin;  "in"; g = LIDENT;
       "->"; f = expr LEVEL "top" -> 
 	let e1 = 
 	  <:expr<let $lid:g$ = Nvbindlib.subst $lid:"#e"$ (Nvbindlib.free_of $lid:id$) in $f$>> 
 	in
-	let e2 =
-	  <:expr<
-	  let $lid:id$ = Nvbindlib.new_mvar $fv$ $lid:arity$ in $e1$>> 
-	in
-	<:expr<
-	let $lid:"#e"$ = $e$ in
+	let e2 = 
+	    <:expr<
+	    let $lid:id$ = Nvbindlib.new_mvar $fv$ in $e1$>> 
+in
+	<:match_case<
+	$lid:"#e"$ ->
 	let $lid:arity$ = Nvbindlib.binder_arity $lid:"#e"$ in
 	$e2$
 	>>
@@ -155,12 +188,14 @@ let _ =
       <:expr<Nvbindlib.bind_var $lid:id$ $e$>>
   | "bindvar"; id = LIDENT; "("; ")"; "in"; e = expr LEVEL "top" -> 
       <:expr<Nvbindlib.bind_mvar $lid:id$ $e$>>
-  | "bind"; fv = expr LEVEL "simple"; id = LIDENT; "in"; e = expr LEVEL "top" -> 
-      <:expr<Nvbindlib.bind $fv$ (fun $lid:id$ -> $e$) >>
+  | "bind"; fv = expr LEVEL "simple"; id = LIDENT; str = vbinding; _ = freshin; 
+       "in"; e = expr LEVEL "top" -> 
+	       <:expr<Nvbindlib.bind $fv$
+               (fun $lid:id$ -> $e$) >>
   | "bind"; fv = expr LEVEL "simple"; id = LIDENT; "("; n = expr LEVEL "top"; ")"; 
-        "in"; e = expr LEVEL "top" -> 
-	  <:expr<Nvbindlib.mbind $fv$ $n$
-          (fun $lid:id$ -> $e$) >>
+	 str = vbinding; _ = freshin;  "in"; e = expr LEVEL "top" -> 
+       <:expr<Nvbindlib.mbind $fv$
+               (fun $lid:id$ -> $e$) >>
      ] ];
 
   expr: LEVEL "simple" 
@@ -170,13 +205,14 @@ let _ =
   | "[|^"; "^|]" -> <:expr< Nvbindlib.unit [||] >>
   | "[|^"; el = expr1_semi_list; "^|]" -> 
       mkarrayupexp _loc el
-  | "{^"; Pa_o.test_label_eq; le = lbl_expr_list; "^}" ->
-      mkrecordupexp _loc None le
-  | "{^"; e = expr LEVEL "."; "with"; le = lbl_expr_list; "^}" ->
+  | "{^"; lel = label_expr; "^}" ->
+      mkrecordupexp _loc None lel
+  | "{^"; e = expr LEVEL "."; "with"; le = label_expr; "^}" ->
       mkrecordupexp _loc (Some e) le
-  | "(^"; "^)" -> <:expr< Nvbindlib.unit () >>
-  | "(^"; el =  LIST1 expr LEVEL ":=" SEP ","; "^)" -> 
-      mktuppleupexp _loc el
+ 	| "(^"; "^)" -> <:expr< Nvbindlib.unit () >>
+	| "(^"; e = expr LEVEL ":="; "^)" -> <:expr< Nvbindlib.unit $e$ >>
+  | "(^"; e = expr LEVEL ":="; ","; el = LIST1 expr LEVEL ":=" SEP ","; "^)" -> 
+      mktuppleupexp _loc (e::el)
     ] ];
 
   expr: AFTER "^" 
@@ -186,41 +222,38 @@ let _ =
           <:expr< Nvbindlib.unit_apply2 (fun x y -> [ x::y ]) $e1$ $e2$ >> ]
     ];
 
-  expr_ident:
-    [ RIGHTA
-      [ i = LIDENT -> <:expr< $lid:i$ >>
-      | i = UIDENT -> <:expr< $uid:i$ >>
-      | i = UIDENT; "."; j = SELF ->
-          let rec loop m =
-            function
-             <:expr< $x$ . $y$ >> -> loop <:expr< $m$ . $x$ >> y
-            | e -> <:expr< $m$ . $e$ >> 
-          in
-          loop <:expr< $uid:i$ >> j
-      | i = UIDENT; "."; "("; j = Pa_o.operator_rparen ->
-          <:expr< $uid:i$ . $lid:j$ >> ] ]
-  ;
-
   expr1_semi_list:
     [ [ e = expr LEVEL "expr1"; ";"; el = SELF -> e :: el
       | e = expr LEVEL "expr1"; ";" -> [e]
       | e = expr LEVEL "expr1" -> [e] ] ]
   ;
 
+  vbinding:
+    [ [
+      "as"; e = expr LEVEL "apply" -> Some e
+  | ->
+      None ] ]
+    ;
+ 
+  freshin:
+    [ [
+      "for"; id = LIDENT -> Some id
+  | ->
+      None ] ]
+    ;
+		
   lbl_expr_list:
     [ [ le = lbl_expr; ";"; lel = SELF -> le :: lel
       | le = lbl_expr; ";" -> [ le ]
       | le = lbl_expr -> [ le ] ] ]
   ;
   lbl_expr:
-    [ [ i = patt_label_ident; "="; e = expr LEVEL "expr1" -> (i, e) ] ]
-  ;
-  patt_label_ident:
-    [ LEFTA
-      [ p1 = SELF; "."; p2 = SELF -> <:patt< $p1$ . $p2$ >> ]
-    | RIGHTA
-      [ i = UIDENT -> <:patt< $uid:i$ >>
-      | i = LIDENT -> <:patt< $lid:i$ >> ] ]
+    [ [ i = ident; "="; e = expr LEVEL "expr1" -> (i, e) ] ]
   ;
   END	
 ;;
+
+
+end
+
+module M = Camlp4.Register.OCamlSyntaxExtension(Id)(Extension)

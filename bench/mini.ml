@@ -121,7 +121,7 @@ let compile term =
 	           let r' = ValFun(^r^) in 
 	           bind lambda x in fn ((name,r')::(name2,x)::env) t1) in
         let ct2 = bind lambda r in fn ((name,r)::env) t2 in       
-	bind_apply ct2 (ValFun(^ct1^))
+	bind_apply ct2 (ValFun(^ct1^) )
     | External v -> (^v.ext_value^)
   in
   unbox (fn [] term)

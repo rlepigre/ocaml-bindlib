@@ -30,10 +30,10 @@ let print_term t =
     	print_string "fun ";
         let rec gn nv = function
 	    Abs f ->
-	      match f with bind lambda x in f' ->
+	      (match f with bind lambda x in f' ->
 		print_string "x";
 		print_string " ";
-		gn (nv + 1) f'
+		gn (nv + 1) f')
 	  | t -> 
               print_string "-> ";
               fn nv ini_lvl t
@@ -56,7 +56,7 @@ let rec whnf = function
 let norm t = let rec fn t = 
   match whnf t with
     Abs f -> 
-      Abs(^ bind lambda x in fn (subst f (unbox x))^)
+      Abs(^ bind lambda x in fn (subst f (unbox x)) ^)
   | t -> 
       let rec unwind = function
 	  FVar(x) -> bindbox_of x
@@ -75,7 +75,7 @@ let norm' t =
 	  Abs(^ bind lambda x in fn [] (subst f (unbox x)) ^)
 	| t::stack -> fn stack (subst f t))
     | FVar(x) -> 
-	List.fold_left (fun t u -> App(^t,u^)) (bindbox_of x) (List.map (fn []) stack)
+	List.fold_left (fun t u -> App(^t,u^) ) (bindbox_of x) (List.map (fn []) stack)
   in unbox (fn [] t)
 
 
@@ -95,7 +95,7 @@ let norm_right t =
 	  | _ -> App(^t1', t2'^)
     	end
     | Abs f ->
-	Abs(^ bind lambda x in fn (subst f (unbox x))^)
+	Abs(^ bind lambda x in fn (subst f (unbox x)) ^)
     | FVar(x) ->
     	bindbox_of x
   in unbox (fn t)
@@ -105,28 +105,28 @@ let mark t =
     FVar(y) -> bindbox_of y
   | App(u,v) -> App(^App(^x,phi x u^),phi x v^)
   | Abs(f) ->
-     Abs(^ bind lambda y in phi x (subst f (unbox y))^)
+     Abs(^ bind lambda y in phi x (subst f (unbox y)) ^)
   in
-  unbox (Abs(^ bind lambda x in phi x t^))
+  unbox (Abs(^ bind lambda x in phi x t^) )
 
 (* examples of terms *)
-let idt = unbox (Abs(^ bind lambda x in x^))
+let idt = unbox (Abs(^ bind lambda x in x^) )
 
-let delta = unbox (Abs(^ bind lambda x in App(^x,x^)^))
+let delta = unbox (Abs(^ bind lambda x in App(^x,x^) ^) )
 
 let _ = print_string "delta'"
 
-let delta' = unbox (Abs(^ bind lambda x in Abs(^ bind lambda z in Abs(^ bind lambda y in App(^z,App(^x,y^)^)^)^)^))
+let delta' = unbox (Abs(^ bind lambda x in Abs(^ bind lambda z in Abs(^ bind lambda y in App(^z,App(^x,y^) ^) ^) ^) ^) )
 
 let _ = print_newline ()
 
 let zero = 
-  unbox (Abs(^ bind lambda f in Abs(^ bind lambda x in x ^)^))
+  unbox (Abs(^ bind lambda f in Abs(^ bind lambda x in x ^) ^) )
 
 let tfalse = zero
 
 let ttrue = 
-  unbox (Abs(^ bind lambda f in Abs(^ bind lambda x in f ^)^))
+  unbox (Abs(^ bind lambda f in Abs(^ bind lambda x in f ^) ^) )
 
 let _ =
     let print_bool b =
@@ -149,11 +149,11 @@ let _ =
 let succ = 
   unbox (Abs(^ bind lambda n in Abs(^ bind lambda f in 
               Abs(^ bind lambda x in 
-                App(^f,App(^App(^n,f^),x^)^)^)^)^))
+                App(^f,App(^App(^n,f^),x ^) ^) ^) ^) ^) )
 let succ' = 
   unbox (Abs(^ bind lambda n in Abs(^ bind lambda f in 
               Abs(^ bind lambda x in 
-		App(^App(^n,f^),App(^f,x^)^)^)^)^))
+		App(^App(^n,f^),App(^f,x^) ^) ^) ^) ^) )
 
 let two = App(succ,App(succ,zero))
 let four = App(two,two) 
@@ -169,11 +169,11 @@ let _ =
 
 let plus =   unbox (Abs(^ bind lambda n in Abs(^ bind lambda m in 
                Abs(^ bind lambda f in 
-               Abs(^ bind lambda x in App(^App(^n, f^),App(^App(^m, f^), x^)^)^)^)^)^))
+               Abs(^ bind lambda x in App(^App(^n, f^),App(^App(^m, f^), x^) ^) ^) ^) ^) ^) )
 
 let mul =   unbox (Abs(^ bind lambda n in Abs(^ bind lambda m in 
                Abs(^ bind lambda f in 
-                App(^n,App(^m,f^)^)^)^)^)) 
+                App(^n,App(^m,f^) ^) ^) ^) ^) ) 
 
 let height = App(App(plus,four) ,four) 
 let ten = App(App(plus,two) ,height) 
@@ -184,9 +184,9 @@ let thousand = App(App(mul,hundred) ,ten)
 let pred = unbox (Abs(^ bind lambda n in
   App(^App(^App(^App(^n,
     Abs(^ bind lambda p in Abs(^ bind lambda x in Abs(^ bind lambda y in
-       App(^App(^p,App(^ (^ succ ^) ,x ^)^),x^)^)^)^)^),
-    Abs(^ bind lambda x in Abs(^ bind lambda y in y^)^)^) ,
-    (^ zero ^) ^), (^ zero ^)^)^))
+       App(^App(^p,App(^ (^ succ ^) ,x ^) ^), x^) ^) ^) ^) ^),
+    Abs(^ bind lambda x in Abs(^ bind lambda y in y^) ^) ^) ,
+    (^ zero ^) ^), (^ zero ^) ^) ^) )
 
 
 let bench () =

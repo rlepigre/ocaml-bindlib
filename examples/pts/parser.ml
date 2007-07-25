@@ -45,7 +45,7 @@ module Make(Pts: PtsType) =
        	[< t = parse_atom env; t' = parse_app' env t >] -> t'
 
     and parse_app' env t = parser
-       	[< t' = parse_atom env; t'' = parse_app' env (App(^t, t'^)) >] -> t''
+       	[< t' = parse_atom env; t'' = parse_app' env (App(^t, t'^) ) >] -> t''
       |	[< >] -> t
  
     and parse_arrow env t = parser
@@ -55,10 +55,10 @@ module Make(Pts: PtsType) =
     and parse_expr' env = parser
       	[< 'Kwd "/\\"; l = parse_ident_list; 'Kwd ":"; t = parse_expr' env;
 	  'Kwd "."; str >] -> 
-	    build_binder l (fun f -> Pi(^t, f^)) env str
+	    build_binder l (fun f -> Pi(^t, f^) ) env str
       |	[< 'Kwd "\\"; l = parse_ident_list; 'Kwd ":"; t = parse_expr' env;
 	  'Kwd "."; str >] -> 
-	    build_binder l (fun f -> Lambda(^t, f^)) env str
+	    build_binder l (fun f -> Lambda(^t, f^) ) env str
       | [< t = parse_app env; t' = parse_arrow env t >] ->
  	  t'
 
