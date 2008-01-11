@@ -12,9 +12,9 @@ open Format
 type meta_lvl =
     Nometa 
   | Meta_left of int * 
-	(term list, term) binder array pre_term * 
+	(term, term) mbinder array bindbox * 
 	(string * (int * int)) list
-  | Meta_right of (term list, term) binder array pre_term * 
+  | Meta_right of (term, term) mbinder array bindbox * 
 	(string * (int * int)) list
 
 let keywords = [
@@ -64,7 +64,7 @@ let parse_prefix lvl_top strm =
 let is_ident = function
   Ident s -> (
     try 
-      lookup s; false
+      ignore (lookup s); false
     with
       Not_found ->
     	match s.[0] with
@@ -95,8 +95,9 @@ let rec parse_atom lvl env = parser
 
 and parse_bind name lvl env = parser
       [< 'Kwd "."; strm >] ->
-      	bBind name (fun x -> parse_expr' bind_lvl ((name,x)::env) strm)
-    | [< 'Kwd "["; str >] -> (
+				let f = bind var x as name in parse_expr' bind_lvl ((name,x)::env) strm in
+				Bind(^ (^is_closed f^), (^name^), f^)
+     | [< 'Kwd "["; str >] -> (
 	match !metas with
 	  Nometa -> raise (Stream.Error "Meta variables not allowed")
 	| Meta_right (ma, lm) -> (
@@ -109,14 +110,14 @@ and parse_bind name lvl env = parser
 		in
 		if ar <> List.length l then 
 		  raise (Stream.Error "Arity mismatch");
-		bmeta index ma l
+		bmeta index ma (Array.of_list l)
 	    )
 	| Meta_left (cur, ma, lm) -> 
 	    match str with parser
 	      [< l = parse_ident_list; 'Kwd "]" >] ->
 		let l = List.map (find_local env) l in
             	let index = try 
-		  let ar, meta = List.assoc name lm in
+		  let _ = List.assoc name lm in
 		  raise (Stream.Error "Non linear pattern")
 	    	with Not_found ->
 		  metas := 
@@ -124,7 +125,7 @@ and parse_bind name lvl env = parser
 				(name,(List.length l, cur))::lm);
 		  cur
 		in
-                bUVar ma index (build_list l)
+         UVar(^ ma, (^index^),  (lift_array (Array.of_list l)) ^)
 	    )
     | [< >] -> find_name env name
 
@@ -132,7 +133,8 @@ and parse_prefix_args sym env strm =
   let n = sym.symbol_arity in
   let args = Array.create n (unit Dummy) in
   parse_prefix_args' args sym.symbol_priority env n strm;
-  bApp sym args
+	let args = lift_array args in 
+  App(^ (^is_closed args^), (^false^), (^sym^), args ^)
 
 and parse_prefix_args' args lvl env = function
     0 -> (fun _ -> ())
@@ -157,8 +159,9 @@ and parse_app_suit t sym lvl_top env = parser
 | [< >] -> t
 
 and parse_infix_suit' t sym lvl_top env strm = 
-  if sym.symbol_arity = 1 then 
-    let tr = bApp sym [|t|] in 
+  if sym.symbol_arity = 1 then
+		let args = [|^ t ^|] in 
+    let tr = App(^ (^is_closed args^), (^false^), (^sym^), args^) in 
     parse_infix_suit tr sym.symbol_priority lvl_top env strm
   else
     let lvl = 
@@ -167,7 +170,8 @@ and parse_infix_suit' t sym lvl_top env strm =
       |	_ -> sym.symbol_priority +. epsilon
     in 
     let t' = parse_expr' lvl env strm in
-    let tr = bApp sym [|t; t'|] in 
+	  let args = [|^ t;t' ^|] in 
+    let tr = App(^ (^is_closed args^), (^false^), (^sym^), args^) in 
     parse_infix_suit tr sym.symbol_priority lvl_top env strm
     
 and parse_expr' lvl env = parser
@@ -177,7 +181,7 @@ and parse_expr' lvl env = parser
       t' = parse_infix_suit t max_priority lvl env >] -> t'
 
 and parse_expr strm =
-  start_term (parse_expr' min_priority [] strm)
+  unbox (parse_expr' min_priority [] strm)
 
 let parse_syntax = parser
     [< 'Ident "Prefix" >] -> Prefix
@@ -192,7 +196,7 @@ let parse_red strm =
       unbox (bind var ma in 
       	metas := Meta_left(0, ma, []);
       	parse_expr' min_priority [] strm) in
-    let Meta_left(num, _, lars) = !metas in
+        let Meta_left(num, _, lars) = !metas in
     let larv = Array.of_list (List.map (fun (_,(ar,_)) -> ar) lars) in
     (match strm with parser [< 'Kwd ">>" >] -> ());
     let res =

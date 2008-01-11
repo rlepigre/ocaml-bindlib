@@ -41,10 +41,10 @@ simple3opt: simple3.ml
 	$(CAMLO) $(OPTION) -o simple3opt simple3.ml
 
 mini: ../bindlib.cmo ../camlp4nvbo mini.ml
-	$(CAMLC) -pp "camlp4o ../pa_nvbindlib.cmo" $(OPTION) -I .. -o mini ../nvbindlib.cma mini.ml
+	$(CAMLC) -pp "camlp4nvbo" $(OPTION) -I .. -o mini ../nvbindlib.cma mini.ml
 
 miniopt: ../bindlib.cmx ../camlp4nvbo mini.ml
-	$(CAMLO)  -pp "camlp4o ../pa_nvbindlib.cmo" $(OPTION) -I .. -cclib -L.. -o miniopt ../nvbindlib.cmxa mini.ml
+	$(CAMLO)  -pp "camlp4nvbo" $(OPTION) -I .. -cclib -L.. -o miniopt ../nvbindlib.cmxa mini.ml
 
 bench: term nvterm mini simple1 simple2 simple3
 

@@ -34,15 +34,15 @@ and term =
 | App of bool * bool * symbol * term array
 | Def of string * bool ref * term
 
-| UVar of (term, term) mbinder array * int * term array
-| Var of term var
+| UVar of (term, term) mbinder variable  * index * term array
+| Var of term variable
 | Varint of int
 | Dummy
 
 
 and pattern =
   int array * 
-      ((term, term) mbinder, term) mbinder *
+	    ((term, term) mbinder, term) mbinder *
       ((term, term) mbinder, term) mbinder
 
 let var x = Var(x)
@@ -50,11 +50,11 @@ let var x = Var(x)
 let lvar l = assert false
 
 let bnth i tl =
-  unit_apply (fun l -> List.nth l i) tl
+  unit_apply (fun l -> l.(i)) (lift_array tl)
 
 let bproj i ts =
   unit_apply (fun t -> t.(i)) ts
 
 let bmeta i ts tl =
-  bind_apply (bproj i ts) (lift_list tl)
+  mbind_apply (bproj i ts) (lift_array tl)
 

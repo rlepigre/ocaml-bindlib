@@ -1,6 +1,6 @@
-CAMLC = ocamlc -pp "../../camlp4bo" -I ../..
-CAMLO = ocamlopt -pp "../../camlp4bo" -I ../..
-CAMLDEP = ocamldep -pp "../../camlp4bo" -I ../..
+CAMLC = ocamlc -pp "../../camlp4bof" -I ../..
+CAMLO = ocamlopt -pp "../../camlp4bof" -I ../..
+CAMLDEP = ocamldep -pp "../../camlp4bof" -I ../..
 
 FILES = genlex.ml basic.ml globals.ml print.ml type_check.ml \
 	action.ml file.ml parser.ml main.ml
@@ -27,8 +27,8 @@ lntt.opt : lntt.cmx $(XFILES)
 
 check:
 	./F.slow < test.F
-	./CoC.slow < test.Coc
-	
+	./CoC.slow < test.CoC
+
 depend: 
 	- rm depend;\
 	$(CAMLDEP) *.ml *.mli > depend

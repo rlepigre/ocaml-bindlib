@@ -26,6 +26,9 @@ val binder_name : ('a,'b) binder -> string
 (** [name_of v] returns the name of the free variable [v] *)
 val name_of : 'a variable -> string
 
+(** a safe comarison for variables *)
+val compare_variables : 'a variable -> 'a variable -> int
+
 (** type inhabited by data structures of type ['a] with variables under construction *)
 type (+'a) bindbox
 
@@ -67,9 +70,11 @@ type ('a,'b) mbinder
 
 (** [mbinder_arity f] returns the number of variables bound in [f] *)
 val mbinder_arity : ('a,'b) mbinder -> int
+val binder_arity : ('a,'b) mbinder -> int
 
 (** [mbinder_names f] returns the names of the variables bound in [f] *)
 val mbinder_names : ('a,'b) mbinder -> string array
+val binder_names : ('a,'b) mbinder -> string array
 
 (** this is the subtitution function: it takes an expression with several bound
   variables of type ['a] and an array of values for these variables and replace all the

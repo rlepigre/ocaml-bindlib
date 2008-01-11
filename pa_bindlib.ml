@@ -143,7 +143,7 @@ EXTEND Gram
     [ [
     "letvar"; fv = expr LEVEL "simple"; id = LIDENT; str = vbinding;
       fr = freshin;
-      "in";  x = expr ->
+      "in";  x = sequence ->
 	let name = match str with
 	  Some e -> e
 	| None ->  <:expr< $str:id$ >> 
@@ -151,14 +151,14 @@ EXTEND Gram
 	begin match fr with
 	  None ->
 	    <:expr<let $lid:id$ = Bindlib.new_var $fv$ $name$ 
-            in $x$>>
+            in do {$seq:x$}>>
 	| Some ctxt ->
 	    <:expr<let ($lid:id$,$lid:ctxt$) = 
 	      Bindlib.new_var_in $lid:ctxt$ $fv$ $name$ 
-            in $x$>>
+            in do{$seq:x$}>>
 	end
   | "letvar"; fv = expr LEVEL "simple"; id = LIDENT; "("; n = expr LEVEL "top";")"; 
-	str = vbinding; fr = freshin; "in";  x = expr ->
+	str = vbinding; fr = freshin; "in";  x = sequence ->
 	let names = match str with
 	  Some e -> e
 	| None -> 
@@ -167,11 +167,11 @@ EXTEND Gram
 	begin match fr with
 	  None ->
 	    <:expr<let $lid:id$ = Bindlib.new_mvar $fv$ $names$ 
-            in $x$>>
+            in do{$seq:x$}>>
 	| Some ctxt ->
 	    <:expr<let ($lid:id$,$lid:ctxt$) = 
 	      Bindlib.new_mvar_in $lid:ctxt$ $fv$ $names$ 
-            in $x$>>
+            in do{$seq:x$}>>
 	end
      ] ];
 
@@ -179,9 +179,9 @@ EXTEND Gram
     [ [
     "bind"; fv = expr LEVEL "simple";  
       id = LIDENT; str = vbinding;  fr = freshin; "in"; g = LIDENT;
-      "->"; f = expr -> 
+      "->"; f = sequence -> 
 	let e1 = 
-	  <:expr<let $lid:g$ = Bindlib.subst $lid:"#e"$ (Bindlib.free_of $lid:id$) in $f$>> 
+	  <:expr<let $lid:g$ = Bindlib.subst $lid:"#e"$ (Bindlib.free_of $lid:id$) in do{$seq:f$}>> 
 	in
 	let name = match str with
 	  None -> <:expr<Bindlib.binder_name $lid:"#e"$>>
@@ -199,13 +199,13 @@ EXTEND Gram
   | "bind"; fv = expr LEVEL "simple";  
       id = LIDENT; "("; arity = LIDENT; ")"; 
 	str = vbinding;  fr = freshin; "in"; g = LIDENT;
-      "->"; f = expr LEVEL "top" -> 
+      "->"; f = sequence -> 
 	let e1 = 
-	  <:expr<let $lid:g$ = Bindlib.subst $lid:"#e"$ (Bindlib.free_of $lid:id$) in $f$>> 
+	  <:expr<let $lid:g$ = Bindlib.msubst $lid:"#e"$ (Array.map Bindlib.free_of $lid:id$) in do{$seq:f$}>> 
 	in
 	let names = match str with
 	  None -> 
-            <:expr<Bindlib.binder_names $lid:"#e"$>>
+            <:expr<Bindlib.mbinder_names $lid:"#e"$>>
 	| Some names -> 
 	    <:expr<do {if (Array.length $names$ <> $lid:arity$) then
 	      invalid_argument "bad array size for names array in match ... with bind"
@@ -223,7 +223,7 @@ EXTEND Gram
 	in
 	<:match_case<
 	$lid:"#e"$ ->
-	let $lid:arity$ = Bindlib.binder_arity $lid:"#e"$ in
+	let $lid:arity$ = Bindlib.mbinder_arity $lid:"#e"$ in
 	$e2$
 	>>
      ] ];

@@ -2,18 +2,6 @@ open Basic
 open Bindlib
 open Format
 
-let genname name nv = 
-  let name = 
-    if not (StringSet.mem name nv) then name
-    else
-      let i = ref 0 in
-      let namex = ref (name ^ string_of_int !i) in
-      while StringSet.mem !namex nv do
-	incr i;
-	namex := name ^ string_of_int !i
-      done; 
-      !namex
-  in name, StringSet.add name nv
 
 let max_priority = 1e100
 let min_priority = -1e100
@@ -26,13 +14,12 @@ let print_term, print_term' =
       Bind(_,name,f) ->    
 	if lvl > bind_lvl then print_string "(";
 	if lvl <> bind_lvl then open_hbox ();
-      	let name, nv = genname name nv in 
-	match f with bind var x in t ->
-      	print_string name; 
+	(match f with bind var x for nv in t ->
+      	print_string (name_of x); 
       	print_string ".";
       	fn bind_lvl nv t;
 	if lvl <> bind_lvl then close_box ();
-	if lvl > bind_lvl then print_string ")"
+	if lvl > bind_lvl then print_string ")")
     | App(_, _, s, ts) -> 
 	if s.symbol_arity = 0 then print_string s.symbol_name else begin
  	  if lvl > s.symbol_priority then print_string "(";
@@ -79,36 +66,39 @@ let print_term, print_term' =
       	print_string (name_of v)
     | Def(name,_,_) ->
       	print_string name
-    | UVar(_, index, tl) ->
-      	print_string "X";
- 	print_int index;
+    | UVar(v, tl) ->
+      	print_string (name_of v);
 	print_string "[";
 	let rec gn = function
 	    [] -> ()
 	  | [t] -> fn min_priority nv t;
 	  | t::suit -> fn min_priority nv t; print_string ","; gn suit
-        in gn tl;
+        in gn (Array.to_list tl);
 	print_string "]"
     | Varint (i) ->
       	print_string "$"; print_int i
     | Dummy ->
       	print_string "!!!"
 
-in fn min_priority StringSet.empty, fn min_priority 
+in fn min_priority empty_context, fn min_priority 
 
 let print_pattern (lars, pat, res) =
-  let nv = ref StringSet.empty in
-  let vars = Array.mapi (fun n _ ->
-    let name = "X"^string_of_int n in
-    nv := StringSet.add name !nv;
-    unbox (bind lvar tl in UVar (^ [|^ ^|], (^n^),  tl^))) lars
-  in
+  let nv = empty_context in
+	let rec fn vars n nv =
+		if n = 0 then vars, nv
+		else 
+	    let name = "X"^(string_of_int n) in
+      letvar lvar var as name for nv in
+			fn (free_of var::vars) (n-1) nv 
+	in
+	let (vars, nv) = fn [] (Array.length lars) nv in
+	let vars = Array.of_list vars in
   open_hovbox 2;
-  print_term' !nv (subst pat vars);
+  print_term' nv (msubst pat vars);
   print_space ();
   print_string ">>";
   print_space ();
-  print_term' !nv (subst res vars);
+  print_term' nv (msubst res vars);
   close_box ();
   print_break 1 0
 

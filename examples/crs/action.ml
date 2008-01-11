@@ -31,10 +31,10 @@ let add_cst name arity fix priority  =
 let add_red (arities, pat, res as pattern) =
   let vars = 
     Array.map 
-      (fun n -> start_term (bind (fun tl -> unit Dummy)))
+      (fun n -> unbox (bind var x(n) in unit Dummy))
       arities
   in 
-  let pat = subst pat vars in
+  let pat = msubst pat vars in
   match pat with
     App(_,_,symbol, _) ->
       symbol.symbol_rewrite <- pattern::symbol.symbol_rewrite

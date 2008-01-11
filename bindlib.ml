@@ -29,8 +29,8 @@ let get_suffix name suffix ctxt =
   try
     let l = SMap.find name ctxt in
     let rec search acc suffix = function
-	[] -> suffix, [suffix]
-      | x::l when x > suffix -> suffix, List.rev_append acc (suffix::l)
+	[] -> suffix, List.rev_append acc [suffix]
+      | x::_ as l when x > suffix -> suffix, List.rev_append acc (suffix::l)
       | x::l when x = suffix -> search (x::acc) (suffix+1) l
       | x::l (* when x < suffix *) -> search (x::acc) suffix l
     in
@@ -123,6 +123,9 @@ let split_name name =
   if p = n or p = 0 then name, (-1) else
   String.sub name 0 p, int_of_string (String.sub name p (n - p))
 
+let compare_variables v1 v2 =
+  Pervasives.compare v1.key v2.key
+
 (** merge l l' merge two sorted lists in one sorted list without repetition *)
 let rec merge l l' = 
   match l, l' with
@@ -163,9 +166,11 @@ let msubst f x = snd f x
 
 (** get the names of the binder *)
 let mbinder_names f = fst f
+let binder_names = mbinder_names
 
 (** get the arity of the binder *)
 let mbinder_arity f = Array.length (fst f)
+let binder_arity = mbinder_arity
 
 (** it is sometimes nice to have a "dummy" bindbox. This avoid extra type
 constructor is some circonstances and may play the role of "None" *)

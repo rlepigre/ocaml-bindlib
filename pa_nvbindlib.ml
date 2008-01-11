@@ -142,22 +142,22 @@ EXTEND Gram
   expr: LEVEL "top"
     [ [
     "letvar"; fv = expr LEVEL "simple"; id = LIDENT; str = vbinding; _ = freshin;
-      "in";  x = expr ->
+      "in";  x = sequence ->
 		    <:expr<let $lid:id$ = Nvbindlib.new_var $fv$
-            in $x$>>
+            in do{$seq:x$}>>
   | "letvar"; fv = expr LEVEL "simple"; id = LIDENT; "("; n = expr LEVEL "top";")"; 
-	str = vbinding; _ = freshin; "in";  x = expr ->
+	str = vbinding; _ = freshin; "in";  x = sequence ->
 	    <:expr<let $lid:id$ = Nvbindlib.new_mvar $fv$
-            in $x$>>
+            in do{$seq:x$}>>
      ] ];
 
   match_case0: 
     [ [
     "bind"; fv = expr LEVEL "simple";  
       id = LIDENT; str = vbinding; _ = freshin;  "in"; g = LIDENT;
-      "->"; f = expr -> 
+      "->"; f = sequence -> 
 	let e1 = 
-	  <:expr<let $lid:g$ = Nvbindlib.subst $lid:"#e"$ (Nvbindlib.free_of $lid:id$) in $f$>> 
+	  <:expr<let $lid:g$ = Nvbindlib.subst $lid:"#e"$ (Nvbindlib.free_of $lid:id$) in do{$seq:f$}>> 
 	in
 	let e2 = 
 	    <:expr<let $lid:id$ = Nvbindlib.new_var $fv$ in $e1$>> 
@@ -167,9 +167,9 @@ EXTEND Gram
   | "bind"; fv = expr LEVEL "simple";  
       id = LIDENT; "("; arity = LIDENT; ")"; 
 	str = vbinding; _ = freshin;  "in"; g = LIDENT;
-      "->"; f = expr LEVEL "top" -> 
+      "->"; f = sequence -> 
 	let e1 = 
-	  <:expr<let $lid:g$ = Nvbindlib.subst $lid:"#e"$ (Nvbindlib.free_of $lid:id$) in $f$>> 
+	  <:expr<let $lid:g$ = Nvbindlib.subst $lid:"#e"$ (Nvbindlib.free_of $lid:id$) in do{$seq:f$}>> 
 	in
 	let e2 = 
 	    <:expr<

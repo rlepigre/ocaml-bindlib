@@ -8,10 +8,10 @@ exception Nonfree
 let match_one t (arities, pat, res) =
   let vars = 
     Array.map 
-      (fun n -> unbox (bind lvar tl in unit Dummy))
+      (fun n -> unbox (bind lvar tl(n) in unit Dummy))
       arities
   in 
-  let pat = subst pat vars in
+  let pat = msubst pat vars in
   let rec do_match depth t1 t2 = match t1, t2 with
     Bind(_,_,f1), Bind(_,_,f2) ->
       let c = Varint (depth) in
@@ -28,15 +28,15 @@ let match_one t (arities, pat, res) =
 	    if cl then
 	      unit t0
       	    else
-	      match f with bind var x as name in t ->
-              Bind(^(^cl^),(^name^),
-		   bindvar x in immitate tl t^)
+	      (match f with bind var x as name in t ->
+              Bind(^ (^cl^),(^name^),
+		          bindvar x in immitate tl t^) )
  	| App(cl,_,s2, ts2) as t0 ->
 	    if cl then
 	      unit t0
       	    else 
-              App(^(^cl^), (^false^), (^s2^),
-		  lift_array (Array.map (immitate tl) ts2)^)
+              App(^ (^cl^), (^false^), (^s2^),
+		  lift_array (Array.map (immitate tl) ts2) ^)
 	| Def _ as t ->
 	    unit t
         | Var (x) -> bindbox_of x
@@ -46,12 +46,12 @@ let match_one t (arities, pat, res) =
 	      | (Varint(n1))::_ when n1 = n -> pos
 	      |	_ :: suit -> fn (pos + 1) suit
 	    in
-	    let pos = fn 0 tl1 in
+	    let pos = fn 0 (Array.to_list tl1) in
 	    bnth pos tl
 	| _ -> failwith "bug in immitate"
       in  
       tbl.(index) <- 
-	 unbox (bind lvar tl in immitate tl t2)
+	 unbox (bind lvar tl(Array.length tl1) in immitate tl t2)
   | Def(_,_,t1), t2 ->
       do_match depth t1 t2
   | t1, Def(_,_,t2) ->
@@ -60,39 +60,40 @@ let match_one t (arities, pat, res) =
       raise Clash        
   in 
   do_match 0 pat t; 
-  subst res vars
+ msubst res vars
 
 let par_red t =
   let rec copy = function
-      Bind(cl,name, f) as t -> 
-	if cl then unit t else
-	match f with bind var x as name in t ->
-	Bind(^(^cl^),(^name^),copy t^)
     | App(cl,normal,s, ts) as t -> 
 	if cl then unit t else
-	(if normal then bApp_normal else bApp) s (Array.map copy ts)
+	App(^ (^cl^), (^normal^), (^s^), (lift_array (Array.map copy ts)) ^)
     | Def _ as t ->
 	unit t
     | Var (x) -> 
 	bindbox_of x
+    | Bind(cl,name, f) as t -> 
+	if cl then unit t else
+	(match f with bind var x as name in t -> 
+	Bind(^ (^cl^),(^name^),bind var x in copy t ^) ) 
     | _ -> failwith "bug in par_red"
   in
   let rec fn did_one = function
-      Bind(_, name, f) -> 
-        bBind name (
-	  fun x -> fn did_one (subst f (Varterm x)))
+      Bind(cl, name, f) -> 
+				(match f with bind var x as name in t ->
+					let f = bind var x in fn did_one t in
+					Bind(^ (^is_closed f^), (^name^), f^) )
     | App(cl,false, s, ts) -> 
         let did_one' = ref false in
-        let nts = Array.map (fn did_one') ts in
+        let nts = lift_array (Array.map (fn did_one') ts) in
         let nt = 
- 	  if !did_one' then begin
-	    did_one := true;
-            bApp s nts
+ 	        if !did_one' then begin
+	        did_one := true;
+          App(^ (^is_closed nts^),(^false^),(^s^), nts^)
 	  end else begin
-	    bApp_normal s nts
+	    App(^ (^is_closed nts^),(^true^),(^s^), nts^)
 	  end
 	in
-	let nt = start_term nt in
+	let nt = unbox nt in
 	let rec gn = function
           [] -> 
 	    copy nt
@@ -119,12 +120,12 @@ let par_red t =
 	end
     | App(_,true,_,_) as t ->
 	copy t
-    | Varterm (x) -> 
-	x
+    | Var(x) -> 
+	bindbox_of x
     | u -> print_term u; failwith "bug in parred"
   in 
   let did_one = ref false in
-  let t' = start_term (fn did_one t) in 
+  let t' = unbox (fn did_one t) in 
   !did_one, t'
 
 let rec reduce t =
