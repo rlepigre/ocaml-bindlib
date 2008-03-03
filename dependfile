@@ -1,0 +1,6 @@
+ptmap.cmo: ptmap.cmi 
+ptmap.cmx: ptmap.cmi 
+bindlib.cmo: ptmap.cmi bindlib.cmi 
+bindlib.cmx: ptmap.cmx bindlib.cmi 
+nvbindlib.cmo: ptmap.cmi nvbindlib.cmi 
+nvbindlib.cmx: ptmap.cmx nvbindlib.cmi 
