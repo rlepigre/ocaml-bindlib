@@ -141,17 +141,16 @@ module Make(Pts: PtsType) =
 	  type_check' args' (subst f (csthyp (binder_name f) (Some a) t')) t
 
       |	Def d as e0, args0 ->
-          let t0 = t in 
-	  let rec unwind args t' t =
+	  let rec unwind args t' =
 	    match whnf t', args with
 	      t', [] -> 
 	  	if not (convertible t' t) then 
-		  raise (Ill_type(rebuild e0 args0,t0))
+		  raise (Ill_type(rebuild e0 args0,t))
 	    | Pi(t',f), (a::args') ->
 	  	type_check a t';
-	  	unwind args' (subst f (csthyp (binder_name f) (Some a) t')) t
-	    | _ -> raise (Ill_type(rebuild e0 args0,t0))
-	  in unwind args0 d.def_type t0
+	  	unwind args' (subst f (csthyp (binder_name f) (Some a) t'))
+	    | _ -> raise (Ill_type(rebuild e0 args0,t))
+	  in unwind args0 d.def_type
 
       |	FVar _, _ ->
 	  failwith "type_check does not accept FVar"

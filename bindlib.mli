@@ -59,6 +59,10 @@ val dummy_bindbox : 'a bindbox
     [Failure "Invalid use of dummy_bindbox"] *)
 
 (** check if the bound variable occurs or not *)
+val is_binder_constant :
+ ('a,'b) binder -> bool
+
+(** check if a binder is a closed term *)
 val is_binder_closed :
  ('a,'b) binder -> bool
 
@@ -83,6 +87,10 @@ val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
 (** check if one of the bound variables occurs or not. There are no way to tell if a
     specific variable bound in a multiple binder occurs or not *)
+val is_mbinder_constant :
+ ('a,'b) mbinder -> bool
+
+(** check is the term is a closed term *)
 val is_mbinder_closed :
  ('a,'b) mbinder -> bool
 

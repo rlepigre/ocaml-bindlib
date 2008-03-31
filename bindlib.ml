@@ -322,13 +322,22 @@ let head_mk_mute_bind =
   Obj.field (Obj.repr f) 0
 
 (* check if the variable bound in (f : ('a,'b) binder) occurs *)
-let is_binder_closed f =
+let is_binder_constant f =
   let f = Obj.repr (snd f) in
   let tag = Obj.tag f in
   assert (tag = Obj.closure_tag);
   let head = Obj.field f 0 in
   (head == head_mk_closed_bind) or (head == head_mk_mute_bind)
 
+(* check if a binder is a closed term *)
+let is_binder_closed f =
+  let f = Obj.repr (snd f) in
+  let tag = Obj.tag f in
+  assert (tag = Obj.closure_tag);
+  let head = Obj.field f 0 in
+  (head == head_mk_closed_bind)
+
+let is_mbinder_constant = is_binder_constant
 let is_mbinder_closed = is_binder_closed
 
 (* used for the first binder in a closed term (the binder that binds the last*)

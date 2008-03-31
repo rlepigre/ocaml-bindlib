@@ -94,10 +94,18 @@ val new_mvar : ('a variable -> 'a) -> int -> 'a mvariable
 val bind_mvar : 'a mvariable -> 'b bindbox -> ('a, 'b) mbinder bindbox
 
 (** check if the bound variable occurs or not *)
+val is_binder_constant :
+ ('a,'b) binder -> bool
+
+(** check if a binder is a closed term *)
 val is_binder_closed :
  ('a,'b) binder -> bool
 
-(** check if one of the bound variables occurs or not *)
+(** check if at least one of the bound variables occurs *)
+val is_mbinder_constant :
+ ('a,'b) mbinder -> bool
+
+(** check if a binder is a closed term *)
 val is_mbinder_closed :
  ('a,'b) mbinder -> bool
 
