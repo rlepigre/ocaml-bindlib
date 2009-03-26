@@ -135,8 +135,9 @@ compile-doc:
 	cd doc; make
 
 distrib: compile-doc clean
-	cd ..; tar cvzf $(ROOTDIR)/archive/$(ROOTDIR).tgz \
-	  --exclude cache --exclude pts --exclude archive\
+	- rm Makefile
+	cd ..; tar cvzf $(ROOTDIR)/archive/$(ROOTDIR).tar.gz \
+	  --exclude cache --exclude archive\
 	  --exclude _darcs $(ROOTDIR)
 
 dum:
