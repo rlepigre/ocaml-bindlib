@@ -219,5 +219,9 @@ val special_apply : unit bindbox -> 'a bindbox -> unit bindbox * 'a env_term
 val special_start : unit bindbox
 val special_end : unit bindbox -> 'a env_term -> 'a bindbox
 
-
-
+(* This function creates a copy the the given variable, that is not
+   distinguishable from the original variable when it is bound. However,
+   when it is free (that is not bound when calling unbox), the way 
+   to make it free may be different. This can be used to mark some specific
+   occurence of a variable, the marking disappearing when the variable is free.   The name can also be changed *)
+val copy_var : 'a variable -> string -> ('a variable -> 'a) -> 'a variable

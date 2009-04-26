@@ -741,3 +741,6 @@ module Lift_array = Lift(Map_array)
 let lift_array = Lift_array.f
 
 let lift_pair x y = unit_apply2 (fun x y -> x,y) x y
+
+let copy_var var name mkfree = 
+  { var with var_name = name; mkfree = mkfree }
