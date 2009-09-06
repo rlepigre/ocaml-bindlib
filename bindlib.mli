@@ -29,6 +29,8 @@ val name_of : 'a variable -> string
 (** a safe comarison for variables *)
 val compare_variables : 'a variable -> 'a variable -> int
 
+val get_var_key : 'a variable -> int
+
 (** type inhabited by data structures of type ['a] with variables under construction *)
 type (+'a) bindbox
 
@@ -185,6 +187,7 @@ val bind_in : context ->
  ('a variable -> 'a) -> string -> ('a bindbox -> context -> 'b bindbox) ->
    ('a,'b) binder bindbox
 
+val reset_bindlib_count : unit -> unit 
 val new_var : ('a variable -> 'a) -> string -> 'a variable
 
 val new_var_in : context -> ('a variable -> 'a) -> string -> 'a variable * context

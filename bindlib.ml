@@ -126,6 +126,8 @@ let split_name name =
 let compare_variables v1 v2 =
   Pervasives.compare v1.key v2.key
 
+let get_var_key v = v.key
+
 (** merge l l' merge two sorted lists in one sorted list without repetition *)
 let rec merge l l' = 
   match l, l' with
@@ -181,6 +183,9 @@ let dummy_bindbox =
 (* the function that creates the number of a new variable *)
 let count = ref 0
 
+let reset_bindlib_count () =
+  count := 0
+
 let mk_var index v = get_env v index
 
 let mk_var2 var tbl =
@@ -190,6 +195,7 @@ let generalise_var = ((fun var -> Obj.magic var) : 'a variable -> any variable)
 
 let new_var (bv  : 'a variable -> 'a) name =
   incr count;
+  if !count < 0 then failwith "variable loop (buy a 64 bits)";
   let prefix, suffix = split_name name in
   let rec var = { 
     key = !count; 
@@ -205,6 +211,7 @@ let new_var (bv  : 'a variable -> 'a) name =
 
 let new_var_in ctxt (bv  : 'a variable -> 'a) name =
   incr count;
+  if !count < 0 then failwith "variable loop (buy a 64 bits)";
   let prefix, suffix = split_name name in
   let new_suffix, ctxt = get_suffix prefix suffix ctxt in
   let rec var = { 
