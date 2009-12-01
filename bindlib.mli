@@ -102,6 +102,8 @@ val is_mbinder_closed :
 This may be useful when optimizing a program *)
 val is_closed : 'a bindbox -> bool
 
+val list_variables : 'a bindbox -> unit
+
 val bind_apply : 
  ('a, 'b) binder bindbox -> 'a bindbox -> 'b bindbox
 val mbind_apply : 
