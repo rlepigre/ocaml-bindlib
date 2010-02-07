@@ -735,17 +735,25 @@ module Lift2(M: Map2) =
 module Map_list =
   struct 
     type 'a t = 'a list
-    let map = List.rev_map (* since we map twice ... this is better ! *)
+    let map = List.map  
   end
 
 module Lift_list = Lift(Map_list)
-
 let lift_list = Lift_list.f
+
+module Map_rev_list =
+  struct 
+    type 'a t = 'a list
+    let map = List.rev_map  
+  end
+
+module Lift_rev_list = Lift(Map_rev_list)
+let lift_rev_list = Lift_rev_list.f
 
 module Map_array =
   struct 
     type 'a t = 'a array
-    let map = Array.map (* since we map twice ... this is better ! *)
+    let map = Array.map 
   end
 
 module Lift_array = Lift(Map_array)

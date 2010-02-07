@@ -170,6 +170,9 @@ module Lift2(M: Map2) :
 val lift_list :
  'a bindbox list -> 'a list bindbox
 
+val lift_rev_list :
+ 'a bindbox list -> 'a list bindbox
+
 (** {[lift_array = 
   let module M = struct 
     type 'a t = 'a array 
