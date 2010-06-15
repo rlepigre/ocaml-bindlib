@@ -102,7 +102,17 @@ val is_mbinder_closed :
 This may be useful when optimizing a program *)
 val is_closed : 'a bindbox -> bool
 
+(** For debugging your code:
+    print the names of the free variables of a 'a bindbox.
+*)
 val list_variables : 'a bindbox -> unit
+
+(** this function returns the list of variables of a 'a bindbox.
+This is only usable if
+- all the variables of the expressiob have the same type
+- you type cast the result of the function to write yourself the correct 
+  value of 'b. *)
+val unsafe_list_variables : 'a bindbox -> 'b variable list
 
 val bind_apply : 
  ('a, 'b) binder bindbox -> 'a bindbox -> 'b bindbox

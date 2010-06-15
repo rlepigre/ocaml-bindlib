@@ -614,9 +614,13 @@ let is_closed = function
 
 let list_variables = function
     Closed(_) -> ()
-  | Open(vt,_,_) ->
+  | Open(vt,_,_) -> 
       List.iter (fun var -> print_string var.var_name) vt
  
+let unsafe_list_variables = function
+    Closed(_) -> []
+  | Open(vt,_,_) -> Obj.magic vt
+  
 (* Here are some usefull function *)
 (* Some of them are optimised (the comment is the simple definition) *)
 
