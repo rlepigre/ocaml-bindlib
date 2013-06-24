@@ -1,7 +1,7 @@
 # write the path to the caml-light library here
-LIBDIR:=$(shell ocamlc -where)
-BINDIR:=$(shell bash script/bindir)
-ROOTDIR:=$(shell bash script/dirname)
+LIBDIR =$(shell ocamlc -where)
+BINDIR =$(shell bash script/bindir)
+ROOTDIR =$(shell bash script/dirname)
 
 CAMLC = ocamlc -g
 CAMLO = ocamlopt
@@ -132,6 +132,9 @@ camlp4nvbof: pa_nvbindlib.cmo
         Camlp4Bin.cmo -o camlp4nvbof
 
 install: 
+	if [ ! -d $(LIBDIR) ]; then mkdir -p $(LIBDIR); fi
+	if [ ! -d $(LIBDIR)/camlp4 ]; then mkdir -p $(LIBDIR)/camlp4; fi
+	if [ ! -d $(BINDIR) ]; then mkdir -p $(BINDIR); fi
 	cp bindlib.cmxa bindlib.a bindlib.cma bindlib.cmi bindlib.mli $(LIBDIR)
 	cp nvbindlib.cmxa nvbindlib.a nvbindlib.cma nvbindlib.cmi nvbindlib.mli $(LIBDIR)
 	cp pa_bindlib.cmo pa_nvbindlib.cmo $(LIBDIR)/camlp4
