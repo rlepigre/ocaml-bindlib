@@ -102,6 +102,9 @@ val is_mbinder_closed :
 This may be useful when optimizing a program *)
 val is_closed : 'a bindbox -> bool
 
+(** test if a variable occur in a bindbox *)
+val occur : 'a variable -> 'b bindbox -> bool
+
 (** For debugging your code:
     print the names of the free variables of a 'a bindbox.
 *)

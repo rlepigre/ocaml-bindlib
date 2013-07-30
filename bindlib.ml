@@ -608,6 +608,11 @@ let unbox t =
       t htbl env
   in fn t
 
+let occur v = function
+   Closed(_) -> false
+  | Open(vt,_,_) ->
+    List.exists (fun v' -> v'.key = v.key) vt
+
 let is_closed = function
    Closed(_) -> true
  | _ -> false
