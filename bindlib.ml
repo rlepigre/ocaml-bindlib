@@ -307,45 +307,16 @@ let apply tf ta =
 
 (* used for a binder when you bind a variable in closed term (therefore that *)
 (* variable does not occur in the term ! *)
-let mk_closed_bind pt = 
-  fun _ -> pt
-
-let head_mk_closed_bind =
-  let f = mk_closed_bind () in
-  Obj.field (Obj.repr f) 0
+let mk_closed_bind pt = fun _ -> pt
 
 (* used for binder which binds a variable with no occurrence (but the term has*)
 (* other free variables *)
-let mk_mute_bind name pt v = name, fun _ ->
-  pt v
+let mk_mute_bind name pt v = name, fun _ -> pt v
 
 let mk_mute_bind2 collision prefix suffix pt htbl = 
   let suffix = get_suffix2 collision htbl suffix in
   let name = merge_name prefix suffix in
   mk_mute_bind name (pt htbl)
-
-let head_mk_mute_bind =
-  let f = snd (mk_mute_bind "" (fun x y -> y x) ()) in
-  Obj.field (Obj.repr f) 0
-
-(* check if the variable bound in (f : ('a,'b) binder) occurs *)
-let is_binder_constant f =
-  let f = Obj.repr (snd f) in
-  let tag = Obj.tag f in
-  assert (tag = Obj.closure_tag);
-  let head = Obj.field f 0 in
-  (head == head_mk_closed_bind) or (head == head_mk_mute_bind)
-
-(* check if a binder is a closed term *)
-let is_binder_closed f =
-  let f = Obj.repr (snd f) in
-  let tag = Obj.tag f in
-  assert (tag = Obj.closure_tag);
-  let head = Obj.field f 0 in
-  (head == head_mk_closed_bind)
-
-let is_mbinder_constant = is_binder_constant
-let is_mbinder_closed = is_binder_closed
 
 (* used for the first binder in a closed term (the binder that binds the last*)
 (* free variable in a term and make it a closed term *)
@@ -773,3 +744,66 @@ let lift_pair x y = unit_apply2 (fun x y -> x,y) x y
 
 let copy_var var name mkfree = 
   { var with var_name = name; mkfree = mkfree }
+
+let head_mk_closed_bind =
+  let v = new_var (fun _ -> ()) "" in
+  let res = bind_aux v (Closed()) in
+  match res with
+    Closed(_,f) ->
+      Obj.field (Obj.repr f) 0
+  | _ -> assert false
+
+let head_mk_closed_bind2 =
+  let v = new_var (fun _ -> ()) "" in
+  let res = bind_aux v (Closed()) in
+  match res with
+    Closed(_,f) ->
+      Obj.field (Obj.repr f) 0
+  | _ -> assert false
+
+let head_mk_closed_mbind =
+  let v = new_mvar (fun _ -> ()) [|""|] in
+  let res = mbind_aux v (Closed()) in
+  match res with
+    Closed(_,f) ->
+      Obj.field (Obj.repr f) 0
+  | _ -> assert false
+
+let head_mk_closed_mbind2 =
+  let v = new_mvar (fun _ -> ()) [|""|] in
+  let res = mbind_aux v (Closed()) in
+  match res with
+    Closed(_,f) ->
+      Obj.field (Obj.repr f) 0
+  | _ -> assert false
+
+let head_mk_mute_bind =
+  let f = snd (mk_mute_bind "" (fun x y -> y x) ()) in
+  Obj.field (Obj.repr f) 0
+
+let head_mk_mute_bind2 =
+  let f = snd (mk_mute_bind "" (fun x y -> y x) ()) in
+  Obj.field (Obj.repr f) 0
+
+let _ = assert (head_mk_mute_bind == head_mk_mute_bind2)
+let _ = assert (head_mk_closed_bind == head_mk_closed_bind2)
+let _ = assert (head_mk_closed_mbind == head_mk_closed_mbind2)
+
+(* check if the variable bound in (f : ('a,'b) binder) occurs *)
+let is_binder_constant f =
+  let f = Obj.repr (snd f) in
+  let tag = Obj.tag f in
+  assert (tag = Obj.closure_tag);
+  let head = Obj.field f 0 in
+  (head == head_mk_closed_bind) or (head == head_mk_closed_mbind) or (head == head_mk_mute_bind)
+
+(* check if a binder is a closed term *)
+let is_binder_closed f =
+  let f = Obj.repr (snd f) in
+  let tag = Obj.tag f in
+  assert (tag = Obj.closure_tag);
+  let head = Obj.field f 0 in
+  (head == head_mk_closed_bind)
+
+let is_mbinder_constant = is_binder_constant
+let is_mbinder_closed = is_binder_closed
