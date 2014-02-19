@@ -240,7 +240,7 @@ let is_binder_constant f =
   let tag = Obj.tag f in
   assert (tag = Obj.closure_tag);
   let head = Obj.field f 0 in
-  (head == head_mk_closed_bind) or (head == head_mk_mute_bind)
+  (head == head_mk_closed_bind) || (head == head_mk_mute_bind)
 
 (* check if a binder is a closed term *)
 let is_binder_closed f =

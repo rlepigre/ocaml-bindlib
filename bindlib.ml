@@ -120,7 +120,7 @@ let split_name name =
     decr p
   done;
   let p = !p + 1 in
-  if p = n or p = 0 then name, (-1) else
+  if p = n || p = 0 then name, (-1) else
   String.sub name 0 p, int_of_string (String.sub name p (n - p))
 
 let compare_variables v1 v2 =
@@ -795,7 +795,7 @@ let is_binder_constant f =
   let tag = Obj.tag f in
   assert (tag = Obj.closure_tag);
   let head = Obj.field f 0 in
-  (head == head_mk_closed_bind) or (head == head_mk_closed_mbind) or (head == head_mk_mute_bind)
+  (head == head_mk_closed_bind) || (head == head_mk_closed_mbind) || (head == head_mk_mute_bind)
 
 (* check if a binder is a closed term *)
 let is_binder_closed f =
