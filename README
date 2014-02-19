@@ -14,8 +14,8 @@ Installation
 
 This library only works with ocaml version 3.09.x., 3.10.x and after 
 
-copy Makefile-3.09 or Makefile-3.10 to Makefile depending upon your
-ocaml version
+if you have ocaml 3.09 or 3.100 copy Makefile-3.09 or Makefile-3.10 to Makefile depending upon your
+ocaml version. Then,
 
 make checkconfig
   Check the guessed value of BINDIR and LIBDIR. If it does not suit you,
