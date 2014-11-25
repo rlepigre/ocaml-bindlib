@@ -148,6 +148,10 @@ let search var l =
   in 
   fn [] l
 
+(** hashing for variable, is just the *)
+let hash_var var =
+  Hashtbl.hash var.key
+	       
 (** the type of binder: ('a,'b) binder is an expression of type 'b 
     with a bound variable of type 'a. It is exported abstract *)
 type ('a,'b) binder = string * ('a -> 'b)
@@ -381,19 +385,51 @@ let bind_aux v t = match t with
 	    (fun v -> v.key) vt in
 	Open(vt, nbt, mk_mute_bind2 collision v.prefix v.suffix t)
 
+let bind_aux_info v t = match t with 
+     Closed(t) ->
+       Closed ((v.var_name, mk_closed_bind t), None)
+   | Open(vt,nbt,t) -> 
+       try 
+         match vt with
+          [var] -> 
+            if v.key <> var.key then raise Not_found;
+            let esize = nbt + 2 in
+            Closed (mk_first_bind2 v.prefix v.suffix v.key esize t, Some 0)
+        | _ ->
+            let vt = search v vt in
+	    let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
+		(fun v -> v.key) vt in
+	    let pos = List.length vt + 1 in
+	    let nbt = nbt + 1 in
+            Open(vt, nbt, let f = mk_bind2 collision v.prefix v.suffix v.key pos t in fun varpos env -> f varpos env, Some nbt)
+      with Not_found ->
+	let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
+	    (fun v -> v.key) vt in
+	Open(vt, nbt, let f = mk_mute_bind2 collision v.prefix v.suffix t in fun varpos env -> f varpos env, None)
+	    
 (* take a function of type ('a bindbox -> 'b bindbox) and transform it into a binder*) 
 (* of type ('a, 'b) binder bindbox *)
 let bind bv name fpt =
   let v = new_var bv name in
   bind_aux v (fpt v.bindbox)
 
+let bind_info bv name fpt =
+  let v = new_var bv name in
+  bind_aux_info v (fpt v.bindbox)
+
 let bind_in ctxt bv name fpt =
   let v, ctxt = new_var_in ctxt bv name in
   bind_aux v (fpt v.bindbox ctxt)
 
+let bind_in_info ctxt bv name fpt =
+  let v, ctxt = new_var_in ctxt bv name in
+  bind_aux_info v (fpt v.bindbox ctxt)
+
 exception Bindlib_Not_Variable
 
 let bind_var = bind_aux
+
+let bind_var_info = bind_aux_info
 
 let mk_mbind names pos access pt v = 
   names, fun args ->
@@ -580,7 +616,7 @@ let unbox t =
   in fn t
 
 let occur v = function
-   Closed(_) -> false
+    Closed(_) -> false
   | Open(vt,_,_) ->
     List.exists (fun v' -> v'.key = v.key) vt
 

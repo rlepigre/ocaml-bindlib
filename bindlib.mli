@@ -200,10 +200,17 @@ val lift_array :
 val bind :
  ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox) ->
    ('a,'b) binder bindbox
+val bind_info :
+ ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox) ->
+   (('a,'b) binder * int option) bindbox
 
 val bind_in : context ->
  ('a variable -> 'a) -> string -> ('a bindbox -> context -> 'b bindbox) ->
    ('a,'b) binder bindbox
+
+val bind_in_info : context ->
+ ('a variable -> 'a) -> string -> ('a bindbox -> context -> 'b bindbox) ->
+   (('a,'b) binder * int option) bindbox
 
 val reset_bindlib_count : unit -> unit 
 val new_var : ('a variable -> 'a) -> string -> 'a variable
@@ -211,6 +218,7 @@ val new_var : ('a variable -> 'a) -> string -> 'a variable
 val new_var_in : context -> ('a variable -> 'a) -> string -> 'a variable * context
 
 val bind_var : 'a variable -> 'b bindbox -> ('a, 'b) binder bindbox
+val bind_var_info : 'a variable -> 'b bindbox -> (('a, 'b) binder * int option) bindbox
 
 val mbind :
  ('a variable -> 'a) -> string array -> 
@@ -240,9 +248,12 @@ val special_apply : unit bindbox -> 'a bindbox -> unit bindbox * 'a env_term
 val special_start : unit bindbox
 val special_end : unit bindbox -> 'a env_term -> 'a bindbox
 
-(* This function creates a copy the the given variable, that is not
+(* This function creates a copy of the given variable, that is not
    distinguishable from the original variable when it is bound. However,
    when it is free (that is not bound when calling unbox), the way 
    to make it free may be different. This can be used to mark some specific
    occurence of a variable, the marking disappearing when the variable is free.   The name can also be changed *)
 val copy_var : 'a variable -> string -> ('a variable -> 'a) -> 'a variable
+
+val hash_var : 'a variable -> int
+				

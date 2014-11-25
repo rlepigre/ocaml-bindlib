@@ -82,7 +82,7 @@ let rec get_one_rig_rig eqns =
   let rec fn acc = function
   [] -> raise Not_found
 | (t1,t2) as tpl::l -> 
-    if rigid t1 & rigid t2 then tpl,(acc@l)
+    if rigid t1 && rigid t2 then tpl,(acc@l)
     else fn (tpl::acc) l
   in fn [] eqns
 
