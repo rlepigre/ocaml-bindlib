@@ -23,6 +23,9 @@ val subst : ('a,'b) binder -> 'a -> 'b
 (** [binder_name f] returns the name of the variable bound in [f] *)
 val binder_name : ('a,'b) binder -> string
 
+val binder_occur : ('a,'b) binder -> bool
+val binder_rank  : ('a,'b) binder -> int
+				       
 (** [name_of v] returns the name of the free variable [v] *)
 val name_of : 'a variable -> string
 
@@ -200,17 +203,10 @@ val lift_array :
 val bind :
  ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox) ->
    ('a,'b) binder bindbox
-val bind_info :
- ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox) ->
-   (('a,'b) binder * int option) bindbox
 
 val bind_in : context ->
  ('a variable -> 'a) -> string -> ('a bindbox -> context -> 'b bindbox) ->
    ('a,'b) binder bindbox
-
-val bind_in_info : context ->
- ('a variable -> 'a) -> string -> ('a bindbox -> context -> 'b bindbox) ->
-   (('a,'b) binder * int option) bindbox
 
 val reset_bindlib_count : unit -> unit 
 val new_var : ('a variable -> 'a) -> string -> 'a variable
@@ -218,7 +214,6 @@ val new_var : ('a variable -> 'a) -> string -> 'a variable
 val new_var_in : context -> ('a variable -> 'a) -> string -> 'a variable * context
 
 val bind_var : 'a variable -> 'b bindbox -> ('a, 'b) binder bindbox
-val bind_var_info : 'a variable -> 'b bindbox -> (('a, 'b) binder * int option) bindbox
 
 val mbind :
  ('a variable -> 'a) -> string array -> 

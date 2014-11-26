@@ -150,32 +150,44 @@ let search var l =
 
 (** hashing for variable, is just the *)
 let hash_var var =
-  Hashtbl.hash var.key
+  Hashtbl.hash (`HVar,  var.key)
 	       
 (** the type of binder: ('a,'b) binder is an expression of type 'b 
     with a bound variable of type 'a. It is exported abstract *)
-type ('a,'b) binder = string * ('a -> 'b)
+type ('a,'b) binder = { name : string; (* name of the bound variable *)
+			bind : bool; (* false if the variable does not occur *)
+			rank : int; (* >= 0: number of free variables after binding this one *)
+			value : 'a -> 'b }
     
 (** the substitution, it is just an application ! *)
-let subst f x = snd f x
+let subst f x = f.value x
 
 (** get the name of the binder *)
-let binder_name f = fst f
+let binder_name f = f.name
 
+let binder_occur f = f.bind
+let binder_rank f = f.rank
+		      
 (** the type of multiple binder (binding n variables at once): 
 ('a,'b) mbinder is an expression of type 'b 
     with a n bound variables of type 'a. It is exported abstract *)
-type ('a,'b) mbinder = string array * ('a array -> 'b)
+type ('a,'b) mbinder = { names : string array;
+			 binds : bool array;
+			 ranks : int;
+			 values : ('a array -> 'b) }
     
 (** the substitution, it is just an application ! *)
-let msubst f x = snd f x
+let msubst f x = f.values x
 
 (** get the names of the binder *)
-let mbinder_names f = fst f
+let mbinder_names f = f.names
 let binder_names = mbinder_names
 
+let mbinder_occurs f = f.binds
+let mbinder_ranks f = f.ranks
+		      
 (** get the arity of the binder *)
-let mbinder_arity f = Array.length (fst f)
+let mbinder_arity f = Array.length f.names
 let binder_arity = mbinder_arity
 
 (** it is sometimes nice to have a "dummy" bindbox. This avoid extra type
@@ -311,16 +323,16 @@ let apply tf ta =
 
 (* used for a binder when you bind a variable in closed term (therefore that *)
 (* variable does not occur in the term ! *)
-let mk_closed_bind pt = fun _ -> pt
+let mk_closed_bind v pt = { name = v.var_name; rank = 0; bind = false; value = fun _ -> pt}
 
 (* used for binder which binds a variable with no occurrence (but the term has*)
 (* other free variables *)
-let mk_mute_bind name pt v = name, fun _ -> pt v
+let mk_mute_bind rank name pt v = { name; rank; bind = false; value = fun _ -> pt v }
 
-let mk_mute_bind2 collision prefix suffix pt htbl = 
+let mk_mute_bind2 rank collision prefix suffix pt htbl = 
   let suffix = get_suffix2 collision htbl suffix in
   let name = merge_name prefix suffix in
-  mk_mute_bind name (pt htbl)
+  mk_mute_bind rank name (pt htbl)
 
 (* used for the first binder in a closed term (the binder that binds the last*)
 (* free variable in a term and make it a closed term *)
@@ -330,13 +342,14 @@ let mk_first_bind esize pt arg =
   set_env v 1 arg;
   pt v
 
-let mk_first_bind2 prefix suffix key esize pt = 
+let mk_first_bind2 rank prefix suffix key esize pt = 
   let htbl = IntMap.empty in
   let htbl = IntMap.add key (1,suffix) htbl in
-  merge_name prefix suffix, mk_first_bind esize (pt htbl)
+  { name = merge_name prefix suffix; rank; bind = true; value = mk_first_bind esize (pt htbl) }
 
 (* used for the general case of a binder *)
-let mk_bind name pos pt v = name, fun arg ->
+let mk_bind name pos pt v =
+  { name; rank = pos - 1; bind = true; value = fun arg ->
   let next = get_env v 0 in 
   if next = pos then begin
     set_env v 0 (next + 1);
@@ -350,7 +363,7 @@ let mk_bind name pos pt v = name, fun arg ->
       set_env v i 0
     done;
     pt v
-  end
+	end}
 
 let mk_bind2 collision prefix suffix key pos pt htbl =
   let suffix = get_suffix2 collision htbl suffix in
@@ -366,14 +379,14 @@ let filter_map cond fn l =
 
 let bind_aux v t = match t with 
      Closed(t) ->
-       Closed (v.var_name, mk_closed_bind t)
+       Closed (mk_closed_bind v t)
    | Open(vt,nbt,t) -> 
        try 
          match vt with
           [var] -> 
             if v.key <> var.key then raise Not_found;
             let esize = nbt + 2 in
-            Closed (mk_first_bind2 v.prefix v.suffix v.key esize t)
+            Closed (mk_first_bind2 (List.length vt) v.prefix v.suffix v.key esize t)
         | _ ->
             let vt = search v vt in
 	    let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
@@ -383,56 +396,24 @@ let bind_aux v t = match t with
       with Not_found ->
 	let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
 	    (fun v -> v.key) vt in
-	Open(vt, nbt, mk_mute_bind2 collision v.prefix v.suffix t)
+	Open(vt, nbt, mk_mute_bind2 (List.length vt) collision v.prefix v.suffix t)
 
-let bind_aux_info v t = match t with 
-     Closed(t) ->
-       Closed ((v.var_name, mk_closed_bind t), None)
-   | Open(vt,nbt,t) -> 
-       try 
-         match vt with
-          [var] -> 
-            if v.key <> var.key then raise Not_found;
-            let esize = nbt + 2 in
-            Closed (mk_first_bind2 v.prefix v.suffix v.key esize t, Some 0)
-        | _ ->
-            let vt = search v vt in
-	    let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-		(fun v -> v.key) vt in
-	    let pos = List.length vt + 1 in
-	    let nbt = nbt + 1 in
-            Open(vt, nbt, let f = mk_bind2 collision v.prefix v.suffix v.key pos t in fun varpos env -> f varpos env, Some nbt)
-      with Not_found ->
-	let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-	    (fun v -> v.key) vt in
-	Open(vt, nbt, let f = mk_mute_bind2 collision v.prefix v.suffix t in fun varpos env -> f varpos env, None)
-	    
 (* take a function of type ('a bindbox -> 'b bindbox) and transform it into a binder*) 
 (* of type ('a, 'b) binder bindbox *)
 let bind bv name fpt =
   let v = new_var bv name in
   bind_aux v (fpt v.bindbox)
 
-let bind_info bv name fpt =
-  let v = new_var bv name in
-  bind_aux_info v (fpt v.bindbox)
-
 let bind_in ctxt bv name fpt =
   let v, ctxt = new_var_in ctxt bv name in
   bind_aux v (fpt v.bindbox ctxt)
-
-let bind_in_info ctxt bv name fpt =
-  let v, ctxt = new_var_in ctxt bv name in
-  bind_aux_info v (fpt v.bindbox ctxt)
 
 exception Bindlib_Not_Variable
 
 let bind_var = bind_aux
 
-let bind_var_info = bind_aux_info
-
 let mk_mbind names pos access pt v = 
-  names, fun args ->
+  { names; ranks = pos-1; binds = access; values = fun args ->
     let arity = Array.length names in
     let size = Array.length args in
     if size <> arity then raise (Invalid_argument "bad arity in msubst");
@@ -460,7 +441,7 @@ let mk_mbind names pos access pt v =
 	set_env v i 0
       done;
       pt v
-    end
+    end }
 
 let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
   let cur_pos = ref pos in
@@ -479,23 +460,36 @@ let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
   in
   mk_mbind new_names pos access (pt !htbl)
 
-
-let mk_closed_mbind names pt v = 
-  names, fun args ->
+let mk_closed_mbind names t = 
+  {names;
+   ranks = 0;
+   binds = Array.map (fun _ -> false) names;
+   values = fun args ->
     let arity = Array.length names in
     let size = Array.length args in
     if size <> arity then raise (Invalid_argument "bad arity in msubst");
-    pt v
+    t}
 
-let mk_closed_mbind2 colls prefixes suffixes pt htbl =
+let mk_mute_mbind ranks names pt v = 
+  {names;
+   ranks;
+   binds = Array.map (fun _ -> false) names;
+   values = fun args ->
+    let arity = Array.length names in
+    let size = Array.length args in
+    if size <> arity then raise (Invalid_argument "bad arity in msubst");
+    pt v}
+
+let mk_mute_mbind2 ranks colls prefixes suffixes pt htbl =
   let new_names = Array.create (Array.length prefixes) "" in
   Array.iteri (fun i c ->
     let suffix = get_suffix2 c htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
 	      ) colls;
-  mk_closed_mbind new_names (pt htbl)
+  mk_mute_mbind ranks new_names (pt htbl)
 
-let mk_first_mbind names size access pt = names, fun args ->
+let mk_first_mbind names size access pt = {
+  names; binds = access; ranks = 0; values =  fun args ->
   let v = create_env size in
   let arity = Array.length names in
   let size = Array.length args in
@@ -508,7 +502,7 @@ let mk_first_mbind names size access pt = names, fun args ->
     end
   done;
   set_env v 0 !cur_pos;
-  pt v
+  pt v}
 
 let mk_first_mbind2 colls prefixes suffixes keys size pt =
   let cur_pos = ref 1 in
@@ -527,10 +521,11 @@ let mk_first_mbind2 colls prefixes suffixes keys size pt =
   in
   mk_first_mbind new_names size access (pt !htbl)
 
-let mbind_aux vs t = match t with 
+let mbind_aux vs t = 
+  match t with 
      Closed(t) ->
        let names = Array.map (fun v -> v.var_name) vs in
-       Closed (names, mk_closed_bind t)
+       Closed (mk_closed_mbind names t)
    | Open(vt,nbt,t) -> 
        let vt = ref vt in
        let nnbt = ref nbt in
@@ -558,7 +553,8 @@ let mbind_aux vs t = match t with
        if !vt = [] then
 	 Closed(mk_first_mbind2 colls prefixes suffixes keys (!nnbt + 1) t)
        else if !nnbt = nbt then
-	 Open(!vt,nbt,mk_closed_mbind2 colls prefixes suffixes t)
+	 let vt = !vt in
+	 Open(vt,nbt,mk_mute_mbind2 (List.length vt) colls prefixes suffixes t)
        else
 	 let pos = List.length !vt + 1 in
 	 Open(!vt,!nnbt,mk_mbind2 colls prefixes suffixes keys pos t)
@@ -669,19 +665,19 @@ let unit_apply2 f ta tb =
 let unit_apply3 f t t' t'' = apply (unit_apply2 f t t') t''
 
 (* Used in some cases ! *)
-let bind_apply f = unit_apply2 snd f
+let bind_apply f = unit_apply2 (fun f -> f.value) f
 
-let mbind_apply f = unit_apply2 snd f
+let mbind_apply f = unit_apply2 (fun f -> f.values) f
 
 let rec cfix t = t (cfix t)
 
-let rec fix t env =  snd (t env) (fix t env)
+let rec fix t env =  (t env).value (fix t env)
 
 let fix2 t htbl = fix (t htbl)
 
 let fixpoint (f : (('a, 'b) binder, ('a, 'b) binder) binder bindbox) = 
   (match f with
-    Closed t -> Closed(cfix (snd t))
+    Closed t -> Closed(cfix t.value)
   | Open(vt,nbt,t) -> Open(vt,nbt,fix2 t) : ('a, 'b) binder bindbox)
 
 (* dirty imperative functions ... *)
@@ -781,65 +777,13 @@ let lift_pair x y = unit_apply2 (fun x y -> x,y) x y
 let copy_var var name mkfree = 
   { var with var_name = name; mkfree = mkfree }
 
-let head_mk_closed_bind =
-  let v = new_var (fun _ -> ()) "" in
-  let res = bind_aux v (Closed()) in
-  match res with
-    Closed(_,f) ->
-      Obj.field (Obj.repr f) 0
-  | _ -> assert false
-
-let head_mk_closed_bind2 =
-  let v = new_var (fun _ -> ()) "" in
-  let res = bind_aux v (Closed()) in
-  match res with
-    Closed(_,f) ->
-      Obj.field (Obj.repr f) 0
-  | _ -> assert false
-
-let head_mk_closed_mbind =
-  let v = new_mvar (fun _ -> ()) [|""|] in
-  let res = mbind_aux v (Closed()) in
-  match res with
-    Closed(_,f) ->
-      Obj.field (Obj.repr f) 0
-  | _ -> assert false
-
-let head_mk_closed_mbind2 =
-  let v = new_mvar (fun _ -> ()) [|""|] in
-  let res = mbind_aux v (Closed()) in
-  match res with
-    Closed(_,f) ->
-      Obj.field (Obj.repr f) 0
-  | _ -> assert false
-
-let head_mk_mute_bind =
-  let f = snd (mk_mute_bind "" (fun x y -> y x) ()) in
-  Obj.field (Obj.repr f) 0
-
-let head_mk_mute_bind2 =
-  let f = snd (mk_mute_bind "" (fun x y -> y x) ()) in
-  Obj.field (Obj.repr f) 0
-
-let _ = assert (head_mk_mute_bind == head_mk_mute_bind2)
-let _ = assert (head_mk_closed_bind == head_mk_closed_bind2)
-let _ = assert (head_mk_closed_mbind == head_mk_closed_mbind2)
-
 (* check if the variable bound in (f : ('a,'b) binder) occurs *)
-let is_binder_constant f =
-  let f = Obj.repr (snd f) in
-  let tag = Obj.tag f in
-  assert (tag = Obj.closure_tag);
-  let head = Obj.field f 0 in
-  (head == head_mk_closed_bind) || (head == head_mk_closed_mbind) || (head == head_mk_mute_bind)
+let is_binder_constant f = not f.bind
 
 (* check if a binder is a closed term *)
-let is_binder_closed f =
-  let f = Obj.repr (snd f) in
-  let tag = Obj.tag f in
-  assert (tag = Obj.closure_tag);
-  let head = Obj.field f 0 in
-  (head == head_mk_closed_bind)
+let is_binder_closed f = f.rank = 0
 
-let is_mbinder_constant = is_binder_constant
-let is_mbinder_closed = is_binder_closed
+let is_mbinder_constant f = Array.fold_left (&&) true f.binds
+let is_mbinder_closed f = f.ranks = 0
+				      
+			  
