@@ -1,5 +1,0 @@
-#!bash
-
-tmp=`which camlp4`
-
-echo ${tmp%/*}

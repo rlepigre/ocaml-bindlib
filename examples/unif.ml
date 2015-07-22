@@ -70,38 +70,10 @@ let rec add_eqn eqns t t' =
       let c = new_cst s in add_eqn eqns (App(t,c)) (subst f c)
   | _ -> (t1,t2)::eqns
 
-
-(* works on whnf only !*)
-let rec rigid = function
-  App(t1,t2) -> rigid t1
-| UVar{contents = Unknown _} -> false
-| _ -> true
-
-
-let rec get_one_rig_rig eqns = 
-  let rec fn acc = function
-  [] -> raise Not_found
-| (t1,t2) as tpl::l -> 
-    if rigid t1 && rigid t2 then tpl,(acc@l)
-    else fn (tpl::acc) l
-  in fn [] eqns
-
-(* works only if all rigid rigid equations have been removed *)
-let rec get_one_rig_flex = function
-  [] -> raise Not_found
-| (t1,t2) as tpl::l -> 
-    if rigid t2 then tpl
-    else if rigid t1 then (t2,t1)
-    else get_one_rig_flex l
-
-                   
 exception Clash
 
-let rec rig_rig eqns = function
-  App(t1,t2), App(t1',t2') -> rig_rig (add_eqn eqns t2 t2') (t1, t1')
-| Cst c, Cst c' when c == c' -> eqns
-| UCst (c,_), UCst (c',_) when c = c' -> eqns
-| _ -> raise Clash
+
+
 
 
 
@@ -123,16 +95,16 @@ let imitate t1 t2 =
   let s1 = infer_type v and s2 = infer_type h in
   let rec fn nargs t n = match t,n with
     | sh1, 0 -> 
-      	let rec gn h t' n' = match t',n' with
-    	| sh2, 0 -> 
+              let rec gn h t' n' = match t',n' with
+            | sh2, 0 -> 
             if sh1 <> sh2 then failwith "bug in imitate";
             h
-    	| Arrow(s,s'), n ->
+            | Arrow(s,s'), n ->
             gn (App(^h, new_avar s nargs^) ) s' (n-1)
-      	| _ -> failwith "bug in imitate"
-      	in gn (^h^) s2 arg2s 
+              | _ -> failwith "bug in imitate"
+              in gn (^h^) s2 arg2s 
     | Arrow(s,s'), n when n > 0 -> 
-      	Abs(^ (^s^), bind (fVar s) x in fn ((s,x)::nargs) s' (n-1) ^) 
+              Abs(^ (^s^), bind (fVar s) x in fn ((s,x)::nargs) s' (n-1) ^) 
     | _ -> failwith "bug in imitate"
   in unbox(fn [] s1 arg1s)
 
@@ -143,53 +115,43 @@ let rec right_depth = function
 
 type 'a obj = Nothing of int | Something of 'a
 
-
-let test_occur v t = 
-  let rec fn b t = 
-    match whnf t with
-      App(t1,t2) -> fn (fn b t1) t2
-    | Abs(s,f) -> fn b (subst f (UCst(-1,s)))
-    | UVar {contents = Unknown _} as v' -> 
-      	if v == v' then if b then raise Exit else raise Clash
-      	else true
-    | _ -> false
-  in fn false t
-
 let project t1 t2 = 
   let v, arg1s = head_args t1 in
   let s1 = infer_type v and s2 = infer_type t2 in
   let rec fn projs i t n = match t, n with
-    | sh1, 0 -> projs
-    | Arrow(s0,s'), n -> 
-      	let k = right_depth s0 - right_depth s2 in
-      	if k < 0 then fn projs (i+1) s' (n-1) else
-    	let rec gn h nargs t' n' = match t', n' with
-    	| _, 0 -> 
-	    let h = match h with
-              Nothing _ -> failwith "bug in proj"
-	    | Something x -> x in
-	    let rec kn h t'' n'' = match t'', n'' with
-      	    | sh2, 0 -> 
-            	if s2 <> sh2 then raise Exit;
-            	h
-	    | Arrow(s,s'), i ->
-          	kn (App(^h, new_avar s nargs^) ) s' (i - 1)
-	    | _ -> failwith "bug in proj"
-            in kn h s0 k
-    	| Arrow(s,s'), n -> 
-	    Abs(^ (^s^), bind (fVar s) x in
-              let h = match h with
-          	Nothing 0 -> Something x
-              | Nothing i -> Nothing (i-1)
-              | _ -> h in
-              gn h ((s,x)::nargs) s' (n-1) ^) 
-    	| _ -> failwith "bug in proj"
-        in 
-	(try 
-          let t = unbox (gn (Nothing i) [] s1 arg1s) in
-          fn ((k,t)::projs) (i+1) s' (n-1)
-	with 
-	  Exit -> fn projs (i+1) s' (n-1))
+    | sh1         , 0 -> projs
+    | Arrow(s0,s'), n ->
+        let k = right_depth s0 - right_depth s2 in
+        if k < 0 then
+          fn projs (i+1) s' (n-1)
+        else
+          let rec gn h nargs t' n' = match t', n' with
+            | _, 0 ->
+                let h = match h with
+                        | Nothing _ -> failwith "bug in proj"
+                        | Something x -> x
+                in
+                let rec kn h t'' n'' =
+                  match t'', n'' with
+                  | sh2        , 0 ->
+                      if s2 <> sh2 then raise Exit; h
+                  | Arrow(s,s'), i ->
+                      kn (App(^h, new_avar s nargs^) ) s' (i - 1)
+                  | _ -> failwith "bug in proj"
+                in kn h s0 k
+            | Arrow(s,s'), n ->
+                Abs(^ (^s^), bind (fVar s) x in
+                  let h = match h with
+                          | Nothing 0 -> Something x
+                          | Nothing i -> Nothing (i-1)
+                          | _         -> h
+                  in gn h ((s,x)::nargs) s' (n-1) ^) 
+            | _ -> failwith "bug in proj"
+          in 
+          (try 
+            let t = unbox (gn (Nothing i) [] s1 arg1s) in
+            fn ((k,t)::projs) (i+1) s' (n-1)
+          with Exit -> fn projs (i+1) s' (n-1))
     | _ -> failwith "bug in proj"
   in fn [] 0 s1 arg1s
 
@@ -202,6 +164,38 @@ let re_whnf eqns =
     [] eqns
     
 let rec unif_loop step eqns =
+  (* works on whnf only !*)
+  let rec rigid = function
+    | App(t1,t2) -> rigid t1
+    | UVar{contents = Unknown _} -> false
+    | _ -> true
+  in
+
+  let rec get_one_rig_rig eqns = 
+    let rec fn acc = function
+      | [] -> raise Not_found
+      | (t1,t2) as tpl::l -> 
+        if rigid t1 && rigid t2 then tpl,(acc@l)
+        else fn (tpl::acc) l
+    in fn [] eqns
+  in
+
+  let rec rig_rig eqns = function
+    | App(t1,t2), App(t1',t2') -> rig_rig (add_eqn eqns t2 t2') (t1, t1')
+    | Cst c, Cst c' when c == c' -> eqns
+    | UCst (c,_), UCst (c',_) when c = c' -> eqns
+    | _ -> raise Clash
+  in
+
+  (* works only if all rigid rigid equations have been removed *)
+  let rec get_one_rig_flex = function
+    | [] -> raise Not_found
+    | (t1,t2) as tpl::l -> 
+        if rigid t2 then tpl
+        else if rigid t1 then (t2,t1)
+        else get_one_rig_flex l
+  in
+
   try 
     let eq, eqns = get_one_rig_rig eqns in
     unif_loop step (rig_rig eqns eq)
@@ -211,11 +205,28 @@ let rec unif_loop step eqns =
     let v, nb_args = head_args t1 in
     match v with
       UVar ({contents = Unknown s} as value) -> ( 
-        try try
+        try
+        
+        try
           if nb_args = 0 then begin
-            let _ = test_occur v t2 in
+
+            let test_occur v t = 
+              let rec fn b t = 
+                match whnf t with
+                | App(t1,t2) -> fn (fn b t1) t2
+                | Abs(s,f)   -> fn b (subst f (UCst(-1,s)))
+                | UVar {contents = Unknown _} as v' -> 
+                          if v == v' then
+                            if b then raise Exit
+                            else raise Clash
+                          else true
+                | _ -> false
+              ignore (fn false t)
+            in
+
+            test_occur v t2;
             value := Known t2;
-	    let eqns = re_whnf eqns in
+            let eqns = re_whnf eqns in
             unif_loop step eqns
           end else raise Exit
         with Exit -> try
@@ -226,20 +237,28 @@ let rec unif_loop step eqns =
           | (_,t)::l ->
             try 
               value := Known t;
-	      let eqns = re_whnf eqns in
+              let eqns = re_whnf eqns in
               unif_loop (step-1) eqns
             with 
               Clash | Too_Deep -> value := Unknown s; fn l
-	  in fn l 
+          in fn l 
         with Exit -> 
           let t = imitate t1 t2 in
           value := Known t;
-	  let eqns = re_whnf eqns in
+          let eqns = re_whnf eqns in
           unif_loop (step-1) eqns
+
         with e -> 
           value := Unknown s; raise e)
     | _ -> failwith "bug in unif_loop" 
   with Not_found -> ()
+
+
+
+
+
+
+
 
 
 let unif step t1 t2 = 
@@ -264,15 +283,15 @@ let print_term t =
       if b >= abs_lvl then print_string "(";
       print_string "\\";
       let rec gn nv = function
-	  Abs (s,f) ->
+          Abs (s,f) ->
             let name = "x"^(string_of_int nv) in
-	    begin 
+            begin 
               match f with bind (fVar s) x as name in t ->
               print_string name;
               print_string " ";
               gn (nv + 1) t
-	    end
-	| t -> 
+            end
+        | t -> 
             print_string "-> ";
             fn nv ini_lvl t
       in gn nv t; 

@@ -276,7 +276,7 @@ let mk_select t esize table v =
   t nv
 
 let mk_select2 t nbbound frees uptbl =
-  let table = Array.create (List.length frees + 1) 0 in
+  let table = Array.make (List.length frees + 1) 0 in
   let cur = ref 0 in
   let downtbl = List.fold_left (fun htbl var ->
     incr cur;
@@ -446,7 +446,7 @@ let mk_mbind names pos access pt v =
 let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
   let cur_pos = ref pos in
   let htbl = ref htbl in
-  let new_names = Array.create (Array.length prefixes) "" in
+  let new_names = Array.make (Array.length prefixes) "" in
   let access = Array.mapi (fun i key ->
     let suffix = get_suffix2 colls.(i) !htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
@@ -481,7 +481,7 @@ let mk_mute_mbind ranks names pt v =
     pt v}
 
 let mk_mute_mbind2 ranks colls prefixes suffixes pt htbl =
-  let new_names = Array.create (Array.length prefixes) "" in
+  let new_names = Array.make (Array.length prefixes) "" in
   Array.iteri (fun i c ->
     let suffix = get_suffix2 c htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
@@ -507,7 +507,7 @@ let mk_first_mbind names size access pt = {
 let mk_first_mbind2 colls prefixes suffixes keys size pt =
   let cur_pos = ref 1 in
   let htbl = ref IntMap.empty in
-  let new_names = Array.create (Array.length prefixes) "" in
+  let new_names = Array.make (Array.length prefixes) "" in
   let access = Array.mapi (fun i key ->
     let suffix = get_suffix2 colls.(i) !htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
@@ -530,10 +530,10 @@ let mbind_aux vs t =
        let vt = ref vt in
        let nnbt = ref nbt in
        let len = Array.length vs in
-       let prefixes = Array.create len "" in 
-       let suffixes = Array.create len (-1) in 
-       let colls = Array.create len [] in 
-       let keys = Array.create len 0 in 
+       let prefixes = Array.make len "" in 
+       let suffixes = Array.make len (-1) in 
+       let colls = Array.make len [] in 
+       let keys = Array.make len 0 in 
        for i = len - 1 downto 0 do
 	 let v = vs.(i) in
 	 prefixes.(i) <- v.prefix;

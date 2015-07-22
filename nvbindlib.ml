@@ -9,7 +9,7 @@ NvBindlib library
 
 type environment = Obj.t array
 
-let create_env size v = Array.create size (Obj.repr v)
+let create_env size v = Array.make size (Obj.repr v)
 let set_env env i x = env.(i) <- (Obj.repr x)
 let get_env env i   = Obj.obj env.(i)
 
@@ -168,7 +168,7 @@ let mk_select t esize table v =
   end
 
 let mk_select2 t nbbound frees uptbl =
-  let table = Array.create (List.length frees + 1) 0 in
+  let table = Array.make (List.length frees + 1) 0 in
   let cur = ref 0 in
   let downtbl = List.fold_left (fun htbl var ->
     incr cur;
@@ -403,7 +403,7 @@ let mbind_aux vs t =
    | Open(vt,nbt,t) -> 
        let vt = ref vt in
        let nnbt = ref nbt in
-       let keys = Array.create len 0 in 
+       let keys = Array.make len 0 in 
        for i = len - 1 downto 0 do
 	 let v = vs.(i) in
 	 try
