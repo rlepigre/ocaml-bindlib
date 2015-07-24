@@ -1,114 +1,198 @@
-(**
-Bindlib library
-@author Christophe Raffalli
-*)
+(****************************************************************************
+ * The Bindlib Library provides datatypes to represent binders in arbitrary *
+ * languages. The implementation is efficient and manages name in the expe- *
+ * ted way (variables have a prefered name to which an integer  suffix  can *
+ * be added to avoid capture during substitution.                           *
+ *                                                                          *
+ * Author: Christophe Raffalli                                              *
+ * Modified by: Rodolphe Lepigre                                            *
+ ****************************************************************************)
 
 open Util
 
-(* Context *)
-type context = int list SMap.t
+(* In the internals of bindlib, each variable is identified by a unique (int)
+key. Closures are then be formed by mapping free variables in an environment
+represented using an array. The type [varpos] provides hashtables associating
+each variable a couple of its index in the environment and the integer suffix
+of its name (used for renaming in capture-avoiding substitution). *)
+type varpos = (int * int) IMap.t
 
-let empty_context = SMap.empty
+(* Type of a term of type ['a] containing free variables. *)
+type 'a bindbox =
+  (* Closed term (i.e. containing no free variable). *)
+  | Closed of 'a
+  (* Open term (general case). In [Open(vs,nb,t)] we store:
+    - [vs]: the list of every free variables sorted by key. The type [any] is
+      used since ['a bindbox] may contain variables of any type.
+    - [nb]: the number of bound variables which must have a reserved space in
+      then environment.
+    - [t]: the open term itself. As a first argument, it should be provided
+      with the position of every variables of [vs] in the environment that is
+      given as its second argument.
+  An important remark: the function will use the first argument to produce
+  efficient substitution, producing a closure waiting for an environment.
+  This means that the map of type varpos is used only once for each variable
+  even if the term is used many times. *)
+  | Open of any variable list * int * (varpos -> Env.t -> 'a)
 
-let get_suffix name suffix ctxt =
-  try
-    let l = SMap.find name ctxt in
-    let rec search acc suffix = function
-	[] -> suffix, List.rev_append acc [suffix]
-      | x::_ as l when x > suffix -> suffix, List.rev_append acc (suffix::l)
-      | x::l when x = suffix -> search (x::acc) (suffix+1) l
-      | x::l (* when x < suffix *) -> search (x::acc) suffix l
-    in
-    let suffix, l = search [] suffix l in
-    let ctxt = SMap.add name l ctxt in
-    suffix, ctxt
-  with
-    Not_found ->
-      let ctxt = SMap.add name [suffix] ctxt in
-      suffix, ctxt
+(* Type of a free variable of type ['a]. *)
+and 'a variable =
+  { key             : int     (* Unique identifier. *)
+  ; var_name        : string  (* Name as a free variable. *)
+  ; prefix          : string  (* Prefix, i.e. name with no integer suffix. *)
+  ; suffix          : int     (* Suffix, i.e. second part of the name. *)
+  ; mkfree          : 'a variable -> 'a (* Function to build a term. *)
+  ; mutable bindbox : 'a bindbox } (* Bindbox containing the variable. *)
 
-(* We need int map and we use J.-C. Filliatre's implementation of Patricia trees *)
+(* Obtain the name of a the given variable. *)
+let name_of : 'a variable -> string =
+  fun x -> x.var_name
 
-let get_suffix2 collision htbl suffix =
+(* Safe comparison function for variables. *)
+let compare_variables : 'a variable -> 'a variable -> int =
+  fun x y -> Pervasives.compare x.key y.key
+
+(* Hash function for variables. *)
+let hash_var : 'a variable -> int =
+  fun x -> Hashtbl.hash (`HVar, x.key)
+
+(* Build a term with a free variable from a variable. *)
+let free_of : 'a variable -> 'a =
+  fun x -> x.mkfree x
+
+(* Build a bindbox from a variable. *)
+let box_of_var : 'a variable -> 'a bindbox =
+  fun x -> x.bindbox
+
+(* Make a copy of a variable with a potentially different name and syntactic
+wrapper but with the same key. *)
+let copy_var : 'a variable -> string -> ('a variable -> 'a) -> 'a variable =
+  fun x name mkfree -> { x with var_name = name; mkfree = mkfree }
+
+(* Type of multi-variables of type ['a]. *)
+type 'a mvariable = 'a variable array
+
+(* Type of a binder, i.e. an expression of type ['b] with a bound variable of
+type ['a]. *)
+type ('a,'b) binder =
+  { name  : string     (* Name of the bound variable. *)
+  ; bind  : bool       (* Does the variable occur? *)
+  ; rank  : int        (* Number of remaining free variables (>= 0). *)
+  ; value : 'a -> 'b } (* Substitution function. *)
+    
+(* Obtain the name of the bound variable. *)
+let binder_name : ('a,'b) binder -> string =
+  fun b -> b.name
+
+(* Substitution function (simply an application!). *)
+let subst : ('a,'b) binder -> 'a -> 'b =
+  fun b x -> b.value x
+
+(* Does the bound variable occur in the binder? *)
+let binder_occur : ('a,'b) binder -> bool =
+  fun b -> b.bind
+
+(* Is the binder constant? *)
+let binder_constant : ('a,'b) binder -> bool =
+  fun b -> not b.bind
+
+(* Is the binder a closed term? *)
+let binder_closed : ('a,'b) binder -> bool =
+  fun b -> b.rank = 0
+
+(* How many free variables does the binder contain? *)
+let binder_rank : ('a,'b) binder -> int =
+  fun b -> b.rank
+
+(* Type of a multi-binder (binding n variables at once). It is an expression
+of type ['b] with n bound variables of type ['a]. *)
+type ('a,'b) mbinder =
+  { names  : string array     (* Names of the bound variables. *)
+  ; binds  : bool array       (* Do the variables occur? *)
+  ; ranks  : int              (* Number of remaining free variables. *)
+  ; values : 'a array -> 'b } (* Substitution function. *)
+
+(* Obtain the arity of a multi-binder. *)
+let mbinder_arity : ('a,'b) mbinder -> int =
+  fun mb -> Array.length mb.names
+
+(* Get the names of the bound variables. *)
+let mbinder_names : ('a,'b) mbinder -> string array =
+  fun mb -> mb.names
+
+(* The substitution function (again just an application). *)
+let msubst : ('a,'b) mbinder -> 'a array -> 'b =
+  fun mb xs -> mb.values xs
+
+(* Do the varibles occur? *)
+let mbinder_occurs : ('a,'b) mbinder -> bool array =
+  fun mb -> mb.binds
+
+(* Is the multi-binder constant? *)
+let mbinder_constant : ('a,'b) mbinder -> bool =
+  fun mb -> Array.fold_left (&&) true mb.binds
+
+(* Is the multi-binder closed? *)
+let mbinder_closed : ('a,'b) mbinder -> bool =
+  fun mb -> mb.ranks = 0
+
+(* How many free variables does the binder contain? *)
+let mbinder_ranks : ('a,'b) mbinder -> int =
+  fun mb -> mb.ranks
+
+(* Split a variable name into a string and in integer suffix. If there is no
+integer suffix, then -1 is given as the suffig integer. *)
+let split_name : string -> string * int = fun name ->
+  let n = String.length name in
+  let p = ref (n-1) in
+  let digit c = '0' <= c && c <= '9' in
+  while !p >= 0 && digit name.[!p] do decr p done;
+  let p = !p + 1 in
+  if p = n || p = 0 then (name, (-1))
+  else (String.sub name 0 p, int_of_string (String.sub name p (n - p)))
+
+(* Merge a prefix and a suffix to form a name. *)
+let merge_name : string -> int -> string = fun prefix suffix ->
+  if suffix >= 0 then prefix ^ (string_of_int suffix) else prefix
+
+(* We need a counter to have fresh keys for variables. *)
+let fresh_key, reset_counter = new_counter ()
+
+(* Generalise the type of a variable to fit in a bindbox. *)
+let generalise_var : 'a variable -> any variable = Obj.magic
+
+(* Dummy bindbox to be used prior to initialisation. *)
+let dummy_bindbox : 'a bindbox =
+  Open([], 0, fun _ -> failwith "Invalid use of dummy_bindbox")
+
+(* Function for building a variable structure with a fresh key. *)
+let build_new_var name mkfree bindbox =
+  let (prefix, suffix) = split_name name in
+  { key = fresh_key () ; var_name = name ; prefix = prefix ; suffix = suffix
+  ; mkfree = mkfree ; bindbox = bindbox }
+
+(* Create a new free variable using a wrapping function and a default name. *)
+let new_var : ('a variable -> 'a) -> string -> 'a variable =
+  let mk_var x htbl = (swap Env.get) (fst (IMap.find x.key htbl)) in
+  fun mkfree name ->
+    let x = build_new_var name mkfree dummy_bindbox in
+    x.bindbox <- Open([generalise_var x], 0, mk_var x); x
+
+
+
+
+
+
+
+let get_suffix collision htbl suffix =
   let l = List.map (fun key -> snd (IMap.find key htbl)) collision in
   let l = List.sort (-) l in
   let rec search suffix = function
-	[] -> suffix
-    | x::l when x > suffix -> suffix
+    | x::l when x < suffix -> search suffix l
     | x::l when x = suffix -> search (suffix+1) l
-    | x::l (* when x < suffix *) -> search suffix l
+    | _                    -> suffix
   in
   search suffix l
-
-
-(* The type parpos will be use to associate to each variables (identified
-by a unique integer key) its position in the environment *)
-
-type varpos = (int * int) IMap.t
-
-(* object with bound variables will be encoded using functions waiting 
-for two arguments:
-  - a map of type "varpos" giving the position of variables in the environement
-  - an environment.
-
-An important remark: the function will use the first argument to
-produced efficient substitution, producing a closure waiting the
-environment. This means that the map of type varpos is used only once
-for each variable even if the term is used many times 
-*)
-
-type 'a env_term = varpos -> Env.t -> 'a
-
-type 'a bindbox = 
-
-    (* the term as no free variables *)
-    Closed of 'a 
-
-    (* the general case : 
-     In Open(vl,nb,t), 
-     - vl is the list of all free variables sorted by key.
-       we have to use "any" because a 'a bindbox may use variables of
-       any type. This could be implemented using existential type ...
-     - nb is the number of bound variables which must have a place reserved
-       in the environment.
-     - t is the open_term itself. The map that t waits as first argument must
-       contain the position in the environment of all variables in vl.
-     *)
-     	
-  | Open of any variable list * int * 'a env_term
-
-and 'a variable = 
-  { key : int;                          (* a unique identifier for each variable *)
-    var_name : string;                  (* the name as a free variables*)
-    prefix : string;                    (* the prefix to avoid to compute it *)
-    suffix : int;
-    
-    mkfree : 'a variable -> 'a; 
-    mutable bindbox : 'a bindbox }
-
-(** Variables managment *)
-
-let merge_name prefix suffix =
-  if suffix >= 0 then prefix^(string_of_int suffix) else prefix
-
-let name_of var = var.var_name
-
-(** split name : split a string into a string and an int which is the suffix 
-    of the variable or -1 if the string ends with no digit *)
-let split_name name =
-  let n = String.length name in
-  let p = ref (n-1) in
-  while !p >= 0 && '0' <= name.[!p] &&  name.[!p] <= '9' do
-    decr p
-  done;
-  let p = !p + 1 in
-  if p = n || p = 0 then name, (-1) else
-  String.sub name 0 p, int_of_string (String.sub name p (n - p))
-
-let compare_variables v1 v2 =
-  Pervasives.compare v1.key v2.key
-
-let get_var_key v = v.key
 
 (** merge l l' merge two sorted lists in one sorted list without repetition *)
 let rec merge l l' = 
@@ -130,102 +214,6 @@ let search var l =
   in 
   fn [] l
 
-(** hashing for variable, is just the *)
-let hash_var var =
-  Hashtbl.hash (`HVar,  var.key)
-	       
-(** the type of binder: ('a,'b) binder is an expression of type 'b 
-    with a bound variable of type 'a. It is exported abstract *)
-type ('a,'b) binder = { name : string; (* name of the bound variable *)
-			bind : bool; (* false if the variable does not occur *)
-			rank : int; (* >= 0: number of free variables after binding this one *)
-			value : 'a -> 'b }
-    
-(** the substitution, it is just an application ! *)
-let subst f x = f.value x
-
-(** get the name of the binder *)
-let binder_name f = f.name
-
-let binder_occur f = f.bind
-let binder_rank f = f.rank
-		      
-(** the type of multiple binder (binding n variables at once): 
-('a,'b) mbinder is an expression of type 'b 
-    with a n bound variables of type 'a. It is exported abstract *)
-type ('a,'b) mbinder = { names : string array;
-			 binds : bool array;
-			 ranks : int;
-			 values : ('a array -> 'b) }
-    
-(** the substitution, it is just an application ! *)
-let msubst f x = f.values x
-
-(** get the names of the binder *)
-let mbinder_names f = f.names
-let binder_names = mbinder_names
-
-let mbinder_occurs f = f.binds
-let mbinder_ranks f = f.ranks
-		      
-(** get the arity of the binder *)
-let mbinder_arity f = Array.length f.names
-let binder_arity = mbinder_arity
-
-(** it is sometimes nice to have a "dummy" bindbox. This avoid extra type
-constructor is some circonstances and may play the role of "None" *)
-
-let dummy_bindbox =
-  Open([], 0, fun _ -> failwith "Invalid use of dummy_bindbox")
-
-(* the function that creates the number of a new variable *)
-let count = ref 0
-
-let reset_bindlib_count () =
-  count := 0
-
-let mk_var var tbl =
-  let mk_var index v = Env.get v index in
-  let index = fst (IMap.find var.key tbl) in mk_var index
-
-let generalise_var = ((fun var -> Obj.magic var) : 'a variable -> any variable)
-
-let new_var (bv  : 'a variable -> 'a) name =
-  incr count;
-  if !count < 0 then failwith "variable loop (buy a 64 bits)";
-  let prefix, suffix = split_name name in
-  let rec var = { 
-    key = !count; 
-    var_name = name;
-    prefix = prefix;
-    suffix = suffix;
-    mkfree = bv; 
-    bindbox = dummy_bindbox }
-  in
-  let result = Open([generalise_var var], 0, mk_var var) in
-  var.bindbox <- result;
-  var
-
-let new_var_in ctxt (bv  : 'a variable -> 'a) name =
-  incr count;
-  if !count < 0 then failwith "variable loop (buy a 64 bits)";
-  let prefix, suffix = split_name name in
-  let new_suffix, ctxt = get_suffix prefix suffix ctxt in
-  let rec var = { 
-    key = !count; 
-    var_name = merge_name prefix new_suffix;
-    prefix = prefix;
-    suffix = suffix;
-    mkfree = bv; 
-    bindbox = dummy_bindbox }
-  in
-  let result = Open([generalise_var var], 0, mk_var var) in
-  var.bindbox <- result;
-  var, ctxt
-
-let bindbox_of v = v.bindbox
-let free_of v = v.mkfree v
-
 (* Construct a 'a bindbox to represent the variable numbered var 
    You can notice that we use the environment to store values as a hashtable 
    with no failure (we always find the value the first time we look for it)
@@ -236,7 +224,7 @@ let free_of v = v.mkfree v
 
 (* take a term of type 'a and turn it into a 'a bindbox that can be used to
     construct a larger term with binder *)
-let unit t = Closed(t)
+let box t = Closed(t)
 
 (* take a function t and an environment v and create an environment nv
    with places for future values of bound variables that t needs. 
@@ -289,7 +277,7 @@ let mk_rapply2 f a h = mk_rapply (f h) a
   function select is used here to build the "minimal" closure when both
   the function and the argument have free variables *)
 
-let apply tf ta =
+let apply_box tf ta =
   match tf, ta with
     Closed(f), Closed (a) -> Closed (f a)
   | Closed(f), Open(va,ba,a) -> 
@@ -311,7 +299,7 @@ let mk_closed_bind v pt = { name = v.var_name; rank = 0; bind = false; value = f
 let mk_mute_bind rank name pt v = { name; rank; bind = false; value = fun _ -> pt v }
 
 let mk_mute_bind2 rank collision prefix suffix pt htbl = 
-  let suffix = get_suffix2 collision htbl suffix in
+  let suffix = get_suffix collision htbl suffix in
   let name = merge_name prefix suffix in
   mk_mute_bind rank name (pt htbl)
 
@@ -346,7 +334,7 @@ let mk_bind name pos pt v =
 	end}
 
 let mk_bind2 collision prefix suffix key pos pt htbl =
-  let suffix = get_suffix2 collision htbl suffix in
+  let suffix = get_suffix collision htbl suffix in
   let name = merge_name prefix suffix in
   let htbl = IMap.add key (pos, suffix) htbl in
   mk_bind name pos (pt htbl)
@@ -383,10 +371,6 @@ let bind_aux v t = match t with
 let bind bv name fpt =
   let v = new_var bv name in
   bind_aux v (fpt v.bindbox)
-
-let bind_in ctxt bv name fpt =
-  let v, ctxt = new_var_in ctxt bv name in
-  bind_aux v (fpt v.bindbox ctxt)
 
 exception Bindlib_Not_Variable
 
@@ -428,7 +412,7 @@ let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
   let htbl = ref htbl in
   let new_names = Array.make (Array.length prefixes) "" in
   let access = Array.mapi (fun i key ->
-    let suffix = get_suffix2 colls.(i) !htbl suffixes.(i) in
+    let suffix = get_suffix colls.(i) !htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
     if key <> 0 then begin
       htbl := IMap.add key (!cur_pos,suffix) !htbl;
@@ -463,7 +447,7 @@ let mk_mute_mbind ranks names pt v =
 let mk_mute_mbind2 ranks colls prefixes suffixes pt htbl =
   let new_names = Array.make (Array.length prefixes) "" in
   Array.iteri (fun i c ->
-    let suffix = get_suffix2 c htbl suffixes.(i) in
+    let suffix = get_suffix c htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
 	      ) colls;
   mk_mute_mbind ranks new_names (pt htbl)
@@ -489,7 +473,7 @@ let mk_first_mbind2 colls prefixes suffixes keys size pt =
   let htbl = ref IMap.empty in
   let new_names = Array.make (Array.length prefixes) "" in
   let access = Array.mapi (fun i key ->
-    let suffix = get_suffix2 colls.(i) !htbl suffixes.(i) in
+    let suffix = get_suffix colls.(i) !htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
     if key <> 0 then begin
       htbl := IMap.add key (!cur_pos,suffix) !htbl;
@@ -545,28 +529,10 @@ let mbind_aux vs t =
 let new_mvar bv names =
   Array.map (fun name -> new_var bv name) names
 
-let new_mvar_in ctxt bv names =
-  let ctxt = ref ctxt in
-  let vs = Array.map 
-    (fun name -> 
-      let v, new_ctxt = new_var_in !ctxt bv name in
-      ctxt := new_ctxt;
-      v
-    ) names
-  in
-  vs, !ctxt
-
-type 'a mvariable = 'a variable array
-
 let mbind bv names fpt =
   let vs = new_mvar bv names in
-  let args = Array.map bindbox_of vs in
+  let args = Array.map box_of_var vs in
   mbind_aux vs (fpt args)
-
-let mbind_in ctxt bv names fpt =
-  let vs,ctxt = new_mvar_in ctxt bv names in
-  let args = Array.map bindbox_of vs in
-  mbind_aux vs (fpt args ctxt)
 
 let bind_mvar = mbind_aux
 
@@ -604,11 +570,11 @@ let list_variables = function
     Closed(_) -> ()
   | Open(vt,_,_) -> 
       List.iter (fun var -> print_string var.var_name) vt
- 
-let unsafe_list_variables = function
-    Closed(_) -> []
-  | Open(vt,_,_) -> Obj.magic vt
-  
+
+
+
+
+
 (* Here are some usefull function *)
 (* Some of them are optimised (the comment is the simple definition) *)
 
@@ -642,7 +608,7 @@ let unit_apply2 f ta tb =
       let vars = merge va vb in
       Open(vars, 0, mk_uapply2 f a b)
 
-let unit_apply3 f t t' t'' = apply (unit_apply2 f t t') t''
+let unit_apply3 f t t' t'' = apply_box (unit_apply2 f t t') t''
 
 (* Used in some cases ! *)
 let bind_apply f = unit_apply2 (fun f -> f.value) f
@@ -689,7 +655,7 @@ module type Map =
     val map : ('a -> 'b) -> 'a t -> 'b t
   end
 
-module Lift(M: Map) =
+module Lift(M : Map) =
   struct
     let f t =
       let acc = ref special_start in
@@ -754,16 +720,65 @@ let lift_array = Lift_array.f
 
 let lift_pair x y = unit_apply2 (fun x y -> x,y) x y
 
-let copy_var var name mkfree = 
-  { var with var_name = name; mkfree = mkfree }
-
-(* check if the variable bound in (f : ('a,'b) binder) occurs *)
-let is_binder_constant f = not f.bind
-
-(* check if a binder is a closed term *)
-let is_binder_closed f = f.rank = 0
-
-let is_mbinder_constant f = Array.fold_left (&&) true f.binds
-let is_mbinder_closed f = f.ranks = 0
-				      
+		      
 			  
+
+
+
+(* Context *)
+type context = int list SMap.t
+
+let empty_context = SMap.empty
+
+let new_var_in ctxt (bv  : 'a variable -> 'a) name =
+  let get_suffix name suffix ctxt =
+    try
+      let l = SMap.find name ctxt in
+      let rec search acc suffix = function
+  	[] -> suffix, List.rev_append acc [suffix]
+        | x::_ as l when x > suffix -> suffix, List.rev_append acc (suffix::l)
+        | x::l when x = suffix -> search (x::acc) (suffix+1) l
+        | x::l (* when x < suffix *) -> search (x::acc) suffix l
+      in
+      let suffix, l = search [] suffix l in
+      let ctxt = SMap.add name l ctxt in
+      suffix, ctxt
+    with
+      Not_found ->
+        let ctxt = SMap.add name [suffix] ctxt in
+        suffix, ctxt
+  in
+  let prefix, suffix = split_name name in
+  let new_suffix, ctxt = get_suffix prefix suffix ctxt in
+  let rec var = { 
+    key = fresh_key ();
+    var_name = merge_name prefix new_suffix;
+    prefix = prefix;
+    suffix = suffix;
+    mkfree = bv; 
+    bindbox = dummy_bindbox }
+  in
+  let mk_var x htbl = (swap Env.get) (fst (IMap.find x.key htbl)) in
+  let result = Open([generalise_var var], 0, mk_var var) in
+  var.bindbox <- result;
+  var, ctxt
+
+let bind_in ctxt bv name fpt =
+  let v, ctxt = new_var_in ctxt bv name in
+  bind_aux v (fpt v.bindbox ctxt)
+
+let new_mvar_in ctxt bv names =
+  let ctxt = ref ctxt in
+  let vs = Array.map 
+    (fun name -> 
+      let v, new_ctxt = new_var_in !ctxt bv name in
+      ctxt := new_ctxt;
+      v
+    ) names
+  in
+  vs, !ctxt
+
+let mbind_in ctxt bv names fpt =
+  let vs,ctxt = new_mvar_in ctxt bv names in
+  let args = Array.map box_of_var vs in
+  mbind_aux vs (fpt args ctxt)

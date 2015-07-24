@@ -42,3 +42,12 @@ module SMap = Map.Make(
     type t = string
     let compare = compare
   end)
+
+let new_counter =
+  let c = ref 0 in
+  fun () ->
+    let fresh () = let n = !c in incr c; n in
+    let reset () = c := 0 in
+    (fresh, reset)
+
+let swap f a b = f b a

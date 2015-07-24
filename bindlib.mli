@@ -1,242 +1,206 @@
-(**
-Bindlib library
-*)
+(****************************************************************************
+ * The Bindlib Library provides datatypes to represent binders in arbitrary *
+ * languages. The implementation is efficient and manages name in the expe- *
+ * ted way (variables have a prefered name to which an integer  suffix  can *
+ * be added to avoid capture during substitution.                           *
+ *                                                                          *
+ * Author: Christophe Raffalli                                              *
+ * Modified by: Rodolphe Lepigre                                            *
+ ****************************************************************************)
 
-(** {2 Basic functions} *)
-(** this is the type of an expression of type ['b] with a bound variables of 
- type ['a] *)
+(* To build an abstract syntax tree using bindlib, one will need to make use
+of the following types for variables and binders. *)
+
+(* Type of a variable of type ['a]. *)
+type 'a variable
+
+(* Type of a multi-variable of type ['a]. *)
+type 'a mvariable = 'a variable array
+
+(* Type of a binder for a variable of type ['a] in a term of type ['b']. *)
 type (-'a,+'b) binder
 
-type ('a) variable
-type 'a mvariable = 'a variable array
-(** type of variables and array of variables *)
-
-(** context, used to store names to rename free variables  *)
-type context
-val empty_context : context
-
-(** this is the subtitution function: it takes an expression with a bound
-  variable of type ['a] and a value for this variable and replace all the
-  occurrences of this variable by this value *)
-val subst : ('a,'b) binder -> 'a -> 'b
-
-(** [binder_name f] returns the name of the variable bound in [f] *)
-val binder_name : ('a,'b) binder -> string
-
-val binder_occur : ('a,'b) binder -> bool
-val binder_rank  : ('a,'b) binder -> int
-				       
-(** [name_of v] returns the name of the free variable [v] *)
-val name_of : 'a variable -> string
-
-(** a safe comarison for variables *)
-val compare_variables : 'a variable -> 'a variable -> int
-
-val get_var_key : 'a variable -> int
-
-(** type inhabited by data structures of type ['a] with variables under construction *)
-type (+'a) bindbox
-
-(** the function to call when the construction of an expression of type ['a] is
-   finished. *)
-val unbox : 'a bindbox -> 'a
-
-(** the function to use a variable inside a data structure *)
-val bindbox_of : 'a variable -> 'a bindbox
-
-(** the function to use a variable as free, identical to the composition
-    of [unbox] and [bindbox_of] *)
-val free_of : 'a variable -> 'a
-
-(** [unit] allows you to use an expression of type ['a] in a larger expression
-   constructed with free variables *) 
-val unit : 'a -> 'a bindbox
-
-(** this is the function that allows you to construct expressions by allowing
-  the application of a function with free variables to an argument with free
-  variables *)
-val apply : 
- ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
-
-(** It is sometimes usefull to have a dummy value, for instance to initialize arrays*)
-val dummy_bindbox : 'a bindbox
-(** If one use [dummy_bindbox] in a data structure, calling unbox will raise the exception
-    [Failure "Invalid use of dummy_bindbox"] *)
-
-(** check if the bound variable occurs or not *)
-val is_binder_constant :
- ('a,'b) binder -> bool
-
-(** check if a binder is a closed term *)
-val is_binder_closed :
- ('a,'b) binder -> bool
-
-(** {2 Multiple binders} *)
-
-(** this is the type of an expression of type ['b] with several bound variables of 
- type 'a *)
+(* Type of a multi-binder for a multi-variable of type ['a] in a term of type
+['b]. *)
 type ('a,'b) mbinder
 
-(** [mbinder_arity f] returns the number of variables bound in [f] *)
-val mbinder_arity : ('a,'b) mbinder -> int
-val binder_arity : ('a,'b) mbinder -> int
-
-(** [mbinder_names f] returns the names of the variables bound in [f] *)
-val mbinder_names : ('a,'b) mbinder -> string array
-val binder_names : ('a,'b) mbinder -> string array
-
-(** this is the subtitution function: it takes an expression with several bound
-  variables of type ['a] and an array of values for these variables and replace all the
-  occurrences by the given values *)
+(* Substitution functions. *)
+val subst  : ('a,'b) binder -> 'a -> 'b
 val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
-(** check if one of the bound variables occurs or not. There are no way to tell if a
-    specific variable bound in a multiple binder occurs or not *)
-val is_mbinder_constant :
- ('a,'b) mbinder -> bool
-
-(** check is the term is a closed term *)
-val is_mbinder_closed :
- ('a,'b) mbinder -> bool
-
-(** {2 Other functions} *)
-
-(** this function tells you if a ['a bindbox] is closed. This means it has no free variables. 
-This may be useful when optimizing a program *)
-val is_closed : 'a bindbox -> bool
-
-(** test if a variable occur in a bindbox *)
-val occur : 'a variable -> 'b bindbox -> bool
-
-(** For debugging your code:
-    print the names of the free variables of a 'a bindbox.
-*)
-val list_variables : 'a bindbox -> unit
-
-(** this function returns the list of variables of a 'a bindbox.
-This is only usable if
-- all the variables of the expressiob have the same type
-- you type cast the result of the function to write yourself the correct 
-  value of 'b. *)
-val unsafe_list_variables : 'a bindbox -> 'b variable list
-
-val bind_apply : 
- ('a, 'b) binder bindbox -> 'a bindbox -> 'b bindbox
-val mbind_apply : 
- ('a, 'b) mbinder bindbox -> 'a array bindbox -> 'b bindbox
-(** These functions are usefull when using "higher order variables". That is variables that 
-    represent itself binder and therefore that can be applied to arguments *)
-
-(** This function and the following ones can be written using [unit] and [apply] but are given
- because they are very often used. Moreover, some of them are optimised *)
-val unit_apply : 
- ('a -> 'b) -> 'a bindbox -> 'b bindbox
-(** [unit_apply f a = apply (unit f) a]*)
-
-(** [unit_apply2 f a b = apply (apply (unit f) a) b]*)
-val unit_apply2 : 
- ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
-
-(** [unit_apply3 f a b c = apply (apply (apply (unit f) a) b) c]*)
-val unit_apply3 : 
- ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 
-   'b bindbox  -> 'c bindbox -> 'd bindbox
-
-(** [lift_pair (x,y) = unit_apply2 (,) x y]*)
-val lift_pair :
- 'a bindbox -> 'b bindbox -> ('a * 'b) bindbox
-
-(** Very advanced feature: binder fixpoint !*)
-val fixpoint : 
-    (('a, 'b) binder, ('a, 'b) binder) binder bindbox -> ('a, 'b) binder bindbox
-
-(** The following structures allow you to define function like
-  [lift_list] or [lift_array] for your own types, if you can provide a [map]
-  function for your types. These are given for polymorphic types with
-  one or two parameters *)
-
-module type Map = 
-  sig
-    type 'a t
-    val map : ('a -> 'b) -> 'a t -> 'b t
-  end
-
-module Lift(M: Map) :   
-  sig
-    val f : 'a bindbox M.t -> 'a M.t bindbox
-  end
-
-
-module type Map2 = 
-  sig
-    type ('a, 'b) t
-    val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
-  end
-
-module Lift2(M: Map2) : 
-  sig
-    val f : ('a bindbox, 'b bindbox) M.t -> ('a, 'b) M.t bindbox
-  end
-
-(** {[lift_list = 
-  let module M = struct 
-    type 'a t = 'a list 
-    let map = List.map end 
-  in Lift(M).f]}*)
-val lift_list :
- 'a bindbox list -> 'a list bindbox
-
-val lift_rev_list :
- 'a bindbox list -> 'a list bindbox
-
-(** {[lift_array = 
-  let module M = struct 
-    type 'a t = 'a array 
-    let map = Array.map end 
-  in Lift(M).f]}*)
-val lift_array :
- 'a bindbox array -> 'a array bindbox
-
-(**/**)
-(* the camlp4 syntax extension should be prefered to the direct use of these functions *)
-
-val bind :
- ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox) ->
-   ('a,'b) binder bindbox
-
-val bind_in : context ->
- ('a variable -> 'a) -> string -> ('a bindbox -> context -> 'b bindbox) ->
-   ('a,'b) binder bindbox
-
-val reset_bindlib_count : unit -> unit 
-val new_var : ('a variable -> 'a) -> string -> 'a variable
-
-val new_var_in : context -> ('a variable -> 'a) -> string -> 'a variable * context
-
-val bind_var : 'a variable -> 'b bindbox -> ('a, 'b) binder bindbox
-
-val mbind :
- ('a variable -> 'a) -> string array -> 
-   ('a bindbox array -> 'b bindbox) ->
-   ('a,'b) mbinder bindbox
-
-val mbind_in : context ->
- ('a variable -> 'a) -> string array -> 
-   ('a bindbox array -> context -> 'b bindbox) ->
-   ('a,'b) mbinder bindbox
-
+(* Variable creation functions. *)
+val new_var  : ('a variable -> 'a) -> string       -> 'a variable
 val new_mvar : ('a variable -> 'a) -> string array -> 'a mvariable
-val new_mvar_in : 
-    context -> ('a variable -> 'a) -> string array -> 'a mvariable * context
 
-val bind_mvar : 'a mvariable -> 'b bindbox -> ('a, 'b) mbinder bindbox
 
-(* This function creates a copy of the given variable, that is not
-   distinguishable from the original variable when it is bound. However,
-   when it is free (that is not bound when calling unbox), the way 
-   to make it free may be different. This can be used to mark some specific
-   occurence of a variable, the marking disappearing when the variable is free.   The name can also be changed *)
+
+(* Utility functions on binders. *)
+val binder_name     : ('a,'b) binder -> string
+val binder_occur    : ('a,'b) binder -> bool
+val binder_rank     : ('a,'b) binder -> int
+val binder_constant : ('a,'b) binder -> bool
+val binder_closed   : ('a,'b) binder -> bool
+
+val mbinder_arity    : ('a,'b) mbinder -> int
+val mbinder_names    : ('a,'b) mbinder -> string array
+val mbinder_constant : ('a,'b) mbinder -> bool
+val mbinder_closed   : ('a,'b) mbinder -> bool
+
+(* Utility functions on variables. *)
+val name_of  : 'a variable -> string
+val free_of  : 'a variable -> 'a
+val hash_var : 'a variable -> int
+
+(* Safe comparision of variables. *)
+val compare_variables : 'a variable -> 'a variable -> int
+
+(* Creates a copy of the given variable that is not distinguishable from the
+original when bound. However, when it is free (that is not bound when calling
+unbox), it might be made free in a different way. For instance, its name or
+syntactic wrapper may be different. *)
 val copy_var : 'a variable -> string -> ('a variable -> 'a) -> 'a variable
 
-val hash_var : 'a variable -> int
-				
+
+
+(* To work with term containing free variables (that might be bound at some
+point), Bindlib provides the following datatype. This type of "terms under
+construction" will provide an efficient way of binding variables in a term
+of type ['a]. *)
+type (+'a) bindbox
+
+(* Once the construction of an expression of type ['a] is finished, the
+function [unbox] need to be called in order to obtain the built expression. *)
+val unbox : 'a bindbox -> 'a
+
+(* Build a ['a bindbox] from a ['a variable]. *)
+val box_of_var : 'a variable -> 'a bindbox
+
+(* Put a term into a bindbox. None of the variables of the given term (if any)
+will be considered free. Hence no variables of the term will be available for
+binding. *)
+val box : 'a -> 'a bindbox
+
+(* Application operator in the [_ bindbox] data structure. This allows the
+construction of expressions by applying a function with free variables to an
+argument with free variables. *)
+val apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
+
+(* Is a ['a bindbox] closed? The function returns [true] if the ['a bindbox]
+has no free variables, and [false] otherwise. *)
+val is_closed : 'a bindbox -> bool
+
+(* Test if a given ['a variable] occur in a given ['b bindbox]. *)
+val occur : 'a variable -> 'b bindbox -> bool
+
+(* Dummy bindbox to be used in uninitialised structures (e.g. array creation).
+If [unbox] is called on a data structure containing a [dummy_bindbox] then the
+exception [Failure "Invalid use of dummy_bindbox"] is raised. *)
+val dummy_bindbox : 'a bindbox
+
+(* Building of binders. *)
+val bind  : ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox)
+  -> ('a,'b) binder bindbox
+val mbind : ('a variable -> 'a) -> string array
+  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+
+(* Variable binding. *)
+val bind_var  : 'a variable  -> 'b bindbox -> ('a, 'b) binder bindbox
+val bind_mvar : 'a mvariable -> 'b bindbox -> ('a, 'b) mbinder bindbox
+
+
+
+(* The following functions can be written using [box] and [apply_box]. Here,
+they are implemented differently for optimisation purposes. We give the
+equivalent function using [box] and [apply_box] in comments. *)
+
+(* [unit_apply f a = apply_box (box f) a] *)
+val unit_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
+
+(* [unit_apply2 f a b = apply_box (apply_box (box f) a) b] *)
+val unit_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
+
+(* [unit_apply3 f a b c = apply_box (apply_box (apply_box (box f) a) b) c] *)
+val unit_apply3 : ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 'b bindbox
+  -> 'c bindbox -> 'd bindbox
+
+(* [lift_pair (x,y) = unit_apply2 (fun a b -> (a,b)) x y] *)
+val lift_pair : 'a bindbox -> 'b bindbox -> ('a * 'b) bindbox
+
+
+
+(* Advanced features on the ['a bindbox] type. *)
+
+(* Useful function to work with "higher order variables", that is variables
+representing a binder themselves (that can hence be applied to arguments. *)
+val bind_apply  : ('a, 'b) binder bindbox  -> 'a bindbox       -> 'b bindbox
+val mbind_apply : ('a, 'b) mbinder bindbox -> 'a array bindbox -> 'b bindbox
+
+(* Very advanced feature: binder fixpoint. *)
+val fixpoint : (('a, 'b) binder, ('a, 'b) binder) binder bindbox
+  -> ('a, 'b) binder bindbox
+
+(* Reset the counter that provides fresh keys for variables. To be used with
+care. *)
+val reset_counter : unit -> unit 
+
+
+
+(* To work with the [bindbox] type more conveniently in conjunction with data
+with a map structire, the following functors are provided. *)
+
+module type Map = sig
+  type 'a t
+  val map : ('a -> 'b) -> 'a t -> 'b t
+end
+
+module type Map2 = sig
+  type ('a, 'b) t
+  val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
+end
+
+module Lift(M: Map) : sig
+  val f : 'a bindbox M.t -> 'a M.t bindbox
+end
+
+module Lift2(M: Map2) : sig
+  val f : ('a bindbox, 'b bindbox) M.t -> ('a, 'b) M.t bindbox
+end
+
+(* Here are some functions defined using the functorial interface. They lift
+the ['a bindbox] type over the ['a list] or ['a array] types for instance. *)
+val lift_list     : 'a bindbox list  -> 'a list  bindbox
+val lift_rev_list : 'a bindbox list  -> 'a list  bindbox
+val lift_array    : 'a bindbox array -> 'a array bindbox
+
+
+
+(* It is sometimes convenient to work in a context for variables. This is
+useful, in particular, to reserve variable names. To do so, Bindlib provides
+a type for contexts together with functions for creating variables and binding
+variables in a context. *)
+
+(* Type of a context. *)
+type context
+
+(* Empty context. *)
+val empty_context : context
+
+(* Fresh variable creation in a context (corresponds to [new_var]). *)
+val new_var_in : context -> ('a variable -> 'a) -> string
+  -> 'a variable * context
+
+(* Similar function for multi-variables. *)
+val new_mvar_in : context -> ('a variable -> 'a) -> string array
+  -> 'a mvariable * context
+
+(* Binding operation in a context (corresponds to [bind]). *)
+val bind_in : context -> ('a variable -> 'a) -> string
+  -> ('a bindbox -> context -> 'b bindbox) -> ('a,'b) binder bindbox
+
+(* Similar function for multi-binders. *)
+val mbind_in : context -> ('a variable -> 'a) -> string array
+  -> ('a bindbox array -> context -> 'b bindbox) -> ('a,'b) mbinder bindbox
+
+(* For debugging. *)
+val list_variables : 'a bindbox -> unit
+

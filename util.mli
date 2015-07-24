@@ -43,3 +43,7 @@ module SMap : sig
   val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
   val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
 end
+
+val new_counter : unit -> (unit -> int) * (unit -> unit)
+
+val swap : ('a -> 'b -> 'c) -> 'b -> 'a -> 'c
