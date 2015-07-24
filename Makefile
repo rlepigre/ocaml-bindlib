@@ -1,4 +1,4 @@
-all: bindlib.cma bindlib.cmxa nvbindlib.cma nvbindlib.cmxa
+all: bindlib.cma bindlib.cmxa
 
 ## Ptmap module
 ptmap.cmi: ptmap.mli
@@ -35,22 +35,6 @@ bindlib.cma: ptmap.cmo util.cmo bindlib.cmo
 	ocamlc -o $@ -a $^
 
 bindlib.cmxa: ptmap.cmx util.cmx bindlib.cmx
-	ocamlopt -o $@ -a $^
-
-## NVBindlib
-nvbindlib.cmi: nvbindlib.mli util.cmi
-	ocamlc -c $<
-
-nvbindlib.cmo: nvbindlib.ml nvbindlib.cmi util.cmi
-	ocamlc -c $<
-
-nvbindlib.cmx: nvbindlib.ml nvbindlib.cmi util.cmi
-	ocamlopt -c $<
-
-nvbindlib.cma: ptmap.cmo util.cmo nvbindlib.cmo
-	ocamlc -o $@ -a $^
-
-nvbindlib.cmxa: ptmap.cmx util.cmx nvbindlib.cmx
 	ocamlopt -o $@ -a $^
 
 ## Clean
