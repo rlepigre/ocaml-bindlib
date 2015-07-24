@@ -113,18 +113,18 @@ val bind_mvar : 'a mvariable -> 'b bindbox -> ('a, 'b) mbinder bindbox
 they are implemented differently for optimisation purposes. We give the
 equivalent function using [box] and [apply_box] in comments. *)
 
-(* [unit_apply f a = apply_box (box f) a] *)
-val unit_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
+(* [box_apply f a = apply_box (box f) a] *)
+val box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
 
-(* [unit_apply2 f a b = apply_box (apply_box (box f) a) b] *)
-val unit_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
+(* [box_apply2 f a b = apply_box (apply_box (box f) a) b] *)
+val box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
 
-(* [unit_apply3 f a b c = apply_box (apply_box (apply_box (box f) a) b) c] *)
-val unit_apply3 : ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 'b bindbox
+(* [box_apply3 f a b c = apply_box (apply_box (apply_box (box f) a) b) c] *)
+val box_apply3 : ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 'b bindbox
   -> 'c bindbox -> 'd bindbox
 
-(* [lift_pair (x,y) = unit_apply2 (fun a b -> (a,b)) x y] *)
-val lift_pair : 'a bindbox -> 'b bindbox -> ('a * 'b) bindbox
+(* [box_pair (x,y) = box_apply2 (fun a b -> (a,b)) x y] *)
+val box_pair : 'a bindbox -> 'b bindbox -> ('a * 'b) bindbox
 
 
 
@@ -168,9 +168,9 @@ end
 
 (* Here are some functions defined using the functorial interface. They lift
 the ['a bindbox] type over the ['a list] or ['a array] types for instance. *)
-val lift_list     : 'a bindbox list  -> 'a list  bindbox
-val lift_rev_list : 'a bindbox list  -> 'a list  bindbox
-val lift_array    : 'a bindbox array -> 'a array bindbox
+val box_list     : 'a bindbox list  -> 'a list  bindbox
+val box_rev_list : 'a bindbox list  -> 'a list  bindbox
+val box_array    : 'a bindbox array -> 'a array bindbox
 
 
 
@@ -203,4 +203,3 @@ val mbind_in : context -> ('a variable -> 'a) -> string array
 
 (* For debugging. *)
 val list_variables : 'a bindbox -> unit
-

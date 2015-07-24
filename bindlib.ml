@@ -579,9 +579,9 @@ let list_variables = function
 (* Some of them are optimised (the comment is the simple definition) *)
 
 (*
-let unit_apply f ta = apply (unit f) ta
+let box_apply f ta = apply (unit f) ta
 *)
-let unit_apply f ta =
+let box_apply f ta =
   match ta with
     Closed(a) -> Closed (f a)
   | Open(va,ba,a) -> 
@@ -595,7 +595,7 @@ let mk_uapply2 f a b h = mk_uapply f (a h) (b h)
 let mk_luapply2 f a b h = mk_luapply f a (b h)
 let mk_ruapply2 f a b h = mk_ruapply f (a h) b
 
-let unit_apply2 f ta tb =
+let box_apply2 f ta tb =
   match ta, tb with
     Closed(a), Closed (b) -> Closed (f a b)
   | Closed(a), Open(vb,bb,b) -> 
@@ -608,12 +608,12 @@ let unit_apply2 f ta tb =
       let vars = merge va vb in
       Open(vars, 0, mk_uapply2 f a b)
 
-let unit_apply3 f t t' t'' = apply_box (unit_apply2 f t t') t''
+let box_apply3 f t t' t'' = apply_box (box_apply2 f t t') t''
 
 (* Used in some cases ! *)
-let bind_apply f = unit_apply2 (fun f -> f.value) f
+let bind_apply f = box_apply2 (fun f -> f.value) f
 
-let mbind_apply f = unit_apply2 (fun f -> f.values) f
+let mbind_apply f = box_apply2 (fun f -> f.values) f
 
 let rec cfix t = t (cfix t)
 
@@ -697,7 +697,7 @@ module Map_list =
   end
 
 module Lift_list = Lift(Map_list)
-let lift_list = Lift_list.f
+let box_list = Lift_list.f
 
 module Map_rev_list =
   struct 
@@ -706,7 +706,7 @@ module Map_rev_list =
   end
 
 module Lift_rev_list = Lift(Map_rev_list)
-let lift_rev_list = Lift_rev_list.f
+let box_rev_list = Lift_rev_list.f
 
 module Map_array =
   struct 
@@ -716,9 +716,9 @@ module Map_array =
 
 module Lift_array = Lift(Map_array)
 
-let lift_array = Lift_array.f
+let box_array = Lift_array.f
 
-let lift_pair x y = unit_apply2 (fun x y -> x,y) x y
+let box_pair x y = box_apply2 (fun x y -> x,y) x y
 
 		      
 			  
