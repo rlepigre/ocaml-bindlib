@@ -3,6 +3,8 @@ NvBindlib library
 @author Christophe Raffalli
 *)
 
+open Util
+
 (** the environment type: it is used to store the value of all bound 
    variables. We need the "Obj" module because all the bound variables
    may have diffrent types and we want to store them in one array *)
@@ -13,15 +15,10 @@ let create_env size v = Array.make size (Obj.repr v)
 let set_env env i x = env.(i) <- (Obj.repr x)
 let get_env env i   = Obj.obj env.(i)
 
-(* We need int map and we use J.-C. Filliatre's implementation of Patricia trees *)
-
-module IntMap = Ptmap
-
-
 (* The type parpos will be use to associate to each variables (identified
 by a unique integer key) its position in the environment *)
 
-type varpos = int IntMap.t
+type varpos = int IMap.t
 
 (* object with bound variables will be encoded using functions waiting 
 for two arguments:
@@ -113,7 +110,7 @@ let count = ref 0
 let mk_var index v = get_env v index
 
 let mk_var2 var tbl =
-  let index = IntMap.find var.key tbl in 
+  let index = IMap.find var.key tbl in 
   mk_var index
 
 let generalise_var = ((fun var -> Obj.magic var) : 'a variable -> any variable)
@@ -172,9 +169,9 @@ let mk_select2 t nbbound frees uptbl =
   let cur = ref 0 in
   let downtbl = List.fold_left (fun htbl var ->
     incr cur;
-    let upindex = IntMap.find var.key uptbl in
+    let upindex = IMap.find var.key uptbl in
     table.(!cur) <- upindex;
-    IntMap.add var.key !cur htbl) IntMap.empty frees
+    IMap.add var.key !cur htbl) IMap.empty frees
   in
   let size = !cur + nbbound + 1 in
   mk_select (t downtbl) size table
@@ -261,8 +258,8 @@ let mk_first_bind esize pt arg =
   pt v
 
 let mk_first_bind2 key esize pt = 
-  let htbl = IntMap.empty in
-  let htbl = IntMap.add key 1 htbl in
+  let htbl = IMap.empty in
+  let htbl = IMap.add key 1 htbl in
   mk_first_bind esize (pt htbl)
 
 (* used for the general case of a binder *)
@@ -283,7 +280,7 @@ let mk_bind pos pt v = fun arg ->
   end
 
 let mk_bind2 key pos pt htbl =
-  let htbl = IntMap.add key pos htbl in
+  let htbl = IMap.add key pos htbl in
   mk_bind pos (pt htbl)
 
 let bind_aux v t = match t with 
@@ -348,7 +345,7 @@ let mk_mbind2 arity keys pos pt htbl =
   let htbl = ref htbl in
   let access = Array.mapi (fun i key ->
     if key <> 0 then begin
-      htbl := IntMap.add key !cur_pos !htbl;
+      htbl := IMap.add key !cur_pos !htbl;
       incr cur_pos;
       true
     end else
@@ -383,10 +380,10 @@ let mk_first_mbind arity size access pt = arity, fun args ->
 
 let mk_first_mbind2 arity keys size pt =
   let cur_pos = ref 1 in
-  let htbl = ref IntMap.empty in
+  let htbl = ref IMap.empty in
   let access = Array.mapi (fun i key ->
     if key <> 0 then begin
-      htbl := IntMap.add key !cur_pos !htbl;
+      htbl := IMap.add key !cur_pos !htbl;
       incr cur_pos;
       true
     end else
@@ -451,8 +448,8 @@ let unbox t =
       let htbl = List.fold_left (fun htbl var ->
 	incr cur;
 	set_env env !cur (var.mkfree var);
-	IntMap.add var.key !cur htbl
-	) IntMap.empty vt
+	IMap.add var.key !cur htbl
+	) IMap.empty vt
       in
       t htbl env
   in fn t
@@ -533,7 +530,7 @@ let special_apply tf ta =
 let special_start = Closed ()
 
 let special_end e f = match e with
-  Closed _ -> Closed(f IntMap.empty (create_env 0 ()))
+  Closed _ -> Closed(f IMap.empty (create_env 0 ()))
 | Open(v,b,_) -> Open(v,b,f)
 
 (* to get very nice and efficient functor !*)

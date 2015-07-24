@@ -3,6 +3,8 @@ Bindlib library
 @author Christophe Raffalli
 *)
 
+open Util
+
 (** the environment type: it is used to store the value of all bound 
    variables. We need the "Obj" module because all the bound variables
    may have diffrent types and we want to store them in one array *)
@@ -14,13 +16,7 @@ let set_env env i x = Obj.set_field env i (Obj.repr x)
 let get_env env i   = Obj.obj (Obj.field env i)
 
 
-(* Context:  We need map of strings : *)
-module String_ord = struct 
-  type t = string
-  let compare = compare
-end
-module SMap = Map.Make(String_ord)
-
+(* Context *)
 type context = int list SMap.t
 
 let empty_context = SMap.empty
@@ -44,9 +40,8 @@ let get_suffix name suffix ctxt =
 
 (* We need int map and we use J.-C. Filliatre's implementation of Patricia trees *)
 
-module IntMap = Ptmap
 let get_suffix2 collision htbl suffix =
-  let l = List.map (fun key -> snd (IntMap.find key htbl)) collision in
+  let l = List.map (fun key -> snd (IMap.find key htbl)) collision in
   let l = List.sort (-) l in
   let rec search suffix = function
 	[] -> suffix
@@ -60,7 +55,7 @@ let get_suffix2 collision htbl suffix =
 (* The type parpos will be use to associate to each variables (identified
 by a unique integer key) its position in the environment *)
 
-type varpos = (int * int) IntMap.t
+type varpos = (int * int) IMap.t
 
 (* object with bound variables will be encoded using functions waiting 
 for two arguments:
@@ -205,7 +200,7 @@ let reset_bindlib_count () =
 let mk_var index v = get_env v index
 
 let mk_var2 var tbl =
-  let index = fst (IntMap.find var.key tbl) in mk_var index
+  let index = fst (IMap.find var.key tbl) in mk_var index
 
 let generalise_var = ((fun var -> Obj.magic var) : 'a variable -> any variable)
 
@@ -280,9 +275,9 @@ let mk_select2 t nbbound frees uptbl =
   let cur = ref 0 in
   let downtbl = List.fold_left (fun htbl var ->
     incr cur;
-    let upindex, suffix = IntMap.find var.key uptbl in
+    let upindex, suffix = IMap.find var.key uptbl in
     table.(!cur) <- upindex;
-    IntMap.add var.key (!cur,suffix) htbl) IntMap.empty frees
+    IMap.add var.key (!cur,suffix) htbl) IMap.empty frees
   in
   let size = !cur + nbbound + 1 in
   mk_select (t downtbl) size table
@@ -343,8 +338,8 @@ let mk_first_bind esize pt arg =
   pt v
 
 let mk_first_bind2 rank prefix suffix key esize pt = 
-  let htbl = IntMap.empty in
-  let htbl = IntMap.add key (1,suffix) htbl in
+  let htbl = IMap.empty in
+  let htbl = IMap.add key (1,suffix) htbl in
   { name = merge_name prefix suffix; rank; bind = true; value = mk_first_bind esize (pt htbl) }
 
 (* used for the general case of a binder *)
@@ -368,7 +363,7 @@ let mk_bind name pos pt v =
 let mk_bind2 collision prefix suffix key pos pt htbl =
   let suffix = get_suffix2 collision htbl suffix in
   let name = merge_name prefix suffix in
-  let htbl = IntMap.add key (pos, suffix) htbl in
+  let htbl = IMap.add key (pos, suffix) htbl in
   mk_bind name pos (pt htbl)
 
 let filter_map cond fn l =
@@ -451,7 +446,7 @@ let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
     let suffix = get_suffix2 colls.(i) !htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
     if key <> 0 then begin
-      htbl := IntMap.add key (!cur_pos,suffix) !htbl;
+      htbl := IMap.add key (!cur_pos,suffix) !htbl;
       incr cur_pos;
       true
     end else
@@ -506,13 +501,13 @@ let mk_first_mbind names size access pt = {
 
 let mk_first_mbind2 colls prefixes suffixes keys size pt =
   let cur_pos = ref 1 in
-  let htbl = ref IntMap.empty in
+  let htbl = ref IMap.empty in
   let new_names = Array.make (Array.length prefixes) "" in
   let access = Array.mapi (fun i key ->
     let suffix = get_suffix2 colls.(i) !htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
     if key <> 0 then begin
-      htbl := IntMap.add key (!cur_pos,suffix) !htbl;
+      htbl := IMap.add key (!cur_pos,suffix) !htbl;
       incr cur_pos;
       true
     end else
@@ -605,8 +600,8 @@ let unbox t =
 	incr cur;
 	set_env env !cur (var.mkfree var);
 	let _, suffix = split_name var.var_name in
-	IntMap.add var.key (!cur, suffix) htbl
-	) IntMap.empty vt
+	IMap.add var.key (!cur, suffix) htbl
+	) IMap.empty vt
       in
       t htbl env
   in fn t
@@ -698,7 +693,7 @@ let special_apply tf ta =
 let special_start = Closed ()
 
 let special_end e f = match e with
-  Closed _ -> Closed(f IntMap.empty (create_env 0))
+  Closed _ -> Closed(f IMap.empty (create_env 0))
 | Open(v,b,_) -> Open(v,b,f)
 
 (* to get very nice and efficient functor !*)
