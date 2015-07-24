@@ -5,16 +5,6 @@ NvBindlib library
 
 open Util
 
-(** the environment type: it is used to store the value of all bound 
-   variables. We need the "Obj" module because all the bound variables
-   may have diffrent types and we want to store them in one array *)
-
-type environment = Obj.t array
-
-let create_env size v = Array.make size (Obj.repr v)
-let set_env env i x = env.(i) <- (Obj.repr x)
-let get_env env i   = Obj.obj env.(i)
-
 (* The type parpos will be use to associate to each variables (identified
 by a unique integer key) its position in the environment *)
 
@@ -31,9 +21,7 @@ environment. This means that the map of type varpos is used only once
 for each variable even if the term is used many times 
 *)
 
-type 'a env_term = varpos -> environment -> 'a
-
-type any = Obj.t 
+type 'a env_term = varpos -> Env.t -> 'a
 
 type 'a bindbox = 
 
@@ -50,7 +38,7 @@ type 'a bindbox =
      - t is the open_term itself. The map that t waits as first argument must
        contain the position in the environment of all variables in vl.
      *)
-     	
+             
   | Open of any variable list * int * 'a env_term
 
 and 'a variable = 
@@ -107,9 +95,8 @@ let dummy_bindbox =
 (* the function that creates the number of a new variable *)
 let count = ref 0
 
-let mk_var index v = get_env v index
-
 let mk_var2 var tbl =
+  let mk_var index v = Env.get v index in
   let index = IMap.find var.key tbl in 
   mk_var index
 
@@ -154,27 +141,30 @@ let ( !^ ) = unit
 *)
 let mk_select t esize table v =
   let nsize = Array.length table in
-  if nsize = 2 then
-    t (get_env v table.(1))
+  if nsize = 1 then
+    t (Env.get v table.(0))
   else begin
-    let nv = create_env esize nsize in
-    for i = 1 to nsize - 1 do
-      set_env nv i (get_env v table.(i))
+    let nv = Env.create esize in
+    Env.set_next nv nsize;
+    for i = 0 to nsize - 1 do
+      Env.set nv i (Env.get v table.(i))
     done;
     t nv
   end
 
 let mk_select2 t nbbound frees uptbl =
-  let table = Array.make (List.length frees + 1) 0 in
-  let cur = ref 0 in
+  let nsize = List.length frees in
+  let table = Array.make nsize 0 in
+  let cur = ref (-1) in
   let downtbl = List.fold_left (fun htbl var ->
     incr cur;
     let upindex = IMap.find var.key uptbl in
     table.(!cur) <- upindex;
     IMap.add var.key !cur htbl) IMap.empty frees
   in
-  let size = !cur + nbbound + 1 in
-  mk_select (t downtbl) size table
+  let esize = nsize + nbbound in
+  let t = t downtbl in
+  mk_select t esize table
 
 let select frees nbbound t = 
   if nbbound = 0 then
@@ -253,8 +243,9 @@ let is_mbinder_closed = is_binder_closed
 (* used for the first binder in a closed term (the binder that binds the last*)
 (* free variable in a term and make it a closed term *)
 let mk_first_bind esize pt arg =
-  let v = create_env esize 2 in
-  set_env v 1 arg;
+  let v = Env.create esize in
+  Env.set_next v 1;
+  Env.set v 0 arg;
   pt v
 
 let mk_first_bind2 key esize pt = 
@@ -264,17 +255,17 @@ let mk_first_bind2 key esize pt =
 
 (* used for the general case of a binder *)
 let mk_bind pos pt v = fun arg ->
-  let next = get_env v 0 in 
+  let next = Env.next v in 
   if next = pos then begin
-    set_env v 0 (pos + 1);
-    set_env v pos arg;
+    Env.set_next v (pos + 1);
+    Env.set v pos arg;
     pt v
   end else begin
-    let v = Array.copy v in 
-    set_env v 0 (pos + 1);
-    set_env v pos arg;
+    let v = Env.dup v in 
+    Env.set_next v (pos + 1);
+    Env.set v pos arg;
     for i = pos + 1 to next - 1 do
-      set_env v i 0
+      Env.set v i 0
     done;
     pt v
   end
@@ -295,10 +286,10 @@ let bind_aux v t = match t with
             Closed (mk_first_bind2 v.key esize t)
         | _ ->
             let vt = search v vt in
-	    let pos = List.length vt + 1 in
+            let pos = List.length vt + 1 in
             Open(vt, nbt+1, mk_bind2 v.key pos t)
       with Not_found ->
-	Open(vt, nbt, mk_mute_bind2 t)
+        Open(vt, nbt, mk_mute_bind2 t)
 
 (* take a function of type ('a bindbox -> 'b bindbox) and transform it into a binder*) 
 (* of type ('a, 'b) binder bindbox *)
@@ -314,28 +305,26 @@ let mk_mbind arity pos access pt v =
   arity, fun args ->
     let size = Array.length args in
     if size <> arity then raise (Invalid_argument "bad arity in msubst");
-    let next = get_env v 0 in
+    let next = Env.next v in
     let cur_pos = ref pos in
     if next = pos then begin
       for i = 0 to arity - 1 do 
-	if access.(i) then begin
-	  set_env v !cur_pos args.(i);
-	  incr cur_pos;
-	end
+        if access.(i) then begin
+          Env.set v !cur_pos args.(i); incr cur_pos;
+        end
       done;
-      set_env v 0 !cur_pos;
+      Env.set_next v!cur_pos;
       pt v
     end else begin
-      let v = Array.copy v in 
+      let v = Env.dup v in 
       for i = 0 to arity - 1 do 
-	if access.(i) then begin
-	  set_env v !cur_pos args.(i);
-	  incr cur_pos;
-	end
+        if access.(i) then begin
+          Env.set v !cur_pos args.(i); incr cur_pos;
+        end
       done;
-      set_env v 0 !cur_pos;
+      Env.set_next v !cur_pos;
       for i = !cur_pos to next - 1 do
-	set_env v i 0
+        Env.set v i 0
       done;
       pt v
     end
@@ -365,17 +354,17 @@ let mk_closed_mbind2 arity pt htbl =
   mk_closed_mbind arity (pt htbl)
 
 let mk_first_mbind arity size access pt = arity, fun args ->
-  let v = create_env size () in
+  let v = Env.create size in
   let size = Array.length args in
   if size <> arity then raise (Invalid_argument "bad arity in msubst");
   let cur_pos = ref 1 in
   for i = 0 to arity - 1 do 
     if access.(i) then begin
-      set_env v !cur_pos args.(i);
+      Env.set v !cur_pos args.(i);
       incr cur_pos;
     end
   done;
-  set_env v 0 !cur_pos;
+  Env.set_next v !cur_pos;
   pt v
 
 let mk_first_mbind2 arity keys size pt =
@@ -402,23 +391,23 @@ let mbind_aux vs t =
        let nnbt = ref nbt in
        let keys = Array.make len 0 in 
        for i = len - 1 downto 0 do
-	 let v = vs.(i) in
-	 try
-	   let ng = search v !vt in
-	   incr nnbt;
-	   vt := ng;
-	   keys.(i) <- v.key
-	 with Not_found ->
-	   keys.(i) <- 0
+         let v = vs.(i) in
+         try
+           let ng = search v !vt in
+           incr nnbt;
+           vt := ng;
+           keys.(i) <- v.key
+         with Not_found ->
+           keys.(i) <- 0
        done;
        if !vt = [] then
-	 Closed(mk_first_mbind2 len keys (!nnbt + 1) t)
+         Closed(mk_first_mbind2 len keys (!nnbt + 1) t)
        else
-	 if !nnbt = nbt then
-	   Open(!vt,nbt,mk_closed_mbind2 len t)
-	 else
-	   let pos = List.length !vt + 1 in
-	   Open(!vt,!nnbt,mk_mbind2 len keys pos t)
+         if !nnbt = nbt then
+           Open(!vt,nbt,mk_closed_mbind2 len t)
+         else
+           let pos = List.length !vt + 1 in
+           Open(!vt,!nnbt,mk_mbind2 len keys pos t)
 
 (* take a function of type ('a bindbox array -> 'b bindbox) and transform it into a binder*) 
 (* of type ('a, 'b) mbinder open_term *)
@@ -443,13 +432,14 @@ let unbox t =
   | Open(vt,nbt,t) -> 
       let next =  List.length vt + 1 in
       let esize = next + nbt in
-      let env = create_env esize next in
+      let env = Env.create esize in
+      Env.set_next env next;
       let cur = ref 0 in
       let htbl = List.fold_left (fun htbl var ->
-	incr cur;
-	set_env env !cur (var.mkfree var);
-	IMap.add var.key !cur htbl
-	) IMap.empty vt
+        incr cur;
+        Env.set env !cur (var.mkfree var);
+        IMap.add var.key !cur htbl
+        ) IMap.empty vt
       in
       t htbl env
   in fn t
@@ -515,7 +505,7 @@ let fixpoint f =
 (* dirty imperative functions ... *)
 
 let mk_unit a _ _ = a 
-	
+        
 let special_apply tf ta =
   match tf, ta with
     Closed(()), Closed (a) -> Closed (()), mk_unit a
@@ -530,7 +520,7 @@ let special_apply tf ta =
 let special_start = Closed ()
 
 let special_end e f = match e with
-  Closed _ -> Closed(f IMap.empty (create_env 0 ()))
+  Closed _ -> Closed(f IMap.empty (Env.create 0))
 | Open(v,b,_) -> Open(v,b,f)
 
 (* to get very nice and efficient functor !*)
@@ -546,9 +536,9 @@ module Lift(M: Map) =
     let f t =
       let acc = ref special_start in
       let fn o =
-	let nacc, o = special_apply !acc o in
-	acc:= nacc;
-	o
+        let nacc, o = special_apply !acc o in
+        acc:= nacc;
+        o
       in
       let t = M.map fn t in
       special_end !acc (fun htbl -> let l = M.map (fun o -> o htbl) t in
@@ -566,9 +556,9 @@ module Lift2(M: Map2) =
     let f t =
       let acc = ref special_start in
       let fn o =
-	let nacc, o = special_apply !acc o in
-	acc:=nacc;
-	o
+        let nacc, o = special_apply !acc o in
+        acc:=nacc;
+        o
       in
       let t = M.map fn fn t in
       special_end !acc (fun htbl -> let l = M.map (fun o -> o htbl) (fun o -> o htbl) t in

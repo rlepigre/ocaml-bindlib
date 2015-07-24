@@ -1,13 +1,13 @@
-module Env : sig
-  type any = Obj.t
-  type environment =
-    { tab          : any array
-    ; mutable next : int }
+type any = Obj.t
 
-  val create_env : int -> environment
-  val set_env : environment -> int -> 'a -> unit
-  val get_env : environment -> int -> 'a
-  val dup_env : environment -> environment
+module Env : sig
+  type t
+  val create : int -> t
+  val set : t -> int -> 'a -> unit
+  val get : t -> int -> 'a
+  val dup : t -> t
+  val next : t -> int
+  val set_next : t -> int -> unit
 end
 
 module IMap : sig

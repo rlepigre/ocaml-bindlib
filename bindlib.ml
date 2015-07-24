@@ -5,17 +5,6 @@ Bindlib library
 
 open Util
 
-(** the environment type: it is used to store the value of all bound 
-   variables. We need the "Obj" module because all the bound variables
-   may have diffrent types and we want to store them in one array *)
-
-type environment = Obj.t
-
-let create_env size = Obj.new_block 0 size
-let set_env env i x = Obj.set_field env i (Obj.repr x)
-let get_env env i   = Obj.obj (Obj.field env i)
-
-
 (* Context *)
 type context = int list SMap.t
 
@@ -68,9 +57,7 @@ environment. This means that the map of type varpos is used only once
 for each variable even if the term is used many times 
 *)
 
-type 'a env_term = varpos -> environment -> 'a
-
-type any = Obj.t 
+type 'a env_term = varpos -> Env.t -> 'a
 
 type 'a bindbox = 
 
@@ -197,9 +184,8 @@ let count = ref 0
 let reset_bindlib_count () =
   count := 0
 
-let mk_var index v = get_env v index
-
-let mk_var2 var tbl =
+let mk_var var tbl =
+  let mk_var index v = Env.get v index in
   let index = fst (IMap.find var.key tbl) in mk_var index
 
 let generalise_var = ((fun var -> Obj.magic var) : 'a variable -> any variable)
@@ -216,7 +202,7 @@ let new_var (bv  : 'a variable -> 'a) name =
     mkfree = bv; 
     bindbox = dummy_bindbox }
   in
-  let result = Open([generalise_var var], 0, mk_var2 var) in
+  let result = Open([generalise_var var], 0, mk_var var) in
   var.bindbox <- result;
   var
 
@@ -233,7 +219,7 @@ let new_var_in ctxt (bv  : 'a variable -> 'a) name =
     mkfree = bv; 
     bindbox = dummy_bindbox }
   in
-  let result = Open([generalise_var var], 0, mk_var2 var) in
+  let result = Open([generalise_var var], 0, mk_var var) in
   var.bindbox <- result;
   var, ctxt
 
@@ -263,10 +249,10 @@ let unit t = Closed(t)
 *)
 let mk_select t esize table v =
   let nsize = Array.length table in
-  let nv = create_env esize in
-  set_env nv 0 nsize;
+  let nv = Env.create esize in
+  Env.set_next nv nsize;
   for i = 1 to nsize - 1 do
-    set_env nv i (get_env v table.(i))
+    Env.set nv i (Env.get v table.(i))
   done;
   t nv
 
@@ -331,13 +317,12 @@ let mk_mute_bind2 rank collision prefix suffix pt htbl =
 
 (* used for the first binder in a closed term (the binder that binds the last*)
 (* free variable in a term and make it a closed term *)
-let mk_first_bind esize pt arg =
-  let v = create_env esize in
-  set_env v 0 2;
-  set_env v 1 arg;
-  pt v
-
 let mk_first_bind2 rank prefix suffix key esize pt = 
+  let mk_first_bind esize pt arg =
+    let v = Env.create esize in
+    Env.set_next v 2; Env.set v 0 arg;
+    pt v
+  in
   let htbl = IMap.empty in
   let htbl = IMap.add key (1,suffix) htbl in
   { name = merge_name prefix suffix; rank; bind = true; value = mk_first_bind esize (pt htbl) }
@@ -345,17 +330,17 @@ let mk_first_bind2 rank prefix suffix key esize pt =
 (* used for the general case of a binder *)
 let mk_bind name pos pt v =
   { name; rank = pos - 1; bind = true; value = fun arg ->
-  let next = get_env v 0 in 
+  let next = Env.next v in 
   if next = pos then begin
-    set_env v 0 (next + 1);
-    set_env v next arg;
+    Env.set v next arg;
+    Env.set_next v (next + 1);
     pt v
   end else begin
-    let v = Obj.dup v in 
-    set_env v 0 (pos + 1);
-    set_env v pos arg;
+    let v = Env.dup v in 
+    Env.set_next v (pos + 1);
+    Env.set v pos arg;
     for i = pos + 1 to next - 1 do
-      set_env v i 0
+      Env.set v i 0
     done;
     pt v
 	end}
@@ -412,28 +397,28 @@ let mk_mbind names pos access pt v =
     let arity = Array.length names in
     let size = Array.length args in
     if size <> arity then raise (Invalid_argument "bad arity in msubst");
-    let next = get_env v 0 in
+    let next = Env.next v in
     let cur_pos = ref pos in
     if next = pos then begin
       for i = 0 to arity - 1 do
 	if access.(i) then begin
-	  set_env v !cur_pos args.(i);
+	  Env.set v !cur_pos args.(i);
 	  incr cur_pos;
 	end
       done;
-      set_env v 0 !cur_pos;
+      Env.set_next v !cur_pos;
       pt v
     end else begin
-      let v = Obj.dup v in 
+      let v = Env.dup v in 
       for i = 0 to arity - 1 do
 	if access.(i) then begin
-	  set_env v !cur_pos args.(i);
+	  Env.set v !cur_pos args.(i);
 	  incr cur_pos;
 	end
       done;
-      set_env v 0 !cur_pos;
+      Env.set_next v !cur_pos;
       for i = !cur_pos to next - 1 do
-	set_env v i 0
+        Env.set v i 0
       done;
       pt v
     end }
@@ -485,18 +470,18 @@ let mk_mute_mbind2 ranks colls prefixes suffixes pt htbl =
 
 let mk_first_mbind names size access pt = {
   names; binds = access; ranks = 0; values =  fun args ->
-  let v = create_env size in
+  let v = Env.create size in
   let arity = Array.length names in
   let size = Array.length args in
   if size <> arity then raise (Invalid_argument "bad arity in msubst");
   let cur_pos = ref 1 in
   for i = 0 to arity - 1 do
     if access.(i) then begin
-      set_env v !cur_pos args.(i);
+      Env.set v !cur_pos args.(i);
       incr cur_pos;
     end
   done;
-  set_env v 0 !cur_pos;
+  Env.set_next v !cur_pos;
   pt v}
 
 let mk_first_mbind2 colls prefixes suffixes keys size pt =
@@ -593,12 +578,12 @@ let unbox t =
   | Open(vt,nbt,t) -> 
       let next =  List.length vt + 1 in
       let esize = next + nbt in
-      let env = create_env esize in
-      set_env env 0 next;
+      let env = Env.create esize in
+      Env.set_next env next;
       let cur = ref 0 in
       let htbl = List.fold_left (fun htbl var ->
 	incr cur;
-	set_env env !cur (var.mkfree var);
+	Env.set env !cur (var.mkfree var);
 	let _, suffix = split_name var.var_name in
 	IMap.add var.key (!cur, suffix) htbl
 	) IMap.empty vt
@@ -693,7 +678,7 @@ let special_apply tf ta =
 let special_start = Closed ()
 
 let special_end e f = match e with
-  Closed _ -> Closed(f IMap.empty (create_env 0))
+  Closed _ -> Closed(f IMap.empty (Env.create 0))
 | Open(v,b,_) -> Open(v,b,f)
 
 (* to get very nice and efficient functor !*)

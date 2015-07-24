@@ -173,18 +173,3 @@ module Lift2(M: Map2) :
   sig
     val f : ('a bindbox, 'b bindbox) M.t -> ('a, 'b) M.t bindbox
   end
-
-(* Not to be used by the casual user, only provided for the 
-   camlp4 extension *)
-
-type environment
-type varpos
-type 'a env_term = varpos -> environment -> 'a
-
-val special_apply : unit bindbox -> 'a bindbox -> unit bindbox * 'a env_term
-
-val special_start : unit bindbox
-val special_end : unit bindbox -> 'a env_term -> 'a bindbox
-
-
-

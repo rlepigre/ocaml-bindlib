@@ -231,18 +231,6 @@ val new_mvar_in :
 
 val bind_mvar : 'a mvariable -> 'b bindbox -> ('a, 'b) mbinder bindbox
 
-(* Not to be used by the casual user, only provided for the 
-   camlp4 extension *)
-
-type environment
-type varpos
-type 'a env_term = varpos -> environment -> 'a
-
-val special_apply : unit bindbox -> 'a bindbox -> unit bindbox * 'a env_term
-
-val special_start : unit bindbox
-val special_end : unit bindbox -> 'a env_term -> 'a bindbox
-
 (* This function creates a copy of the given variable, that is not
    distinguishable from the original variable when it is bound. However,
    when it is free (that is not bound when calling unbox), the way 
