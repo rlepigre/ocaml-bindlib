@@ -294,82 +294,51 @@ let unbox : 'a bindbox -> 'a = function
       let htbl = List.fold_left aux IMap.empty vt in
       t htbl env
 
+(* Build a binder in the case it is the first binder in a closed term (i.e.
+(the binder that binds the last free variable in a term and thus close it). *)
+let mk_first_bind rank x esize pt = 
+  let v = Env.create esize in Env.set_next v 1;
+  let htbl = IMap.add x.key (1,x.suffix) IMap.empty in
+  let value arg = Env.set v 0 arg; pt htbl v in
+  { name = merge_name x.prefix x.suffix; rank; bind = true; value }
 
-
-
-
-
-
-
-
-
-(* used for binder which binds a variable with no occurrence (but the term has*)
-(* other free variables *)
-let mk_mute_bind rank name pt v = { name; rank; bind = false; value = fun _ -> pt v }
-
-let mk_mute_bind2 rank collision prefix suffix pt htbl = 
-  let suffix = get_suffix collision htbl suffix in
-  let name = merge_name prefix suffix in
-  mk_mute_bind rank name (pt htbl)
-
-(* used for the first binder in a closed term (the binder that binds the last*)
-(* free variable in a term and make it a closed term *)
-let mk_first_bind2 rank prefix suffix key esize pt = 
-  let mk_first_bind esize pt arg =
-    let v = Env.create esize in
-    Env.set_next v 2; Env.set v 0 arg;
-    pt v
+let mk_bind cols x pos pt htbl v =
+  let suffix = get_suffix cols htbl x.suffix in
+  let name = merge_name x.prefix suffix in
+  let htbl = IMap.add x.key (pos, suffix) htbl in
+  let value arg = 
+    let next = Env.next v in 
+    if next = pos then
+      (Env.set v next arg; Env.set_next v (next + 1); pt htbl v)
+    else
+      (let v = Env.dup v in 
+       Env.set_next v (pos + 1); Env.set v pos arg;
+       for i = pos + 1 to next - 1 do Env.set v i 0 done; pt htbl v)
   in
-  let htbl = IMap.empty in
-  let htbl = IMap.add key (1,suffix) htbl in
-  { name = merge_name prefix suffix; rank; bind = true; value = mk_first_bind esize (pt htbl) }
-
-(* used for the general case of a binder *)
-let mk_bind name pos pt v =
-  { name; rank = pos - 1; bind = true; value = fun arg ->
-  let next = Env.next v in 
-  if next = pos then begin
-    Env.set v next arg;
-    Env.set_next v (next + 1);
-    pt v
-  end else begin
-    let v = Env.dup v in 
-    Env.set_next v (pos + 1);
-    Env.set v pos arg;
-    for i = pos + 1 to next - 1 do
-      Env.set v i 0
-    done;
-    pt v
-        end}
-
-let mk_bind2 collision prefix suffix key pos pt htbl =
-  let suffix = get_suffix collision htbl suffix in
-  let name = merge_name prefix suffix in
-  let htbl = IMap.add key (pos, suffix) htbl in
-  mk_bind name pos (pt htbl)
-
+  { name; rank = pos - 1; bind = true; value }
 
 (* Binds the given variable in the given bindbox to produce a binder. *)
-let bind_var v = function
+let bind_var x = function
   | Closed t ->
-     Closed {name = v.var_name ; rank = 0 ; bind = false ; value = fun _ -> t}
+     Closed {name = x.var_name; rank = 0; bind = false; value = fun _ -> t}
   | Open(vs,nb,t) -> 
      try 
        match vs with
-        [var] -> 
-          if v.key <> var.key then raise Not_found;
-          let esize = nb + 2 in
-          Closed (mk_first_bind2 (List.length vs) v.prefix v.suffix v.key esize t)
-      | _ ->
-          let vt = search v vs in
-          let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-              (fun v -> v.key) vt in
-          let pos = List.length vt + 1 in
-          Open(vt, nb+1, mk_bind2 collision v.prefix v.suffix v.key pos t)
+       | [y] -> if x.key <> y.key then raise Not_found;
+                Closed (mk_first_bind (List.length vs) x (nb + 1) t)
+       | _   -> let vt = search x vs in
+                let eq_pref y = x.prefix = y.prefix in
+                let cols = filter_map eq_pref (fun v -> v.key) vt in
+                let pos = List.length vt in
+                Open(vt, nb + 1, mk_bind cols x pos t)
     with Not_found ->
-      let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-          (fun v -> v.key) vs in
-      Open(vs, nb, mk_mute_bind2 (List.length vs) collision v.prefix v.suffix t)
+      let eq_pref y = x.prefix = y.prefix in
+      let cols = filter_map eq_pref (fun v -> v.key) vs in
+      let rank = List.length vs in
+      let t htbl v =
+        let name = merge_name x.prefix (get_suffix cols htbl x.suffix) in
+        { name; rank; bind = false; value = fun _ -> t htbl v }
+      in Open(vs, nb, t)
 
 (* Transforms a function of type ['a bindbox -> 'b bindbox] into a binder. *)
 let bind mkfree name f =
