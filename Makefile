@@ -1,41 +1,44 @@
+OCAMLC=ocamlc -g
+OCAMLOPT=ocamlopt -g
+
 all: bindlib.cma bindlib.cmxa
 
 ## Ptmap module
 ptmap.cmi: ptmap.mli
-	ocamlc -c $<
+	$(OCAMLC) -c $<
 
 ptmap.cmo: ptmap.ml ptmap.cmi
-	ocamlc -c $<
+	$(OCAMLC) -c $<
 
 ptmap.cmx: ptmap.ml ptmap.cmi
-	ocamlopt -c $<
+	$(OCAMLOPT) -c $<
 
 ## Util
 
 util.cmi: util.mli ptmap.cmi
-	ocamlc -c $<
+	$(OCAMLC) -c $<
 
 util.cmo: util.ml util.cmi
-	ocamlc -c $<
+	$(OCAMLC) -c $<
 
 util.cmx: util.ml util.cmi
-	ocamlopt -c $<
+	$(OCAMLOPT) -c $<
 
 ## Bindlib
 bindlib.cmi: bindlib.mli util.cmi
-	ocamlc -c $<
+	$(OCAMLC) -c $<
 
 bindlib.cmo: bindlib.ml bindlib.cmi util.cmi
-	ocamlc -c $<
+	$(OCAMLC) -c $<
 
 bindlib.cmx: bindlib.ml bindlib.cmi util.cmi
-	ocamlopt -c $<
+	$(OCAMLOPT) -c $<
 
 bindlib.cma: ptmap.cmo util.cmo bindlib.cmo
-	ocamlc -o $@ -a $^
+	$(OCAMLC) -o $@ -a $^
 
 bindlib.cmxa: ptmap.cmx util.cmx bindlib.cmx
-	ocamlopt -o $@ -a $^
+	$(OCAMLOPT) -o $@ -a $^
 
 ## Clean
 clean:
