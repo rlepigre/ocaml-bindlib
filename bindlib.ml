@@ -345,14 +345,19 @@ let bind mkfree name f =
   let x = new_var mkfree name in
   bind_var x (f x.bindbox)
 
-
-
-
-
-
-
-
-let mk_mbind names pos binds pt v = 
+(* Auxiliary functions. FIXME FIXME FIXME *)
+let mk_mbind colls prefixes suffixes keys pos pt htbl v =
+  let cur_pos = ref pos in
+  let htbl = ref htbl in
+  let names = Array.make (Array.length prefixes) "" in
+  let f i key =
+    let suffix = get_suffix colls.(i) !htbl suffixes.(i) in
+    names.(i) <- merge_name prefixes.(i) suffix;
+    if key <> 0 then
+      (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
+    else false
+  in
+  let binds = Array.mapi f keys in
   let values args =
     let arity = Array.length names in
     let size = Array.length args in
@@ -367,7 +372,7 @@ let mk_mbind names pos binds pt v =
         end
       done;
       Env.set_next v !cur_pos;
-      pt v
+      pt !htbl v
     end else begin
       let v = Env.dup v in 
       for i = 0 to arity - 1 do
@@ -378,89 +383,64 @@ let mk_mbind names pos binds pt v =
       done;
       Env.set_next v !cur_pos;
       for i = !cur_pos to next - 1 do Env.set v i 0 done;
-      pt v
+      pt !htbl v
     end
-  in
-  { names; ranks = pos-1; binds; values }
+  in { names; ranks = pos-1; binds; values }
 
-let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
-  let cur_pos = ref pos in
-  let htbl = ref htbl in
+let mk_mute_mbind ranks colls prefixes suffixes pt htbl v =
   let new_names = Array.make (Array.length prefixes) "" in
-  let access = Array.mapi (fun i key ->
-    let suffix = get_suffix colls.(i) !htbl suffixes.(i) in
-    new_names.(i) <- merge_name prefixes.(i) suffix;
-    if key <> 0 then begin
-      htbl := IMap.add key (!cur_pos,suffix) !htbl;
-      incr cur_pos;
-      true
-    end else
-      false
-      ) keys
+  let f i c =
+    let suffix = get_suffix c htbl suffixes.(i) in
+    new_names.(i) <- merge_name prefixes.(i) suffix
   in
-  mk_mbind new_names pos access (pt !htbl)
-
-let mk_closed_mbind names t = 
+  Array.iteri f colls;
   let values args =
-    if Array.length names <> Array.length args then
+    if Array.length new_names <> Array.length args then
       raise (Invalid_argument "bad arity in msubst");
-    t
+    pt htbl v
   in
-  {names; ranks = 0; binds = Array.map (fun _ -> false) names; values}
-
-let mk_mute_mbind ranks names pt v = 
-  let values args =
-    if Array.length names <> Array.length args then
-      raise (Invalid_argument "bad arity in msubst");
-    pt v
-  in
+  let names = new_names in
   {names; ranks; binds = Array.map (fun _ -> false) names; values}
 
-let mk_mute_mbind2 ranks colls prefixes suffixes pt htbl =
-  let new_names = Array.make (Array.length prefixes) "" in
-  Array.iteri (fun i c ->
-    let suffix = get_suffix c htbl suffixes.(i) in
-    new_names.(i) <- merge_name prefixes.(i) suffix;
-              ) colls;
-  mk_mute_mbind ranks new_names (pt htbl)
-
-let mk_first_mbind names size access pt = {
-  names; binds = access; ranks = 0; values =  fun args ->
-  let v = Env.create size in
-  let arity = Array.length names in
-  let size = Array.length args in
-  if size <> arity then raise (Invalid_argument "bad arity in msubst");
-  let cur_pos = ref 1 in
-  for i = 0 to arity - 1 do
-    if access.(i) then begin
-      Env.set v !cur_pos args.(i);
-      incr cur_pos;
-    end
-  done;
-  Env.set_next v !cur_pos;
-  pt v}
-
-let mk_first_mbind2 colls prefixes suffixes keys size pt =
+let mk_first_mbind colls prefixes suffixes keys size pt =
   let cur_pos = ref 1 in
   let htbl = ref IMap.empty in
-  let new_names = Array.make (Array.length prefixes) "" in
-  let access = Array.mapi (fun i key ->
+  let names = Array.make (Array.length prefixes) "" in
+  let f i key =
     let suffix = get_suffix colls.(i) !htbl suffixes.(i) in
-    new_names.(i) <- merge_name prefixes.(i) suffix;
-    if key <> 0 then begin
-      htbl := IMap.add key (!cur_pos,suffix) !htbl;
-      incr cur_pos;
-      true
-    end else
-      false
-      ) keys
+    names.(i) <- merge_name prefixes.(i) suffix;
+    if key <> 0 then
+      (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
+    else false
   in
-  mk_first_mbind new_names size access (pt !htbl)
+  let binds = Array.mapi f keys in
+  let values args =
+    let v = Env.create size in
+    let arity = Array.length names in
+    let size = Array.length args in
+    if size <> arity then raise (Invalid_argument "bad arity in msubst");
+    let cur_pos = ref 1 in
+    for i = 0 to arity - 1 do
+      if binds.(i) then begin
+        Env.set v !cur_pos args.(i);
+        incr cur_pos;
+      end
+    done;
+    Env.set_next v !cur_pos;
+    pt !htbl v
+  in {names; binds; ranks = 0; values}
 
-let mbind_aux vs = function
+(* Bind a multi-variable in a bindbox to produce a multi-binder. *)
+let bind_mvar vs = function
   | Closed t ->
       let names = Array.map (fun v -> v.var_name) vs in
-      Closed (mk_closed_mbind names t)
+      let values args =
+        if Array.length names <> Array.length args then
+          raise (Invalid_argument "bad arity in msubst");
+        t
+      in
+      let binds = Array.map (fun _ -> false) names in
+      Closed {names; ranks = 0; binds ; values}
   | Open(vt,nbt,t) -> 
       let vt = ref vt in
       let nnbt = ref nbt in
@@ -486,84 +466,51 @@ let mbind_aux vs = function
           keys.(i) <- 0
       done;
       if !vt = [] then
-        Closed(mk_first_mbind2 colls prefixes suffixes keys (!nnbt + 1) t)
+        Closed(mk_first_mbind colls prefixes suffixes keys (!nnbt + 1) t)
       else if !nnbt = nbt then
         let vt = !vt in
-        Open(vt,nbt,mk_mute_mbind2 (List.length vt) colls prefixes suffixes t)
+        Open(vt,nbt,mk_mute_mbind (List.length vt) colls prefixes suffixes t)
       else
         let pos = List.length !vt + 1 in
-        Open(!vt,!nnbt,mk_mbind2 colls prefixes suffixes keys pos t)
+        Open(!vt,!nnbt,mk_mbind colls prefixes suffixes keys pos t)
 
-(* take a function of type ('a bindbox array -> 'b bindbox) and transform it into a binder*) 
-(* of type ('a, 'b) mbinder open_term *)
-
-
-let mbind bv names fpt =
-  let vs = new_mvar bv names in
+(* Take a function of type ['a bindbox array -> 'b bindbox] and builds the
+corresponing multi-binder. *)
+let mbind mkfree names f =
+  let vs = new_mvar mkfree names in
   let args = Array.map box_of_var vs in
-  mbind_aux vs (fpt args)
+  bind_mvar vs (f args)
 
-let bind_mvar = mbind_aux
-
-
-
-
-
-
-
-(* Here are some usefull function *)
-(* Some of them are optimised (the comment is the simple definition) *)
-
-(*
-let box_apply f ta = apply (unit f) ta
-*)
-let box_apply f ta =
-  match ta with
-    Closed(a) -> Closed (f a)
-  | Open(va,ba,a) -> 
-      Open(va, ba, fun h v -> f (a h v))
-
-let mk_uapply f a b v = f (a v) (b v)
-let mk_luapply f a b v = f a (b v)
-let mk_ruapply f a b v = f (a v) b
-
-let mk_uapply2 f a b h = mk_uapply f (a h) (b h)
-let mk_luapply2 f a b h = mk_luapply f a (b h)
-let mk_ruapply2 f a b h = mk_ruapply f (a h) b
+(* Optimized equivalent of [let box_apply f ta = apply (unit f) ta]. *)
+let box_apply f = function
+  | Closed a      -> Closed (f a)
+  | Open(va,na,a) -> Open(va,na,fun h v -> f (a h v))
 
 let box_apply2 f ta tb =
-  match ta, tb with
-    Closed(a), Closed (b) -> Closed (f a b)
-  | Closed(a), Open(vb,bb,b) -> 
-      Open(vb,bb,mk_luapply2 f a b)
-  | Open(va,ba,a), Closed(b) -> 
-      Open(va, ba, mk_ruapply2 f a b)
-  | Open(va,ba,a), Open(vb,bb,b) ->
+  match (ta, tb) with
+  | (Closed(a)    , Closed (b)   ) -> Closed (f a b)
+  | (Closed(a)    , Open(vb,bb,b)) -> Open(vb,bb,fun h v -> f a (b h v))
+  | (Open(va,ba,a), Closed(b)    ) -> Open(va,ba,fun h v -> f (a h v) b)
+  | (Open(va,ba,a), Open(vb,bb,b)) ->
       let a = select va ba a in
       let b = select vb bb b in
-      let vars = merge va vb in
-      Open(vars, 0, mk_uapply2 f a b)
+      Open(merge va vb, 0, fun h v -> f (a h v) (b h v))
 
-let box_apply3 f t t' t'' = apply_box (box_apply2 f t t') t''
+let box_apply3 f ta tb tc = apply_box (box_apply2 f ta tb) tc
 
-(* Used in some cases ! *)
 let bind_apply f = box_apply2 (fun f -> f.value) f
 
 let mbind_apply f = box_apply2 (fun f -> f.values) f
 
-let rec cfix t = t (cfix t)
-
-let rec fix t env =  (t env).value (fix t env)
-
-let fix2 t htbl = fix (t htbl)
-
-let fixpoint (f : (('a, 'b) binder, ('a, 'b) binder) binder bindbox) = 
-  (match f with
-    Closed t -> Closed(cfix t.value)
-  | Open(vt,nbt,t) -> Open(vt,nbt,fix2 t) : ('a, 'b) binder bindbox)
-
-(* dirty imperative functions ... *)
-
+let fixpoint = function
+  | Closed t      -> let rec fix t =
+                       t (fix t)
+                     in Closed(fix t.value)
+  | Open(vs,nb,t) -> let rec fix t htbl env =
+                        (t htbl env).value (fix t htbl env)
+                     in Open(vs, nb, fix t)
+  
+(* Functorial interface to generate lifting functions for [bindbox]. *)
 let special_apply tf ta =
   match (tf, ta) with
   | (Closed(())   , Closed(a)    ) ->
@@ -574,31 +521,10 @@ let special_apply tf ta =
       (tf, (fun _ _ -> a))
   | (Open(vf,nf,_), Open(va,na,a)) ->
       (Open(merge vf va, 0, fun _ _ -> ()), select va na a)
-   
-let special_end e f =
-  match e with
-  | Closed _    -> Closed(f IMap.empty (Env.create 0))
-  | Open(v,b,_) -> Open(v,b,f)
-
-(* to get very nice and efficient functor !*)
-
+ 
 module type Map = sig
   type 'a t
   val map : ('a -> 'b) -> 'a t -> 'b t
-end
-
-module Lift(M : Map) = struct
-  let f t =
-    let acc = ref (Closed ()) in
-    let fn o =
-      let nacc, o = special_apply !acc o in
-            acc := nacc; o
-    in
-    let t = M.map fn t in
-    let aux htbl =
-      let l = M.map (fun o -> o htbl) t in
-      (fun env -> M.map (fun o -> o env) l)
-    in special_end !acc aux
 end
 
 module type Map2 = sig
@@ -606,24 +532,39 @@ module type Map2 = sig
   val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
 end
 
+module Lift(M : Map) = struct
+  let f t =
+    let acc = ref (Closed ()) in
+    let fn o =
+      let nacc, o = special_apply !acc o in
+      acc := nacc; o
+    in
+    let t = M.map fn t in
+    let aux htbl =
+      let l = M.map (fun o -> o htbl) t in
+      (fun env -> M.map (fun o -> o env) l)
+    in
+    match !acc with
+    | Closed _    -> Closed(aux IMap.empty (Env.create 0))
+    | Open(v,b,_) -> Open(v,b,aux)
+end
+
 module Lift2(M: Map2) = struct
   let f t =
     let acc = ref (Closed ()) in
     let fn o =
       let nacc, o = special_apply !acc o in
-            acc := nacc; o
+      acc := nacc; o
     in
     let t = M.map fn fn t in
     let aux htbl =
       let l = M.map (fun o -> o htbl) (fun o -> o htbl) t in
       (fun env -> M.map (fun o -> o env) (fun o -> o env) l)
     in
-    special_end !acc aux
+    match !acc with
+    | Closed _    -> Closed(aux IMap.empty (Env.create 0))
+    | Open(v,b,_) -> Open(v,b,aux)
   end
-
-
-
-
 
 (* Some standard lifting functions. *)
 module Lift_list = Lift(
@@ -701,4 +642,4 @@ let new_mvar_in ctxt mkfree names =
 let mbind_in ctxt mkfree names fpt =
   let (vs, ctxt) = new_mvar_in ctxt mkfree names in
   let args = Array.map box_of_var vs in
-  mbind_aux vs (fpt args ctxt)
+  bind_mvar vs (fpt args ctxt)
