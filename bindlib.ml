@@ -352,8 +352,8 @@ let bind mkfree name f =
 
 
 
-let mk_mbind names pos access pt v = 
-  { names; ranks = pos-1; binds = access; values = fun args ->
+let mk_mbind names pos binds pt v = 
+  let values args =
     let arity = Array.length names in
     let size = Array.length args in
     if size <> arity then raise (Invalid_argument "bad arity in msubst");
@@ -361,7 +361,7 @@ let mk_mbind names pos access pt v =
     let cur_pos = ref pos in
     if next = pos then begin
       for i = 0 to arity - 1 do
-        if access.(i) then begin
+        if binds.(i) then begin
           Env.set v !cur_pos args.(i);
           incr cur_pos;
         end
@@ -371,17 +371,17 @@ let mk_mbind names pos access pt v =
     end else begin
       let v = Env.dup v in 
       for i = 0 to arity - 1 do
-        if access.(i) then begin
+        if binds.(i) then begin
           Env.set v !cur_pos args.(i);
           incr cur_pos;
         end
       done;
       Env.set_next v !cur_pos;
-      for i = !cur_pos to next - 1 do
-        Env.set v i 0
-      done;
+      for i = !cur_pos to next - 1 do Env.set v i 0 done;
       pt v
-    end }
+    end
+  in
+  { names; ranks = pos-1; binds; values }
 
 let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
   let cur_pos = ref pos in
@@ -401,24 +401,20 @@ let mk_mbind2 colls prefixes suffixes keys pos pt htbl =
   mk_mbind new_names pos access (pt !htbl)
 
 let mk_closed_mbind names t = 
-  {names;
-   ranks = 0;
-   binds = Array.map (fun _ -> false) names;
-   values = fun args ->
-    let arity = Array.length names in
-    let size = Array.length args in
-    if size <> arity then raise (Invalid_argument "bad arity in msubst");
-    t}
+  let values args =
+    if Array.length names <> Array.length args then
+      raise (Invalid_argument "bad arity in msubst");
+    t
+  in
+  {names; ranks = 0; binds = Array.map (fun _ -> false) names; values}
 
 let mk_mute_mbind ranks names pt v = 
-  {names;
-   ranks;
-   binds = Array.map (fun _ -> false) names;
-   values = fun args ->
-    let arity = Array.length names in
-    let size = Array.length args in
-    if size <> arity then raise (Invalid_argument "bad arity in msubst");
-    pt v}
+  let values args =
+    if Array.length names <> Array.length args then
+      raise (Invalid_argument "bad arity in msubst");
+    pt v
+  in
+  {names; ranks; binds = Array.map (fun _ -> false) names; values}
 
 let mk_mute_mbind2 ranks colls prefixes suffixes pt htbl =
   let new_names = Array.make (Array.length prefixes) "" in
@@ -626,6 +622,10 @@ module Lift2(M: Map2) = struct
   end
 
 
+
+
+
+(* Some standard lifting functions. *)
 module Lift_list = Lift(
   struct
     type 'a t = 'a list
@@ -647,69 +647,58 @@ module Lift_array = Lift(
   end)
 let box_array = Lift_array.f
 
-
-
 let box_pair x y = box_apply2 (fun x y -> x,y) x y
 
-                      
-                          
-
-
-
-(* Context *)
+(* Type of a context. *)
 type context = int list SMap.t
 
+(* The empty context. *)
 let empty_context = SMap.empty
 
-let new_var_in ctxt (bv  : 'a variable -> 'a) name =
+(* Equivalent of [new_var] in a context. *)
+let new_var_in ctxt mkfree name =
   let get_suffix name suffix ctxt =
     try
       let l = SMap.find name ctxt in
-      let rec search acc suffix = function
-          [] -> suffix, List.rev_append acc [suffix]
-        | x::_ as l when x > suffix -> suffix, List.rev_append acc (suffix::l)
-        | x::l when x = suffix -> search (x::acc) (suffix+1) l
-        | x::l (* when x < suffix *) -> search (x::acc) suffix l
+      let rec search acc suf = function
+        | []                     -> (suf, List.rev_append acc [suf])
+        | x::_ as l when x > suf -> (suf, List.rev_append acc (suf::l))
+        | x::l when x = suf      -> search (x::acc) (suf+1) l
+        | x::l (*x < suf *)      -> search (x::acc) suf l
       in
-      let suffix, l = search [] suffix l in
-      let ctxt = SMap.add name l ctxt in
-      suffix, ctxt
-    with
-      Not_found ->
-        let ctxt = SMap.add name [suffix] ctxt in
-        suffix, ctxt
+      let (suffix, l) = search [] suffix l in
+      (suffix, SMap.add name l ctxt)
+    with Not_found -> (suffix, SMap.add name [suffix] ctxt)
   in
-  let prefix, suffix = split_name name in
-  let new_suffix, ctxt = get_suffix prefix suffix ctxt in
-  let rec var = { 
-    key = fresh_key ();
-    var_name = merge_name prefix new_suffix;
-    prefix = prefix;
-    suffix = suffix;
-    mkfree = bv; 
-    bindbox = dummy_bindbox }
+  let (prefix, suffix) = split_name name in
+  let (new_suffix, ctxt) = get_suffix prefix suffix ctxt in
+  let var_name = merge_name prefix new_suffix in
+  let var =
+    { key = fresh_key () ; var_name ; prefix; suffix = new_suffix
+    ; mkfree ; bindbox = dummy_bindbox }
   in
   let mk_var x htbl = (swap Env.get) (fst (IMap.find x.key htbl)) in
   let result = Open([generalise_var var], 0, mk_var var) in
   var.bindbox <- result;
-  var, ctxt
+  (var, ctxt)
 
-let bind_in ctxt bv name fpt =
-  let v, ctxt = new_var_in ctxt bv name in
-  bind_var v (fpt v.bindbox ctxt)
+(* Equivalent of [bind] in a context. *)
+let bind_in ctxt mkfree name f =
+  let (v, ctxt) = new_var_in ctxt mkfree name in
+  bind_var v (f v.bindbox ctxt)
 
-let new_mvar_in ctxt bv names =
+(* Equivalent of [new_mvar] in a context. *)
+let new_mvar_in ctxt mkfree names =
   let ctxt = ref ctxt in
-  let vs = Array.map 
-    (fun name -> 
-      let v, new_ctxt = new_var_in !ctxt bv name in
-      ctxt := new_ctxt;
-      v
-    ) names
+  let f name =
+    let (v, new_ctxt) = new_var_in !ctxt mkfree name in
+    ctxt := new_ctxt; v
   in
-  vs, !ctxt
+  let vs = Array.map f names in
+  (vs, !ctxt)
 
-let mbind_in ctxt bv names fpt =
-  let vs,ctxt = new_mvar_in ctxt bv names in
+(* Equivalent of [mbind] in a context. *)
+let mbind_in ctxt mkfree names fpt =
+  let (vs, ctxt) = new_mvar_in ctxt mkfree names in
   let args = Array.map box_of_var vs in
   mbind_aux vs (fpt args ctxt)
