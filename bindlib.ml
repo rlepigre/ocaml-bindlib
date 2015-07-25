@@ -298,7 +298,7 @@ let unbox : 'a bindbox -> 'a = function
 (the binder that binds the last free variable in a term and thus close it). *)
 let mk_first_bind rank x esize pt = 
   let v = Env.create esize in Env.set_next v 1;
-  let htbl = IMap.add x.key (1,x.suffix) IMap.empty in
+  let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
   let value arg = Env.set v 0 arg; pt htbl v in
   { name = merge_name x.prefix x.suffix; rank; bind = true; value }
 
