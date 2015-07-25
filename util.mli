@@ -47,3 +47,5 @@ end
 val new_counter : unit -> (unit -> int) * (unit -> unit)
 
 val swap : ('a -> 'b -> 'c) -> 'b -> 'a -> 'c
+
+val filter_map : ('a -> bool) -> ('a -> 'b) -> 'a list -> 'b list

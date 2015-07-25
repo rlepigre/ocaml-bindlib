@@ -178,6 +178,10 @@ let new_var : ('a variable -> 'a) -> string -> 'a variable =
     let x = build_new_var name mkfree dummy_bindbox in
     x.bindbox <- Open([generalise_var x], 0, mk_var x); x
 
+(* Same function for multi-variables. *)
+let new_mvar : ('a variable -> 'a) -> string array -> 'a mvariable =
+  fun mkfree names -> Array.map (fun n -> new_var mkfree n) names
+
 (* Test if a variable occurs in a bindbox. *)
 let occur v = function
   | Closed _     -> false
@@ -233,49 +237,27 @@ let search x l =
   in 
   fn [] l
 
-
-
-
-
-
-
-
-
-
-
-
-(* FIXME from here *)
-(* take a function t and an environment v and create an environment nv
-   with places for future values of bound variables that t needs. 
-
-   table.(i) gives the position in v of the variable with index i in nv
-   table.(0) is unused.
-   esize is the total size of nv
-   nv.(0) is filled with the first unitialized position in nv which is
-   Array.length table.
-*)
-let select frees nbbound t = 
-  let mk_select t nbbound frees uptbl =
-    let table = Array.make (List.length frees + 1) 0 in
+(* Transforms a "closure" so that a space is reserved for all the bound
+variables. FIXME FIXME FIXME *)
+let select vs nb t =
+  if nb = 0 then t else (fun uptbl v ->
+    let nsize = List.length vs in
+    let table = Array.make nsize 0 in
     let cur = ref 0 in
-    let downtbl = List.fold_left (fun htbl var ->
-      incr cur;
-      let upindex, suffix = IMap.find var.key uptbl in
-      table.(!cur) <- upindex;
-      IMap.add var.key (!cur,suffix) htbl) IMap.empty frees
+    let f htbl var =
+      let i = !cur in incr cur;
+      let (upindex, suffix) = IMap.find var.key uptbl in
+      table.(i) <- upindex;
+      IMap.add var.key (i,suffix) htbl
     in
-    let aux t esize table v =
-      let nsize = Array.length table in
-      let nv = Env.create esize in
-      Env.set_next nv nsize;
-      for i = 1 to nsize - 1 do
-        Env.set nv i (Env.get v table.(i))
-      done;
-      t nv
-    in
-    aux (t downtbl) (!cur + nbbound + 1) table
-  in
-  if nbbound = 0 then t else mk_select t nbbound frees
+    let downtbl = List.fold_left f IMap.empty vs in
+    let esize = nsize + nb in
+    let nv = Env.create esize in
+    Env.set_next nv nsize;
+    for i = 0 to nsize - 1 do
+      Env.set nv i (Env.get v table.(i))
+    done; t downtbl nv
+  )
 
 (* The "apply" function of the monad. It takes as input a function with some
 free variables, and an argument with some free variables and it builds the
@@ -292,9 +274,34 @@ let apply_box tf ta =
       let a = select va na a in
       Open(merge vf va, 0, fun h v -> (f h v) (a h v))
 
-(* used for a binder when you bind a variable in closed term (therefore that *)
-(* variable does not occur in the term ! *)
-let mk_closed_bind v pt = { name = v.var_name; rank = 0; bind = false; value = fun _ -> pt}
+(* Get out of the [bindbox] structure and construct an actual term. When the
+term is closed, it is straight-forward, but when it is open, free variables
+need to be made free in the syntax using the [mkfree] field. *)
+let unbox : 'a bindbox -> 'a = function
+  | Closed(t) -> t
+  | Open(vt,nbt,t) -> 
+      let next = List.length vt in
+      let esize = next + nbt in
+      let env = Env.create esize in
+      Env.set_next env next;
+      let cur = ref 0 in
+      let aux htbl var =
+        let i = !cur in incr cur;
+        Env.set env i (var.mkfree var);
+        let _, suffix = split_name var.var_name in
+        IMap.add var.key (i, suffix) htbl
+      in
+      let htbl = List.fold_left aux IMap.empty vt in
+      t htbl env
+
+
+
+
+
+
+
+
+
 
 (* used for binder which binds a variable with no occurrence (but the term has*)
 (* other free variables *)
@@ -341,40 +348,40 @@ let mk_bind2 collision prefix suffix key pos pt htbl =
   let htbl = IMap.add key (pos, suffix) htbl in
   mk_bind name pos (pt htbl)
 
-let filter_map cond fn l =
-  let rec gn acc = function
-      [] -> List.rev acc
-    | x::l -> if cond x then gn (fn x::acc) l else gn acc l
-  in gn [] l
 
-let bind_aux v t = match t with 
-     Closed(t) ->
-       Closed (mk_closed_bind v t)
-   | Open(vt,nbt,t) -> 
-       try 
-         match vt with
-          [var] -> 
-            if v.key <> var.key then raise Not_found;
-            let esize = nbt + 2 in
-            Closed (mk_first_bind2 (List.length vt) v.prefix v.suffix v.key esize t)
-        | _ ->
-            let vt = search v vt in
-            let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-                (fun v -> v.key) vt in
-            let pos = List.length vt + 1 in
-            Open(vt, nbt+1, mk_bind2 collision v.prefix v.suffix v.key pos t)
-      with Not_found ->
-        let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-            (fun v -> v.key) vt in
-        Open(vt, nbt, mk_mute_bind2 (List.length vt) collision v.prefix v.suffix t)
+(* Binds the given variable in the given bindbox to produce a binder. *)
+let bind_var v = function
+  | Closed t ->
+     Closed {name = v.var_name ; rank = 0 ; bind = false ; value = fun _ -> t}
+  | Open(vs,nb,t) -> 
+     try 
+       match vs with
+        [var] -> 
+          if v.key <> var.key then raise Not_found;
+          let esize = nb + 2 in
+          Closed (mk_first_bind2 (List.length vs) v.prefix v.suffix v.key esize t)
+      | _ ->
+          let vt = search v vs in
+          let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
+              (fun v -> v.key) vt in
+          let pos = List.length vt + 1 in
+          Open(vt, nb+1, mk_bind2 collision v.prefix v.suffix v.key pos t)
+    with Not_found ->
+      let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
+          (fun v -> v.key) vs in
+      Open(vs, nb, mk_mute_bind2 (List.length vs) collision v.prefix v.suffix t)
 
-(* take a function of type ('a bindbox -> 'b bindbox) and transform it into a binder*) 
-(* of type ('a, 'b) binder bindbox *)
-let bind bv name fpt =
-  let v = new_var bv name in
-  bind_aux v (fpt v.bindbox)
+(* Transforms a function of type ['a bindbox -> 'b bindbox] into a binder. *)
+let bind mkfree name f =
+  let x = new_var mkfree name in
+  bind_var x (f x.bindbox)
 
-let bind_var = bind_aux
+
+
+
+
+
+
 
 let mk_mbind names pos access pt v = 
   { names; ranks = pos-1; binds = access; values = fun args ->
@@ -485,49 +492,46 @@ let mk_first_mbind2 colls prefixes suffixes keys size pt =
   in
   mk_first_mbind new_names size access (pt !htbl)
 
-let mbind_aux vs t = 
-  match t with 
-     Closed(t) ->
-       let names = Array.map (fun v -> v.var_name) vs in
-       Closed (mk_closed_mbind names t)
-   | Open(vt,nbt,t) -> 
-       let vt = ref vt in
-       let nnbt = ref nbt in
-       let len = Array.length vs in
-       let prefixes = Array.make len "" in 
-       let suffixes = Array.make len (-1) in 
-       let colls = Array.make len [] in 
-       let keys = Array.make len 0 in 
-       for i = len - 1 downto 0 do
-         let v = vs.(i) in
-         prefixes.(i) <- v.prefix;
-         suffixes.(i) <- v.suffix;
-         try
-           let ng = search v !vt in
-           colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
-               (fun v -> v.key) ng;
-           incr nnbt;
-           vt := ng;
-           keys.(i) <- v.key
-         with Not_found ->
-           colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
-               (fun v -> v.key) !vt;
-           keys.(i) <- 0
-       done;
-       if !vt = [] then
-         Closed(mk_first_mbind2 colls prefixes suffixes keys (!nnbt + 1) t)
-       else if !nnbt = nbt then
-         let vt = !vt in
-         Open(vt,nbt,mk_mute_mbind2 (List.length vt) colls prefixes suffixes t)
-       else
-         let pos = List.length !vt + 1 in
-         Open(!vt,!nnbt,mk_mbind2 colls prefixes suffixes keys pos t)
+let mbind_aux vs = function
+  | Closed t ->
+      let names = Array.map (fun v -> v.var_name) vs in
+      Closed (mk_closed_mbind names t)
+  | Open(vt,nbt,t) -> 
+      let vt = ref vt in
+      let nnbt = ref nbt in
+      let len = Array.length vs in
+      let prefixes = Array.make len "" in 
+      let suffixes = Array.make len (-1) in 
+      let colls = Array.make len [] in 
+      let keys = Array.make len 0 in 
+      for i = len - 1 downto 0 do
+        let v = vs.(i) in
+        prefixes.(i) <- v.prefix;
+        suffixes.(i) <- v.suffix;
+        try
+          let ng = search v !vt in
+          colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
+              (fun v -> v.key) ng;
+          incr nnbt;
+          vt := ng;
+          keys.(i) <- v.key
+        with Not_found ->
+          colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
+              (fun v -> v.key) !vt;
+          keys.(i) <- 0
+      done;
+      if !vt = [] then
+        Closed(mk_first_mbind2 colls prefixes suffixes keys (!nnbt + 1) t)
+      else if !nnbt = nbt then
+        let vt = !vt in
+        Open(vt,nbt,mk_mute_mbind2 (List.length vt) colls prefixes suffixes t)
+      else
+        let pos = List.length !vt + 1 in
+        Open(!vt,!nnbt,mk_mbind2 colls prefixes suffixes keys pos t)
 
 (* take a function of type ('a bindbox array -> 'b bindbox) and transform it into a binder*) 
 (* of type ('a, 'b) mbinder open_term *)
 
-let new_mvar bv names =
-  Array.map (fun name -> new_var bv name) names
 
 let mbind bv names fpt =
   let vs = new_mvar bv names in
@@ -536,23 +540,6 @@ let mbind bv names fpt =
 
 let bind_mvar = mbind_aux
 
-(* When a term has no free variable, you can get it ! *)
-let unbox : 'a bindbox -> 'a = function
-  | Closed(t) -> t
-  | Open(vt,nbt,t) -> 
-      let next =  List.length vt + 1 in
-      let esize = next + nbt in
-      let env = Env.create esize in
-      Env.set_next env next;
-      let cur = ref 0 in
-      let aux htbl var =
-        incr cur;
-        Env.set env !cur (var.mkfree var);
-        let _, suffix = split_name var.var_name in
-        IMap.add var.key (!cur, suffix) htbl
-      in
-      let htbl = List.fold_left aux IMap.empty vt in
-      t htbl env
 
 
 
@@ -740,7 +727,7 @@ let new_var_in ctxt (bv  : 'a variable -> 'a) name =
 
 let bind_in ctxt bv name fpt =
   let v, ctxt = new_var_in ctxt bv name in
-  bind_aux v (fpt v.bindbox ctxt)
+  bind_var v (fpt v.bindbox ctxt)
 
 let new_mvar_in ctxt bv names =
   let ctxt = ref ctxt in

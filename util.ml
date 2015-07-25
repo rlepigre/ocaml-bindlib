@@ -51,3 +51,9 @@ let new_counter =
     (fresh, reset)
 
 let swap f a b = f b a
+
+let filter_map cond fn l =
+  let rec aux acc = function
+    | []   -> List.rev acc
+    | x::l -> if cond x then aux (fn x::acc) l else aux acc l
+  in aux [] l
