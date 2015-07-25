@@ -202,4 +202,4 @@ val mbind_in : context -> ('a variable -> 'a) -> string array
   -> ('a bindbox array -> context -> 'b bindbox) -> ('a,'b) mbinder bindbox
 
 (* For debugging. *)
-val list_variables : 'a bindbox -> unit
+val list_variables : 'a bindbox -> string list

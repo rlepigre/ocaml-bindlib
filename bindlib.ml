@@ -178,12 +178,29 @@ let new_var : ('a variable -> 'a) -> string -> 'a variable =
     let x = build_new_var name mkfree dummy_bindbox in
     x.bindbox <- Open([generalise_var x], 0, mk_var x); x
 
+(* Test if a variable occurs in a bindbox. *)
+let occur v = function
+  | Closed _     -> false
+  | Open(vt,_,_) -> List.exists (fun v' -> v'.key = v.key) vt
 
+(* Test if a bindbox is closed. *)
+let is_closed = function
+  | Closed _ -> true
+  | _        -> false
 
+(* List the name of the variables in a bindbox (for debugging). *)
+let list_variables = function
+  | Closed _     -> []
+  | Open(vt,_,_) -> List.map (fun x -> x.var_name) vt
 
+(* Put a term in a bindbox (no variables will be available to bind in the
+given term. *)
+let box : 'a -> 'a bindbox =
+  fun t -> Closed t
 
-
-
+(* Find a non-colliding suffix given a list of variables keys with name
+collisions, the hashtable containing the corresponding suffixes (and the
+positioning in the environment of the variables), and a prefered suffix. *)
 let get_suffix collision htbl suffix =
   let l = List.map (fun key -> snd (IMap.find key htbl)) collision in
   let l = List.sort (-) l in
@@ -194,38 +211,40 @@ let get_suffix collision htbl suffix =
   in
   search suffix l
 
-(** merge l l' merge two sorted lists in one sorted list without repetition *)
-let rec merge l l' = 
-  match l, l' with
-    [], l -> l
-  | l, [] -> l
-  | ({key = x} as c::ls as l),({key = x'} as c'::ls' as l') ->
-    if x = x' then merge ls l'
-    else if x <= x' then c::(merge ls l')
-    else c'::(merge l ls')
+(* Merge two sorted list of variables withoug repetition into a sorted list
+without repetition. *)
+let rec merge l1 l2 =
+  match (l1, l2) with
+  | ([]   , _    ) -> l2
+  | (_    , []   ) -> l1
+  | (x::xs, y::ys) -> let kx = x.key and ky = y.key in
+                      if kx = ky then merge xs l2
+                      else if kx < ky then x :: merge xs l2
+                      else y :: merge l1 ys
 
-let search var l =
-  let k = var.key in
+(* Search for all the colliding variables in a list of variables sorted by
+keys. *)
+let search x l =
+  let k = x.key in
   let rec fn acc = function 
-      [] -> raise Not_found
-    | v::l when v.key > k -> raise Not_found
+    | v::l when v.key < k -> fn (v::acc) l
     | v::l when v.key = k -> List.rev_append acc l
-    | v::l -> fn (v::acc) l
+    | _                   -> raise Not_found
   in 
   fn [] l
 
-(* Construct a 'a bindbox to represent the variable numbered var 
-   You can notice that we use the environment to store values as a hashtable 
-   with no failure (we always find the value the first time we look for it)
-   The last case in the environment is used to store the position of the next
-   variable we can assign in the environment.
-*)
 
 
-(* take a term of type 'a and turn it into a 'a bindbox that can be used to
-    construct a larger term with binder *)
-let box t = Closed(t)
 
+
+
+
+
+
+
+
+
+(* FIXME from here *)
 (* take a function t and an environment v and create an environment nv
    with places for future values of bound variables that t needs. 
 
@@ -235,60 +254,43 @@ let box t = Closed(t)
    nv.(0) is filled with the first unitialized position in nv which is
    Array.length table.
 *)
-let mk_select t esize table v =
-  let nsize = Array.length table in
-  let nv = Env.create esize in
-  Env.set_next nv nsize;
-  for i = 1 to nsize - 1 do
-    Env.set nv i (Env.get v table.(i))
-  done;
-  t nv
-
-let mk_select2 t nbbound frees uptbl =
-  let table = Array.make (List.length frees + 1) 0 in
-  let cur = ref 0 in
-  let downtbl = List.fold_left (fun htbl var ->
-    incr cur;
-    let upindex, suffix = IMap.find var.key uptbl in
-    table.(!cur) <- upindex;
-    IMap.add var.key (!cur,suffix) htbl) IMap.empty frees
-  in
-  let size = !cur + nbbound + 1 in
-  mk_select (t downtbl) size table
-
 let select frees nbbound t = 
-  if nbbound = 0 then
-    t
-  else
-    mk_select2 t nbbound frees
+  let mk_select t nbbound frees uptbl =
+    let table = Array.make (List.length frees + 1) 0 in
+    let cur = ref 0 in
+    let downtbl = List.fold_left (fun htbl var ->
+      incr cur;
+      let upindex, suffix = IMap.find var.key uptbl in
+      table.(!cur) <- upindex;
+      IMap.add var.key (!cur,suffix) htbl) IMap.empty frees
+    in
+    let aux t esize table v =
+      let nsize = Array.length table in
+      let nv = Env.create esize in
+      Env.set_next nv nsize;
+      for i = 1 to nsize - 1 do
+        Env.set nv i (Env.get v table.(i))
+      done;
+      t nv
+    in
+    aux (t downtbl) (!cur + nbbound + 1) table
+  in
+  if nbbound = 0 then t else mk_select t nbbound frees
 
-let mk_apply f a v = f v (a v)
-let mk_lapply f a v = f (a v)
-let mk_rapply f a v = f v a
-
-let mk_apply2 f a h = mk_apply (f h) (a h)
-let mk_lapply2 f a h = mk_lapply f (a h)
-let mk_rapply2 f a h = mk_rapply (f h) a
-
-(** the "apply" function of the monad: take an object of type ('a ->
-  'b) bindbox, that is a function with some free variables, an
-  argument of type 'a bindbox, and build the application, of type 'b
-  bindbox which is a term that may also have free variables. The
-  function select is used here to build the "minimal" closure when both
-  the function and the argument have free variables *)
-
+(* The "apply" function of the monad. It takes as input a function with some
+free variables, and an argument with some free variables and it builds the
+application which might also have free variables. The function [select] is
+used here to build the "minimal" closure when both the function and the
+argument have free variables. *)
 let apply_box tf ta =
-  match tf, ta with
-    Closed(f), Closed (a) -> Closed (f a)
-  | Closed(f), Open(va,ba,a) -> 
-      Open(va,ba,mk_lapply2 f a)
-  | Open(vf,bf,f), Closed(a) -> 
-      Open(vf, bf, mk_rapply2 f a)
-  | Open(vf,nbf,f), Open(va,nba,a) ->
-      let f = select vf nbf f in
-      let a = select va nba a in
-      let vars = merge vf va in
-      Open(vars, 0, mk_apply2 f a)
+  match (tf, ta) with
+  | (Closed f     , Closed a     ) -> Closed (f a)
+  | (Closed f     , Open(va,na,a)) -> Open(va, na, fun h v -> f (a h v))
+  | (Open(vf,nf,f), Closed a     ) -> Open(vf, nf, fun h v -> (f h v) a)
+  | (Open(vf,nf,f), Open(va,na,a)) ->
+      let f = select vf nf f in
+      let a = select va na a in
+      Open(merge vf va, 0, fun h v -> (f h v) (a h v))
 
 (* used for a binder when you bind a variable in closed term (therefore that *)
 (* variable does not occur in the term ! *)
@@ -331,7 +333,7 @@ let mk_bind name pos pt v =
       Env.set v i 0
     done;
     pt v
-	end}
+        end}
 
 let mk_bind2 collision prefix suffix key pos pt htbl =
   let suffix = get_suffix collision htbl suffix in
@@ -357,22 +359,20 @@ let bind_aux v t = match t with
             Closed (mk_first_bind2 (List.length vt) v.prefix v.suffix v.key esize t)
         | _ ->
             let vt = search v vt in
-	    let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-		(fun v -> v.key) vt in
-	    let pos = List.length vt + 1 in
+            let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
+                (fun v -> v.key) vt in
+            let pos = List.length vt + 1 in
             Open(vt, nbt+1, mk_bind2 collision v.prefix v.suffix v.key pos t)
       with Not_found ->
-	let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
-	    (fun v -> v.key) vt in
-	Open(vt, nbt, mk_mute_bind2 (List.length vt) collision v.prefix v.suffix t)
+        let collision = filter_map (fun v' -> v.prefix = v'.prefix) 
+            (fun v -> v.key) vt in
+        Open(vt, nbt, mk_mute_bind2 (List.length vt) collision v.prefix v.suffix t)
 
 (* take a function of type ('a bindbox -> 'b bindbox) and transform it into a binder*) 
 (* of type ('a, 'b) binder bindbox *)
 let bind bv name fpt =
   let v = new_var bv name in
   bind_aux v (fpt v.bindbox)
-
-exception Bindlib_Not_Variable
 
 let bind_var = bind_aux
 
@@ -385,20 +385,20 @@ let mk_mbind names pos access pt v =
     let cur_pos = ref pos in
     if next = pos then begin
       for i = 0 to arity - 1 do
-	if access.(i) then begin
-	  Env.set v !cur_pos args.(i);
-	  incr cur_pos;
-	end
+        if access.(i) then begin
+          Env.set v !cur_pos args.(i);
+          incr cur_pos;
+        end
       done;
       Env.set_next v !cur_pos;
       pt v
     end else begin
       let v = Env.dup v in 
       for i = 0 to arity - 1 do
-	if access.(i) then begin
-	  Env.set v !cur_pos args.(i);
-	  incr cur_pos;
-	end
+        if access.(i) then begin
+          Env.set v !cur_pos args.(i);
+          incr cur_pos;
+        end
       done;
       Env.set_next v !cur_pos;
       for i = !cur_pos to next - 1 do
@@ -449,7 +449,7 @@ let mk_mute_mbind2 ranks colls prefixes suffixes pt htbl =
   Array.iteri (fun i c ->
     let suffix = get_suffix c htbl suffixes.(i) in
     new_names.(i) <- merge_name prefixes.(i) suffix;
-	      ) colls;
+              ) colls;
   mk_mute_mbind ranks new_names (pt htbl)
 
 let mk_first_mbind names size access pt = {
@@ -499,29 +499,29 @@ let mbind_aux vs t =
        let colls = Array.make len [] in 
        let keys = Array.make len 0 in 
        for i = len - 1 downto 0 do
-	 let v = vs.(i) in
-	 prefixes.(i) <- v.prefix;
-	 suffixes.(i) <- v.suffix;
-	 try
-	   let ng = search v !vt in
-	   colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
-	       (fun v -> v.key) ng;
-	   incr nnbt;
-	   vt := ng;
-	   keys.(i) <- v.key
-	 with Not_found ->
-	   colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
-	       (fun v -> v.key) !vt;
-	   keys.(i) <- 0
+         let v = vs.(i) in
+         prefixes.(i) <- v.prefix;
+         suffixes.(i) <- v.suffix;
+         try
+           let ng = search v !vt in
+           colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
+               (fun v -> v.key) ng;
+           incr nnbt;
+           vt := ng;
+           keys.(i) <- v.key
+         with Not_found ->
+           colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
+               (fun v -> v.key) !vt;
+           keys.(i) <- 0
        done;
        if !vt = [] then
-	 Closed(mk_first_mbind2 colls prefixes suffixes keys (!nnbt + 1) t)
+         Closed(mk_first_mbind2 colls prefixes suffixes keys (!nnbt + 1) t)
        else if !nnbt = nbt then
-	 let vt = !vt in
-	 Open(vt,nbt,mk_mute_mbind2 (List.length vt) colls prefixes suffixes t)
+         let vt = !vt in
+         Open(vt,nbt,mk_mute_mbind2 (List.length vt) colls prefixes suffixes t)
        else
-	 let pos = List.length !vt + 1 in
-	 Open(!vt,!nnbt,mk_mbind2 colls prefixes suffixes keys pos t)
+         let pos = List.length !vt + 1 in
+         Open(!vt,!nnbt,mk_mbind2 colls prefixes suffixes keys pos t)
 
 (* take a function of type ('a bindbox array -> 'b bindbox) and transform it into a binder*) 
 (* of type ('a, 'b) mbinder open_term *)
@@ -537,39 +537,23 @@ let mbind bv names fpt =
 let bind_mvar = mbind_aux
 
 (* When a term has no free variable, you can get it ! *)
-let unbox t = 
-  let fn (t : 'a bindbox) = match t with 
-    Closed(t) ->
-      t
+let unbox : 'a bindbox -> 'a = function
+  | Closed(t) -> t
   | Open(vt,nbt,t) -> 
       let next =  List.length vt + 1 in
       let esize = next + nbt in
       let env = Env.create esize in
       Env.set_next env next;
       let cur = ref 0 in
-      let htbl = List.fold_left (fun htbl var ->
-	incr cur;
-	Env.set env !cur (var.mkfree var);
-	let _, suffix = split_name var.var_name in
-	IMap.add var.key (!cur, suffix) htbl
-	) IMap.empty vt
+      let aux htbl var =
+        incr cur;
+        Env.set env !cur (var.mkfree var);
+        let _, suffix = split_name var.var_name in
+        IMap.add var.key (!cur, suffix) htbl
       in
+      let htbl = List.fold_left aux IMap.empty vt in
       t htbl env
-  in fn t
 
-let occur v = function
-    Closed(_) -> false
-  | Open(vt,_,_) ->
-    List.exists (fun v' -> v'.key = v.key) vt
-
-let is_closed = function
-   Closed(_) -> true
- | _ -> false
-
-let list_variables = function
-    Closed(_) -> ()
-  | Open(vt,_,_) -> 
-      List.iter (fun var -> print_string var.var_name) vt
 
 
 
@@ -585,7 +569,7 @@ let box_apply f ta =
   match ta with
     Closed(a) -> Closed (f a)
   | Open(va,ba,a) -> 
-      Open(va, ba, mk_lapply2 f a)
+      Open(va, ba, fun h v -> f (a h v))
 
 let mk_uapply f a b v = f (a v) (b v)
 let mk_luapply f a b v = f a (b v)
@@ -628,100 +612,91 @@ let fixpoint (f : (('a, 'b) binder, ('a, 'b) binder) binder bindbox) =
 
 (* dirty imperative functions ... *)
 
-let mk_unit a _ _ = a 
-	
 let special_apply tf ta =
-  match tf, ta with
-    Closed(()), Closed (a) -> Closed (()), mk_unit a
-  | Closed(()), Open(va,ba,a) -> 
-      Open(va,ba,fun _ _ -> ()), select va ba a
-  | Open(vf,nbf,_) as c, Closed(a) -> 
-      c, mk_unit a
-  | Open(vf,nbf,_), Open(va,ba,a) ->
-      let vars = merge vf va in
-      Open(vars, 0, fun _ _ -> ()), select va ba a
+  match (tf, ta) with
+  | (Closed(())   , Closed(a)    ) ->
+      (Closed (()), (fun _ _ -> a))
+  | (Closed(())   , Open(va,na,a)) ->
+      (Open(va,na,fun _ _ -> ()), select va na a)
+  | (Open(vf,nf,_), Closed(a)    ) ->
+      (tf, (fun _ _ -> a))
+  | (Open(vf,nf,_), Open(va,na,a)) ->
+      (Open(merge vf va, 0, fun _ _ -> ()), select va na a)
    
-let special_start = Closed ()
-
-let special_end e f = match e with
-  Closed _ -> Closed(f IMap.empty (Env.create 0))
-| Open(v,b,_) -> Open(v,b,f)
+let special_end e f =
+  match e with
+  | Closed _    -> Closed(f IMap.empty (Env.create 0))
+  | Open(v,b,_) -> Open(v,b,f)
 
 (* to get very nice and efficient functor !*)
 
-module type Map = 
-  sig
-    type 'a t
-    val map : ('a -> 'b) -> 'a t -> 'b t
+module type Map = sig
+  type 'a t
+  val map : ('a -> 'b) -> 'a t -> 'b t
+end
+
+module Lift(M : Map) = struct
+  let f t =
+    let acc = ref (Closed ()) in
+    let fn o =
+      let nacc, o = special_apply !acc o in
+            acc := nacc; o
+    in
+    let t = M.map fn t in
+    let aux htbl =
+      let l = M.map (fun o -> o htbl) t in
+      (fun env -> M.map (fun o -> o env) l)
+    in special_end !acc aux
+end
+
+module type Map2 = sig
+  type ('a, 'b) t
+  val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
+end
+
+module Lift2(M: Map2) = struct
+  let f t =
+    let acc = ref (Closed ()) in
+    let fn o =
+      let nacc, o = special_apply !acc o in
+            acc := nacc; o
+    in
+    let t = M.map fn fn t in
+    let aux htbl =
+      let l = M.map (fun o -> o htbl) (fun o -> o htbl) t in
+      (fun env -> M.map (fun o -> o env) (fun o -> o env) l)
+    in
+    special_end !acc aux
   end
 
-module Lift(M : Map) =
+
+module Lift_list = Lift(
   struct
-    let f t =
-      let acc = ref special_start in
-      let fn o =
-	let nacc, o = special_apply !acc o in
-	acc:= nacc;
-	o
-      in
-      let t = M.map fn t in
-      special_end !acc (fun htbl -> let l = M.map (fun o -> o htbl) t in
-         (fun env -> M.map (fun o -> o env) l))
-  end
-
-module type Map2 = 
-  sig
-    type ('a, 'b) t
-    val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
-  end
-
-module Lift2(M: Map2) =
-  struct
-    let f t =
-      let acc = ref special_start in
-      let fn o =
-	let nacc, o = special_apply !acc o in
-	acc:=nacc;
-	o
-      in
-      let t = M.map fn fn t in
-      special_end !acc (fun htbl -> let l = M.map (fun o -> o htbl) (fun o -> o htbl) t in
-         (fun env -> M.map (fun o -> o env) (fun o -> o env) l))
-  end
-
-
-module Map_list =
-  struct 
     type 'a t = 'a list
     let map = List.map  
-  end
-
-module Lift_list = Lift(Map_list)
+  end)
 let box_list = Lift_list.f
 
-module Map_rev_list =
-  struct 
+module Lift_rev_list = Lift(
+  struct
     type 'a t = 'a list
     let map = List.rev_map  
-  end
-
-module Lift_rev_list = Lift(Map_rev_list)
+  end)
 let box_rev_list = Lift_rev_list.f
 
-module Map_array =
-  struct 
+module Lift_array = Lift(
+  struct
     type 'a t = 'a array
     let map = Array.map 
-  end
-
-module Lift_array = Lift(Map_array)
-
+  end)
 let box_array = Lift_array.f
+
+
 
 let box_pair x y = box_apply2 (fun x y -> x,y) x y
 
-		      
-			  
+                      
+                          
 
 
 
@@ -735,7 +710,7 @@ let new_var_in ctxt (bv  : 'a variable -> 'a) name =
     try
       let l = SMap.find name ctxt in
       let rec search acc suffix = function
-  	[] -> suffix, List.rev_append acc [suffix]
+          [] -> suffix, List.rev_append acc [suffix]
         | x::_ as l when x > suffix -> suffix, List.rev_append acc (suffix::l)
         | x::l when x = suffix -> search (x::acc) (suffix+1) l
         | x::l (* when x < suffix *) -> search (x::acc) suffix l
