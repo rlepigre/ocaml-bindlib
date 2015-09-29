@@ -47,8 +47,8 @@ uninstall:
 
 install: all uninstall
 	install -m 755 -d $(LIBDIR)/bindlib
-	install -m 644 -p *.cmi *.cmo *.cmx *.mli $(LIBDIR)/bindlib
-	install -m 644 -p bindlib.cma bindlib.cmxa META $(LIBDIR)/bindlib
+	install -m 644 -p *.cmi *.cmo *.cmx *.mli *.o $(LIBDIR)/bindlib
+	install -m 644 -p *.a *.cma *.cmxa META $(LIBDIR)/bindlib
 
 ## Clean
 clean:
