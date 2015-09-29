@@ -8,7 +8,7 @@
  * Modified by: Rodolphe Lepigre                                            *
  ****************************************************************************)
 
-open Util
+open Bindlib_util
 
 (* In the internals of bindlib, each variable is identified by a unique (int)
 key. Closures are then be formed by mapping free variables in an environment

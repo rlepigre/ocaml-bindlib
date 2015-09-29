@@ -16,29 +16,29 @@ ptmap.cmx: ptmap.ml ptmap.cmi
 
 ## Util
 
-util.cmi: util.mli ptmap.cmi
+bindlib_util.cmi: bindlib_util.mli ptmap.cmi
 	$(OCAMLC) -c $<
 
-util.cmo: util.ml util.cmi
+bindlib_util.cmo: bindlib_util.ml bindlib_util.cmi
 	$(OCAMLC) -c $<
 
-util.cmx: util.ml util.cmi
+bindlib_util.cmx: bindlib_util.ml bindlib_util.cmi
 	$(OCAMLOPT) -c $<
 
 ## Bindlib
-bindlib.cmi: bindlib.mli util.cmi
+bindlib.cmi: bindlib.mli bindlib_util.cmi
 	$(OCAMLC) -c $<
 
-bindlib.cmo: bindlib.ml bindlib.cmi util.cmi
+bindlib.cmo: bindlib.ml bindlib.cmi bindlib_util.cmi
 	$(OCAMLC) -c $<
 
-bindlib.cmx: bindlib.ml bindlib.cmi util.cmi
+bindlib.cmx: bindlib.ml bindlib.cmi bindlib_util.cmi
 	$(OCAMLOPT) -c $<
 
-bindlib.cma: ptmap.cmo util.cmo bindlib.cmo
+bindlib.cma: ptmap.cmo bindlib_util.cmo bindlib.cmo
 	$(OCAMLC) -o $@ -a $^
 
-bindlib.cmxa: ptmap.cmx util.cmx bindlib.cmx
+bindlib.cmxa: ptmap.cmx bindlib_util.cmx bindlib.cmx
 	$(OCAMLOPT) -o $@ -a $^
 
 ## Install
