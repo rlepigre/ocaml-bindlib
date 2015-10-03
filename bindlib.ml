@@ -49,8 +49,10 @@ let name_of : 'a variable -> string =
   fun x -> x.var_name
 
 (* Safe comparison function for variables. *)
-let compare_variables : 'a variable -> 'a variable -> int =
+let compare_variables : 'a variable -> 'b variable -> int =
   fun x y -> Pervasives.compare x.key y.key
+let eq_variables : 'a variable -> 'b variable -> bool =
+  fun x y -> x.key = y.key
 
 (* Hash function for variables. *)
 let hash_var : 'a variable -> int =
@@ -103,6 +105,17 @@ let binder_closed : ('a,'b) binder -> bool =
 (* How many free variables does the binder contain? *)
 let binder_rank : ('a,'b) binder -> int =
   fun b -> b.rank
+
+(* Compose a binder with a function. *)
+let binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder =
+  fun f b ->
+    let v x = b.value (f x) in
+    { name = b.name ; bind = b.bind ; rank = b.rank ; value = v }
+
+let binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder =
+  fun b f ->
+    let v x = f (b.value x) in
+    { name = b.name ; bind = b.bind ; rank = b.rank ; value = v }
 
 (* Type of a multi-binder (binding n variables at once). It is an expression
 of type ['b] with n bound variables of type ['a]. *)

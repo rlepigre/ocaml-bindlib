@@ -40,6 +40,8 @@ val binder_occur    : ('a,'b) binder -> bool
 val binder_rank     : ('a,'b) binder -> int
 val binder_constant : ('a,'b) binder -> bool
 val binder_closed   : ('a,'b) binder -> bool
+val binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder
+val binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
 
 val mbinder_arity    : ('a,'b) mbinder -> int
 val mbinder_names    : ('a,'b) mbinder -> string array
@@ -52,7 +54,8 @@ val free_of  : 'a variable -> 'a
 val hash_var : 'a variable -> int
 
 (* Safe comparision of variables. *)
-val compare_variables : 'a variable -> 'a variable -> int
+val compare_variables : 'a variable -> 'b variable -> int
+val eq_variables : 'a variable -> 'b variable -> bool
 
 (* Creates a copy of the given variable that is not distinguishable from the
 original when bound. However, when it is free (that is not bound when calling
