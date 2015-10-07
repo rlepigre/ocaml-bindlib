@@ -71,6 +71,9 @@ construction" will provide an efficient way of binding variables in a term
 of type ['a]. *)
 type (+'a) bindbox
 
+(* A function to apply a function under a bindbox. *)
+val apply_in_box : ('a -> 'b) -> 'a bindbox -> 'b bindbox
+
 (* Once the construction of an expression of type ['a] is finished, the
 function [unbox] need to be called in order to obtain the built expression. *)
 val unbox : 'a bindbox -> 'a

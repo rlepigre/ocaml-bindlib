@@ -44,6 +44,12 @@ and 'a variable =
   ; mkfree          : 'a variable -> 'a (* Function to build a term. *)
   ; mutable bindbox : 'a bindbox } (* Bindbox containing the variable. *)
 
+(* A function to apply a function under a bindbox. *)
+let apply_in_box : ('a -> 'b) -> 'a bindbox -> 'b bindbox = fun f b ->
+  match b with
+  | Closed(e)    -> Closed(f e)
+  | Open(vl,i,g) -> Open(vl,i,fun vp env -> f (g vp env))
+
 (* Obtain the name of a the given variable. *)
 let name_of : 'a variable -> string =
   fun x -> x.var_name
