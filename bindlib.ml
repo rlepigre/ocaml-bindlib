@@ -364,6 +364,10 @@ let bind mkfree name f =
   let x = new_var mkfree name in
   bind_var x (f x.bindbox)
 
+let unbind mkfree b =
+  let x = new_var mkfree (binder_name b) in
+  (x, subst b (free_of x))
+
 (* Auxiliary functions. FIXME FIXME FIXME *)
 let mk_mbind colls prefixes suffixes keys pos pt htbl v =
   let cur_pos = ref pos in
@@ -608,6 +612,10 @@ module Lift_array = Lift(
 let box_array = Lift_array.f
 
 let box_pair x y = box_apply2 (fun x y -> x,y) x y
+
+let box_opt = function
+  | None   -> box None
+  | Some b -> box_apply (fun b -> Some b) b
 
 (* Type of a context. *)
 type context = int list SMap.t

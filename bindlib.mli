@@ -109,6 +109,9 @@ val bind  : ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox)
 val mbind : ('a variable -> 'a) -> string array
   -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
 
+(* Breaking binders. *)
+val unbind : ('a variable -> 'a) -> ('a,'b) binder -> 'a variable * 'b
+
 (* Variable binding. *)
 val bind_var  : 'a variable  -> 'b bindbox -> ('a, 'b) binder bindbox
 val bind_mvar : 'a mvariable -> 'b bindbox -> ('a, 'b) mbinder bindbox
@@ -131,6 +134,8 @@ val box_apply3 : ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 'b bindbox
 
 (* [box_pair (x,y) = box_apply2 (fun a b -> (a,b)) x y] *)
 val box_pair : 'a bindbox -> 'b bindbox -> ('a * 'b) bindbox
+
+val box_opt : 'a bindbox option -> 'a option bindbox
 
 
 
