@@ -61,7 +61,7 @@ val eq_variables : 'a variable -> 'b variable -> bool
 original when bound. However, when it is free (that is not bound when calling
 unbox), it might be made free in a different way. For instance, its name or
 syntactic wrapper may be different. *)
-val copy_var : 'a variable -> string -> ('a variable -> 'a) -> 'a variable
+val copy_var : 'b variable -> string -> ('a variable -> 'a) -> 'a variable
 
 
 

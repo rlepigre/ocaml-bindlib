@@ -72,11 +72,6 @@ let free_of : 'a variable -> 'a =
 let box_of_var : 'a variable -> 'a bindbox =
   fun x -> x.bindbox
 
-(* Make a copy of a variable with a potentially different name and syntactic
-wrapper but with the same key. *)
-let copy_var : 'a variable -> string -> ('a variable -> 'a) -> 'a variable =
-  fun x name mkfree -> { x with var_name = name; mkfree = mkfree }
-
 (* Type of multi-variables of type ['a]. *)
 type 'a mvariable = 'a variable array
 
@@ -200,6 +195,13 @@ let new_var : ('a variable -> 'a) -> string -> 'a variable =
 (* Same function for multi-variables. *)
 let new_mvar : ('a variable -> 'a) -> string array -> 'a mvariable =
   fun mkfree names -> Array.map (fun n -> new_var mkfree n) names
+
+(* Make a copy of a variable with a potentially different name and syntactic
+wrapper but with the same key. *)
+let copy_var : 'b variable -> string -> ('a variable -> 'a) -> 'a variable =
+  fun x name mkfree ->
+    let y = new_var mkfree name in
+    { y with key = x.key }
 
 (* Test if a variable occurs in a bindbox. *)
 let occur v = function
