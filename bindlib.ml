@@ -437,7 +437,7 @@ let mk_mute_mbind ranks colls prefixes suffixes pt htbl =
   (fun v -> {names; ranks; binds = Array.map (fun _ -> false) names;
 	     values = values v})
 
-let mk_first_mbind colls prefixes suffixes keys size pt =
+let mk_first_mbind colls prefixes suffixes keys esize pt =
   let cur_pos = ref 0 in
   let htbl = ref IMap.empty in
   let names = Array.make (Array.length prefixes) "" in
@@ -452,7 +452,7 @@ let mk_first_mbind colls prefixes suffixes keys size pt =
   let arity = Array.length names in
   let pt = pt !htbl in
   let values args =
-    let v = Env.create size in
+    let v = Env.create esize in
     if Array.length args <> arity then raise (Invalid_argument "bad arity in msubst");
     let cur_pos = ref 0 in
     for i = 0 to arity - 1 do
@@ -501,12 +501,12 @@ let bind_mvar vs = function
           keys.(i) <- 0
       done;
       if !vt = [] then
-        Closed(mk_first_mbind colls prefixes suffixes keys (!nnbt + 1) t)
+        Closed(mk_first_mbind colls prefixes suffixes keys !nnbt t)
       else if !nnbt = nbt then
         let vt = !vt in
         Open(vt,nbt,mk_mute_mbind (List.length vt) colls prefixes suffixes t)
       else
-        let pos = List.length !vt + 1 in
+        let pos = List.length !vt in
         Open(!vt,!nnbt,mk_mbind colls prefixes suffixes keys pos t)
 
 (* Take a function of type ['a bindbox array -> 'b bindbox] and builds the
