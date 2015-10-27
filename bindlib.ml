@@ -321,23 +321,25 @@ let unbox : 'a bindbox -> 'a = function
 (the binder that binds the last free variable in a term and thus close it). *)
 let mk_first_bind rank x esize pt =
   let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
+  let pt = pt htbl in
   let value arg =
     let v = Env.create esize in Env.set_next v 1;
-    Env.set v 0 arg; pt htbl v in
+    Env.set v 0 arg; pt v in
   { name = merge_name x.prefix x.suffix; rank; bind = true; value }
 
 let mk_bind cols x pos pt htbl =
   let suffix = get_suffix cols htbl x.suffix in
   let name = merge_name x.prefix suffix in
   let htbl = IMap.add x.key (pos, suffix) htbl in
+  let pt = pt htbl in
   let value v arg =
     let next = Env.next v in
     if next = pos then
-      (Env.set v next arg; Env.set_next v (next + 1); pt htbl v)
+      (Env.set v next arg; Env.set_next v (next + 1); pt v)
     else
       (let v = Env.dup v in
        Env.set_next v (pos + 1); Env.set v pos arg;
-       for i = pos + 1 to next - 1 do Env.set v i 0 done; pt htbl v)
+       for i = pos + 1 to next - 1 do Env.set v i 0 done; pt v)
   in
   (fun v -> { name; rank = pos - 1; bind = true; value = value v})
 
@@ -359,10 +361,12 @@ let bind_var x = function
       let eq_pref y = x.prefix = y.prefix in
       let cols = filter_map eq_pref (fun v -> v.key) vs in
       let rank = List.length vs in
-      let t htbl v =
+      let pt htbl =
+	let t = t htbl in
         let name = merge_name x.prefix (get_suffix cols htbl x.suffix) in
-        { name; rank; bind = false; value = fun _ -> t htbl v }
-      in Open(vs, nb, t)
+       (fun v -> { name; rank; bind = false; value = fun _ -> t v })
+      in
+      Open(vs, nb, pt)
 
 (* Transforms a function of type ['a bindbox -> 'b bindbox] into a binder. *)
 let bind mkfree name f =
@@ -387,6 +391,7 @@ let mk_mbind colls prefixes suffixes keys pos pt htbl =
   in
   let binds = Array.mapi f keys in
   let arity = Array.length names in
+  let pt = pt !htbl in
   let values v args =
     let size = Array.length args in
     if size <> arity then raise (Invalid_argument "bad arity in msubst");
@@ -400,7 +405,7 @@ let mk_mbind colls prefixes suffixes keys pos pt htbl =
         end
       done;
       Env.set_next v !cur_pos;
-      pt !htbl v
+      pt v
     end else begin
       let v = Env.dup v in
       for i = 0 to arity - 1 do
@@ -411,7 +416,7 @@ let mk_mbind colls prefixes suffixes keys pos pt htbl =
       done;
       Env.set_next v !cur_pos;
       for i = !cur_pos to next - 1 do Env.set v i 0 done;
-      pt !htbl v
+      pt v
     end
   in (fun v -> { names; ranks = pos-1; binds; values = values v })
 
@@ -423,9 +428,10 @@ let mk_mute_mbind ranks colls prefixes suffixes pt htbl =
   in
   Array.iteri f colls;
   let arity = Array.length new_names in
+  let pt = pt htbl in
   let values v args =
     if arity <> Array.length args then raise (Invalid_argument "bad arity in msubst");
-    pt htbl v
+    pt v
   in
   let names = new_names in
   (fun v -> {names; ranks; binds = Array.map (fun _ -> false) names;
@@ -443,9 +449,10 @@ let mk_first_mbind colls prefixes suffixes keys size pt =
     else false
   in
   let binds = Array.mapi f keys in
+  let arity = Array.length names in
+  let pt = pt !htbl in
   let values args =
     let v = Env.create size in
-    let arity = Array.length names in
     let size = Array.length args in
     if size <> arity then raise (Invalid_argument "bad arity in msubst");
     let cur_pos = ref 1 in
@@ -456,7 +463,7 @@ let mk_first_mbind colls prefixes suffixes keys size pt =
       end
     done;
     Env.set_next v !cur_pos;
-    pt !htbl v
+    pt v
   in {names; binds; ranks = 0; values}
 
 (* Bind a multi-variable in a bindbox to produce a multi-binder. *)
@@ -535,9 +542,10 @@ let fixpoint = function
   | Closed t      -> let rec fix t =
                        t (fix t)
                      in Closed(fix t.value)
-  | Open(vs,nb,t) -> let rec fix t htbl env =
-                        (t htbl env).value (fix t htbl env)
-                     in Open(vs, nb, fix t)
+  | Open(vs,nb,t) ->
+     let rec fix t htbl env =
+       (t htbl env).value (fix t htbl env)
+     in Open(vs, nb, fix t)
 
 (* Functorial interface to generate lifting functions for [bindbox]. *)
 let special_apply tf ta =
