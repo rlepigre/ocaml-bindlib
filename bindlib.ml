@@ -82,7 +82,7 @@ type ('a,'b) binder =
   ; bind  : bool       (* Does the variable occur? *)
   ; rank  : int        (* Number of remaining free variables (>= 0). *)
   ; value : 'a -> 'b } (* Substitution function. *)
-    
+
 (* Obtain the name of the bound variable. *)
 let binder_name : ('a,'b) binder -> string =
   fun b -> b.name
@@ -251,11 +251,11 @@ let rec merge l1 l2 =
 keys. *)
 let search x l =
   let k = x.key in
-  let rec fn acc = function 
+  let rec fn acc = function
     | v::l when v.key < k -> fn (v::acc) l
     | v::l when v.key = k -> List.rev_append acc l
     | _                   -> raise Not_found
-  in 
+  in
   fn [] l
 
 (* Transforms a "closure" so that a space is reserved for all the bound
@@ -302,7 +302,7 @@ term is closed, it is straight-forward, but when it is open, free variables
 need to be made free in the syntax using the [mkfree] field. *)
 let unbox : 'a bindbox -> 'a = function
   | Closed(t) -> t
-  | Open(vt,nbt,t) -> 
+  | Open(vt,nbt,t) ->
       let next = List.length vt in
       let esize = next + nbt in
       let env = Env.create esize in
@@ -319,33 +319,33 @@ let unbox : 'a bindbox -> 'a = function
 
 (* Build a binder in the case it is the first binder in a closed term (i.e.
 (the binder that binds the last free variable in a term and thus close it). *)
-let mk_first_bind rank x esize pt = 
+let mk_first_bind rank x esize pt =
   let v = Env.create esize in Env.set_next v 1;
   let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
   let value arg = Env.set v 0 arg; pt htbl v in
   { name = merge_name x.prefix x.suffix; rank; bind = true; value }
 
-let mk_bind cols x pos pt htbl v =
+let mk_bind cols x pos pt htbl =
   let suffix = get_suffix cols htbl x.suffix in
   let name = merge_name x.prefix suffix in
   let htbl = IMap.add x.key (pos, suffix) htbl in
-  let value arg = 
-    let next = Env.next v in 
+  let value v arg =
+    let next = Env.next v in
     if next = pos then
       (Env.set v next arg; Env.set_next v (next + 1); pt htbl v)
     else
-      (let v = Env.dup v in 
+      (let v = Env.dup v in
        Env.set_next v (pos + 1); Env.set v pos arg;
        for i = pos + 1 to next - 1 do Env.set v i 0 done; pt htbl v)
   in
-  { name; rank = pos - 1; bind = true; value }
+  (fun v -> { name; rank = pos - 1; bind = true; value })
 
 (* Binds the given variable in the given bindbox to produce a binder. *)
 let bind_var x = function
   | Closed t ->
      Closed {name = x.var_name; rank = 0; bind = false; value = fun _ -> t}
-  | Open(vs,nb,t) -> 
-     try 
+  | Open(vs,nb,t) ->
+     try
        match vs with
        | [y] -> if x.key <> y.key then raise Not_found;
                 Closed (mk_first_bind (List.length vs) x (nb + 1) t)
@@ -401,7 +401,7 @@ let mk_mbind colls prefixes suffixes keys pos pt htbl v =
       Env.set_next v !cur_pos;
       pt !htbl v
     end else begin
-      let v = Env.dup v in 
+      let v = Env.dup v in
       for i = 0 to arity - 1 do
         if binds.(i) then begin
           Env.set v !cur_pos args.(i);
@@ -468,27 +468,27 @@ let bind_mvar vs = function
       in
       let binds = Array.map (fun _ -> false) names in
       Closed {names; ranks = 0; binds ; values}
-  | Open(vt,nbt,t) -> 
+  | Open(vt,nbt,t) ->
       let vt = ref vt in
       let nnbt = ref nbt in
       let len = Array.length vs in
-      let prefixes = Array.make len "" in 
-      let suffixes = Array.make len (-1) in 
-      let colls = Array.make len [] in 
-      let keys = Array.make len 0 in 
+      let prefixes = Array.make len "" in
+      let suffixes = Array.make len (-1) in
+      let colls = Array.make len [] in
+      let keys = Array.make len 0 in
       for i = len - 1 downto 0 do
         let v = vs.(i) in
         prefixes.(i) <- v.prefix;
         suffixes.(i) <- v.suffix;
         try
           let ng = search v !vt in
-          colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
+          colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix)
               (fun v -> v.key) ng;
           incr nnbt;
           vt := ng;
           keys.(i) <- v.key
         with Not_found ->
-          colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix) 
+          colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix)
               (fun v -> v.key) !vt;
           keys.(i) <- 0
       done;
@@ -536,7 +536,7 @@ let fixpoint = function
   | Open(vs,nb,t) -> let rec fix t htbl env =
                         (t htbl env).value (fix t htbl env)
                      in Open(vs, nb, fix t)
-  
+
 (* Functorial interface to generate lifting functions for [bindbox]. *)
 let special_apply tf ta =
   match (tf, ta) with
@@ -548,7 +548,7 @@ let special_apply tf ta =
       (tf, (fun _ _ -> a))
   | (Open(vf,nf,_), Open(va,na,a)) ->
       (Open(merge vf va, 0, fun _ _ -> ()), select va na a)
- 
+
 module type Map = sig
   type 'a t
   val map : ('a -> 'b) -> 'a t -> 'b t
@@ -597,21 +597,21 @@ module Lift2(M: Map2) = struct
 module Lift_list = Lift(
   struct
     type 'a t = 'a list
-    let map = List.map  
+    let map = List.map
   end)
 let box_list = Lift_list.f
 
 module Lift_rev_list = Lift(
   struct
     type 'a t = 'a list
-    let map = List.rev_map  
+    let map = List.rev_map
   end)
 let box_rev_list = Lift_rev_list.f
 
 module Lift_array = Lift(
   struct
     type 'a t = 'a array
-    let map = Array.map 
+    let map = Array.map
   end)
 let box_array = Lift_array.f
 
