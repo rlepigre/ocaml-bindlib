@@ -438,7 +438,7 @@ let mk_mute_mbind ranks colls prefixes suffixes pt htbl =
 	     values = values v})
 
 let mk_first_mbind colls prefixes suffixes keys size pt =
-  let cur_pos = ref 1 in
+  let cur_pos = ref 0 in
   let htbl = ref IMap.empty in
   let names = Array.make (Array.length prefixes) "" in
   let f i key =
@@ -453,9 +453,8 @@ let mk_first_mbind colls prefixes suffixes keys size pt =
   let pt = pt !htbl in
   let values args =
     let v = Env.create size in
-    let size = Array.length args in
-    if size <> arity then raise (Invalid_argument "bad arity in msubst");
-    let cur_pos = ref 1 in
+    if Array.length args <> arity then raise (Invalid_argument "bad arity in msubst");
+    let cur_pos = ref 0 in
     for i = 0 to arity - 1 do
       if binds.(i) then begin
         Env.set v !cur_pos args.(i);
