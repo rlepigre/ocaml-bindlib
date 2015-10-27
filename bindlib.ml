@@ -261,7 +261,7 @@ let search x l =
 (* Transforms a "closure" so that a space is reserved for all the bound
 variables. FIXME FIXME FIXME *)
 let select vs nb t =
-  if nb = 0 then t else (fun uptbl v ->
+  if nb = 0 then t else (fun uptbl ->
     let nsize = List.length vs in
     let table = Array.make nsize 0 in
     let cur = ref 0 in
@@ -273,11 +273,13 @@ let select vs nb t =
     in
     let downtbl = List.fold_left f IMap.empty vs in
     let esize = nsize + nb in
-    let nv = Env.create esize in
-    Env.set_next nv nsize;
-    for i = 0 to nsize - 1 do
-      Env.set nv i (Env.get v table.(i))
-    done; t downtbl nv
+    (fun v ->
+      let nv = Env.create esize in
+      Env.set_next nv nsize;
+      for i = 0 to nsize - 1 do
+        Env.set nv i (Env.get v table.(i))
+      done; t downtbl nv
+    )
   )
 
 (* The "apply" function of the monad. It takes as input a function with some
