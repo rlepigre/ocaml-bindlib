@@ -288,12 +288,12 @@ argument have free variables. *)
 let apply_box tf ta =
   match (tf, ta) with
   | (Closed f     , Closed a     ) -> Closed (f a)
-  | (Closed f     , Open(va,na,a)) -> Open(va, na, fun h v -> f (a h v))
-  | (Open(vf,nf,f), Closed a     ) -> Open(vf, nf, fun h v -> (f h v) a)
+  | (Closed f     , Open(va,na,a)) -> Open(va, na, fun h -> let a = a h in fun v -> f (a v))
+  | (Open(vf,nf,f), Closed a     ) -> Open(vf, nf, fun h -> let f = f h in fun v -> f v a)
   | (Open(vf,nf,f), Open(va,na,a)) ->
       let f = select vf nf f in
       let a = select va na a in
-      Open(merge vf va, 0, fun h v -> (f h v) (a h v))
+      Open(merge vf va, 0, fun h -> let f = f h and a = a h in fun v -> f v (a v))
 
 (* Get out of the [bindbox] structure and construct an actual term. When the
 term is closed, it is straight-forward, but when it is open, free variables
@@ -539,17 +539,17 @@ let mbind mkfree names f =
 (* Optimized equivalent of [let box_apply f ta = apply (unit f) ta]. *)
 let box_apply f = function
   | Closed a      -> Closed (f a)
-  | Open(va,na,a) -> Open(va,na,fun h v -> f (a h v))
+  | Open(va,na,a) -> Open(va,na,fun h -> let a = a h in (fun v -> f (a v)))
 
 let box_apply2 f ta tb =
   match (ta, tb) with
   | (Closed(a)    , Closed (b)   ) -> Closed (f a b)
-  | (Closed(a)    , Open(vb,bb,b)) -> Open(vb,bb,fun h v -> f a (b h v))
-  | (Open(va,ba,a), Closed(b)    ) -> Open(va,ba,fun h v -> f (a h v) b)
+  | (Closed(a)    , Open(vb,bb,b)) -> Open(vb,bb,fun h -> let b = b h in fun v -> f a (b v))
+  | (Open(va,ba,a), Closed(b)    ) -> Open(va,ba,fun h -> let a = a h in fun v -> f (a v) b)
   | (Open(va,ba,a), Open(vb,bb,b)) ->
       let a = select va ba a in
       let b = select vb bb b in
-      Open(merge va vb, 0, fun h v -> f (a h v) (b h v))
+      Open(merge va vb, 0, fun h -> let a = a h and b = b h in fun v -> f (a v) (b v))
 
 let box_apply3 f ta tb tc = apply_box (box_apply2 f ta tb) tc
 
