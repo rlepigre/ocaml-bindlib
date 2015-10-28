@@ -258,7 +258,8 @@ let search x l =
   in
   fn [] l
 
-(* Transforms a "closure" so that a space is reserved for all the bound variables. *)
+(* Transforms a "closure" so that a space is reserved for all the bound
+variables. *)
 let fn_select table nsize esize pt v =
   let nv = Env.create esize in
   Env.set_next nv nsize;
@@ -327,7 +328,8 @@ let value_first_bind esize pt arg =
 let mk_first_bind rank x esize pt =
   let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
   let pt = pt htbl in
-  { name = merge_name x.prefix x.suffix; rank; bind = true; value = value_first_bind esize pt }
+  { name = merge_name x.prefix x.suffix; rank; bind = true
+  ; value = value_first_bind esize pt }
 
 let value_bind pt pos v arg =
   let next = Env.next v in
@@ -430,7 +432,8 @@ let mk_mbind colls prefixes suffixes keys pos pt htbl =
   fn_mbind names arity binds pos pt
 
 let value_mute_mbind arity pt v args =
-  if arity <> Array.length args then raise (Invalid_argument "bad arity in msubst");
+  if arity <> Array.length args then
+    raise (Invalid_argument "bad arity in msubst");
   pt v
 
 let fn_mute_mbind arity names binds pos pt v =
@@ -450,7 +453,8 @@ let mk_mute_mbind pos colls prefixes suffixes pt htbl =
 
 let value_first_mbind arity binds esize pt args =
   let v = Env.create esize in
-  if Array.length args <> arity then raise (Invalid_argument "bad arity in msubst");
+  if Array.length args <> arity then
+    raise (Invalid_argument "bad arity in msubst");
   let cur_pos = ref 0 in
   for i = 0 to arity - 1 do
     if binds.(i) then begin
@@ -556,9 +560,7 @@ let fixpoint = function
   | Open(vs,nb,t) ->
      let fix t htbl =
        let t = t htbl in
-       let rec fix' env =
-	 (t env).value (fix' env)
-       in fix'
+       let rec fix' env = (t env).value (fix' env) in fix'
      in Open(vs, nb, fix t)
 
 (* Functorial interface to generate lifting functions for [bindbox]. *)
