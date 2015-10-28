@@ -258,8 +258,15 @@ let search x l =
   in
   fn [] l
 
-(* Transforms a "closure" so that a space is reserved for all the bound
-variables. FIXME FIXME FIXME *)
+(* Transforms a "closure" so that a space is reserved for all the bound variables. *)
+let fn_select table nsize esize pt v =
+  let nv = Env.create esize in
+  Env.set_next nv nsize;
+  for i = 0 to nsize - 1 do
+    Env.set nv i (Env.get v table.(i))
+  done;
+  pt nv
+
 let select vs nb t =
   if nb = 0 then t else (fun uptbl ->
     let nsize = List.length vs in
@@ -273,14 +280,7 @@ let select vs nb t =
     in
     let downtbl = List.fold_left f IMap.empty vs in
     let esize = nsize + nb in
-    (fun v ->
-      let nv = Env.create esize in
-      Env.set_next nv nsize;
-      for i = 0 to nsize - 1 do
-        Env.set nv i (Env.get v table.(i))
-      done; t downtbl nv
-    )
-  )
+    fn_select table nsize esize (t downtbl))
 
 (* The "apply" function of the monad. It takes as input a function with some
 free variables, and an argument with some free variables and it builds the
@@ -319,29 +319,34 @@ let unbox : 'a bindbox -> 'a = function
 
 (* Build a binder in the case it is the first binder in a closed term (i.e.
 (the binder that binds the last free variable in a term and thus close it). *)
+let value_first_bind esize pt arg =
+  let v = Env.create esize in Env.set_next v 1;
+  Env.set v 0 arg;
+  pt v
+
 let mk_first_bind rank x esize pt =
   let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
   let pt = pt htbl in
-  let value arg =
-    let v = Env.create esize in Env.set_next v 1;
-    Env.set v 0 arg; pt v in
-  { name = merge_name x.prefix x.suffix; rank; bind = true; value }
+  { name = merge_name x.prefix x.suffix; rank; bind = true; value = value_first_bind esize pt }
+
+let value_bind pt pos v arg =
+  let next = Env.next v in
+  if next = pos then
+    (Env.set v next arg; Env.set_next v (next + 1); pt v)
+  else
+    (let v = Env.dup v in
+     Env.set_next v (pos + 1); Env.set v pos arg;
+     for i = pos + 1 to next - 1 do Env.set v i 0 done; pt v)
+
+let fn_bind pt pos name v =
+  { name; rank = pos - 1; bind = true; value = value_bind pt pos v }
 
 let mk_bind cols x pos pt htbl =
   let suffix = get_suffix cols htbl x.suffix in
   let name = merge_name x.prefix suffix in
   let htbl = IMap.add x.key (pos, suffix) htbl in
   let pt = pt htbl in
-  let value v arg =
-    let next = Env.next v in
-    if next = pos then
-      (Env.set v next arg; Env.set_next v (next + 1); pt v)
-    else
-      (let v = Env.dup v in
-       Env.set_next v (pos + 1); Env.set v pos arg;
-       for i = pos + 1 to next - 1 do Env.set v i 0 done; pt v)
-  in
-  (fun v -> { name; rank = pos - 1; bind = true; value = value v})
+  fn_bind pt pos name
 
 (* Binds the given variable in the given bindbox to produce a binder. *)
 let bind_var x = function
@@ -377,7 +382,37 @@ let unbind mkfree b =
   let x = new_var mkfree (binder_name b) in
   (x, subst b (free_of x))
 
-(* Auxiliary functions. FIXME FIXME FIXME *)
+let value_mbind arity binds pos pt v args =
+  let size = Array.length args in
+  if size <> arity then raise (Invalid_argument "bad arity in msubst");
+  let next = Env.next v in
+  let cur_pos = ref pos in
+  if next = pos then begin
+    for i = 0 to arity - 1 do
+      if binds.(i) then begin
+        Env.set v !cur_pos args.(i);
+        incr cur_pos;
+      end
+    done;
+    Env.set_next v !cur_pos;
+    pt v
+  end else begin
+    let v = Env.dup v in
+    for i = 0 to arity - 1 do
+      if binds.(i) then begin
+        Env.set v !cur_pos args.(i);
+        incr cur_pos;
+      end
+    done;
+    Env.set_next v !cur_pos;
+    for i = !cur_pos to next - 1 do Env.set v i 0 done;
+    pt v
+  end
+
+let fn_mbind names arity binds pos pt v =
+  { names; ranks = pos-1; binds; values = value_mbind arity binds pos pt v }
+
+(* Auxiliary functions *)
 let mk_mbind colls prefixes suffixes keys pos pt htbl =
   let cur_pos = ref pos in
   let htbl = ref htbl in
@@ -392,35 +427,16 @@ let mk_mbind colls prefixes suffixes keys pos pt htbl =
   let binds = Array.mapi f keys in
   let arity = Array.length names in
   let pt = pt !htbl in
-  let values v args =
-    let size = Array.length args in
-    if size <> arity then raise (Invalid_argument "bad arity in msubst");
-    let next = Env.next v in
-    let cur_pos = ref pos in
-    if next = pos then begin
-      for i = 0 to arity - 1 do
-        if binds.(i) then begin
-          Env.set v !cur_pos args.(i);
-          incr cur_pos;
-        end
-      done;
-      Env.set_next v !cur_pos;
-      pt v
-    end else begin
-      let v = Env.dup v in
-      for i = 0 to arity - 1 do
-        if binds.(i) then begin
-          Env.set v !cur_pos args.(i);
-          incr cur_pos;
-        end
-      done;
-      Env.set_next v !cur_pos;
-      for i = !cur_pos to next - 1 do Env.set v i 0 done;
-      pt v
-    end
-  in (fun v -> { names; ranks = pos-1; binds; values = values v })
+  fn_mbind names arity binds pos pt
 
-let mk_mute_mbind ranks colls prefixes suffixes pt htbl =
+let value_mute_mbind arity pt v args =
+  if arity <> Array.length args then raise (Invalid_argument "bad arity in msubst");
+  pt v
+
+let fn_mute_mbind arity names binds pos pt v =
+  {names; ranks = pos; binds; values = value_mute_mbind arity pt v}
+
+let mk_mute_mbind pos colls prefixes suffixes pt htbl =
   let new_names = Array.make (Array.length prefixes) "" in
   let f i c =
     let suffix = get_suffix c htbl suffixes.(i) in
@@ -429,13 +445,21 @@ let mk_mute_mbind ranks colls prefixes suffixes pt htbl =
   Array.iteri f colls;
   let arity = Array.length new_names in
   let pt = pt htbl in
-  let values v args =
-    if arity <> Array.length args then raise (Invalid_argument "bad arity in msubst");
-    pt v
-  in
-  let names = new_names in
-  (fun v -> {names; ranks; binds = Array.map (fun _ -> false) names;
-	     values = values v})
+  let binds = Array.map (fun _ -> false) new_names in
+  fn_mute_mbind arity new_names binds pos pt
+
+let value_first_mbind arity binds esize pt args =
+  let v = Env.create esize in
+  if Array.length args <> arity then raise (Invalid_argument "bad arity in msubst");
+  let cur_pos = ref 0 in
+  for i = 0 to arity - 1 do
+    if binds.(i) then begin
+      Env.set v !cur_pos args.(i);
+      incr cur_pos;
+    end
+  done;
+  Env.set_next v !cur_pos;
+  pt v
 
 let mk_first_mbind colls prefixes suffixes keys esize pt =
   let cur_pos = ref 0 in
@@ -451,19 +475,7 @@ let mk_first_mbind colls prefixes suffixes keys esize pt =
   let binds = Array.mapi f keys in
   let arity = Array.length names in
   let pt = pt !htbl in
-  let values args =
-    let v = Env.create esize in
-    if Array.length args <> arity then raise (Invalid_argument "bad arity in msubst");
-    let cur_pos = ref 0 in
-    for i = 0 to arity - 1 do
-      if binds.(i) then begin
-        Env.set v !cur_pos args.(i);
-        incr cur_pos;
-      end
-    done;
-    Env.set_next v !cur_pos;
-    pt v
-  in {names; binds; ranks = 0; values}
+  {names; binds; ranks = 0; values = value_first_mbind arity binds esize pt}
 
 (* Bind a multi-variable in a bindbox to produce a multi-binder. *)
 let bind_mvar vs = function
@@ -542,8 +554,11 @@ let fixpoint = function
                        t (fix t)
                      in Closed(fix t.value)
   | Open(vs,nb,t) ->
-     let rec fix t htbl env =
-       (t htbl env).value (fix t htbl env)
+     let fix t htbl =
+       let t = t htbl in
+       let rec fix' env =
+	 (t env).value (fix' env)
+       in fix'
      in Open(vs, nb, fix t)
 
 (* Functorial interface to generate lifting functions for [bindbox]. *)
