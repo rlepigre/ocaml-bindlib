@@ -155,7 +155,7 @@ let mbinder_ranks : ('a,'b) mbinder -> int =
   fun mb -> mb.ranks
 
 (* Split a variable name into a string and in integer suffix. If there is no
-integer suffix, then -1 is given as the suffig integer. *)
+integer suffix, then -1 is given as the suffix integer. *)
 let split_name : string -> string * int = fun name ->
   let n = String.length name in
   let p = ref (n-1) in
@@ -182,8 +182,7 @@ let dummy_bindbox : 'a bindbox =
 (* Function for building a variable structure with a fresh key. *)
 let build_new_var name mkfree bindbox =
   let (prefix, suffix) = split_name name in
-  { key = fresh_key () ; var_name = name ; prefix = prefix ; suffix = suffix
-  ; mkfree = mkfree ; bindbox = bindbox }
+  { key = fresh_key () ; var_name = name ; prefix; suffix; mkfree; bindbox }
 
 (* Create a new free variable using a wrapping function and a default name. *)
 let new_var : ('a variable -> 'a) -> string -> 'a variable =
@@ -236,7 +235,7 @@ let get_suffix collision htbl suffix =
   in
   search suffix l
 
-(* Merge two sorted list of variables withoug repetition into a sorted list
+(* Merge two sorted list of variables without repetition into a sorted list
 without repetition. *)
 let rec merge l1 l2 =
   match (l1, l2) with
@@ -247,8 +246,7 @@ let rec merge l1 l2 =
                       else if kx < ky then x :: merge xs l2
                       else y :: merge l1 ys
 
-(* Search for all the colliding variables in a list of variables sorted by
-keys. *)
+(* Search for a variable in a list of variables sorted by keys. *)
 let search x l =
   let k = x.key in
   let rec fn acc = function
@@ -258,8 +256,7 @@ let search x l =
   in
   fn [] l
 
-(* Transforms a "closure" so that a space is reserved for all the bound
-variables. *)
+(* Transforms a "closure" so that a space is reserved for all the bound variables. *)
 let fn_select table nsize esize pt v =
   let nv = Env.create esize in
   Env.set_next nv nsize;
