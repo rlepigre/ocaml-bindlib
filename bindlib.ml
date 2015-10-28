@@ -256,7 +256,8 @@ let search x l =
   in
   fn [] l
 
-(* Transforms a "closure" so that a space is reserved for all the bound variables. *)
+(* Transforms a "closure" so that a space is reserved for only for
+   the occuring variables. *)
 let fn_select table nsize esize pt v =
   let nv = Env.create esize in
   Env.set_next nv nsize;
