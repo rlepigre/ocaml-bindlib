@@ -331,6 +331,7 @@ let mk_first_bind rank x esize pt =
   { name = merge_name x.prefix x.suffix; rank; bind = true
   ; value = value_first_bind esize pt }
 
+(* Build a normal binder (the default case) *)
 let value_bind pt pos v arg =
   let next = Env.next v in
   if next = pos then
@@ -350,6 +351,17 @@ let mk_bind cols x pos pt htbl =
   let pt = pt htbl in
   fn_bind pt pos name
 
+(* Build a normal binder for a non occuring variable *)
+let value_mute_bind pt v arg = pt v
+
+let fn_mute_bind name pos pt v =
+  { name; rank = pos; bind = false; value = value_mute_bind pt v }
+
+let mk_mute_bind cols x pos pt htbl =
+  let pt = pt htbl in
+  let name = merge_name x.prefix (get_suffix cols htbl x.suffix) in
+  fn_mute_bind name pos pt
+
 (* Binds the given variable in the given bindbox to produce a binder. *)
 let bind_var x = function
   | Closed t ->
@@ -368,12 +380,7 @@ let bind_var x = function
       let eq_pref y = x.prefix = y.prefix in
       let cols = filter_map eq_pref (fun v -> v.key) vs in
       let rank = List.length vs in
-      let pt htbl =
-	let t = t htbl in
-        let name = merge_name x.prefix (get_suffix cols htbl x.suffix) in
-       (fun v -> { name; rank; bind = false; value = fun _ -> t v })
-      in
-      Open(vs, nb, pt)
+      Open(vs, nb, mk_mute_bind cols x rank t)
 
 (* Transforms a function of type ['a bindbox -> 'b bindbox] into a binder. *)
 let bind mkfree name f =
