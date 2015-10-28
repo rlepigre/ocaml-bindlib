@@ -56,7 +56,7 @@ let name_of : 'a variable -> string =
 
 (* Safe comparison function for variables. *)
 let compare_variables : 'a variable -> 'b variable -> int =
-  fun x y -> Pervasives.compare x.key y.key
+  fun x y -> y.key - x.key
 let eq_variables : 'a variable -> 'b variable -> bool =
   fun x y -> x.key = y.key
 
