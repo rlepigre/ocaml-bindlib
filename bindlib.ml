@@ -83,6 +83,9 @@ type ('a,'b) binder =
   ; rank  : int        (* Number of remaining free variables (>= 0). *)
   ; value : 'a -> 'b } (* Substitution function. *)
 
+let binder_from_fun name f =
+  { name; bind = true; rank = 0; value = f }
+
 (* Obtain the name of the bound variable. *)
 let binder_name : ('a,'b) binder -> string =
   fun b -> b.name

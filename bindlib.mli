@@ -42,6 +42,7 @@ val binder_constant : ('a,'b) binder -> bool
 val binder_closed   : ('a,'b) binder -> bool
 val binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder
 val binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
+val binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder
 
 val mbinder_arity    : ('a,'b) mbinder -> int
 val mbinder_names    : ('a,'b) mbinder -> string array
@@ -152,7 +153,7 @@ val fixpoint : (('a, 'b) binder, ('a, 'b) binder) binder bindbox
 
 (* Reset the counter that provides fresh keys for variables. To be used with
 care. *)
-val reset_counter : unit -> unit 
+val reset_counter : unit -> unit
 
 
 
