@@ -135,6 +135,8 @@ val box_apply3 : ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 'b bindbox
 
 (* [box_pair (x,y) = box_apply2 (fun a b -> (a,b)) x y] *)
 val box_pair : 'a bindbox -> 'b bindbox -> ('a * 'b) bindbox
+val box_triple : 'a bindbox -> 'b bindbox -> 'c bindbox
+  -> ('a * 'b * 'c) bindbox
 
 val box_opt : 'a bindbox option -> 'a option bindbox
 

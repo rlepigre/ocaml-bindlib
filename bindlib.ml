@@ -649,7 +649,8 @@ module Lift_array = Lift(
   end)
 let box_array = Lift_array.f
 
-let box_pair x y = box_apply2 (fun x y -> x,y) x y
+let box_pair x y = box_apply2 (fun x y -> (x,y)) x y
+let box_triple x y z = box_apply3 (fun x y z -> (x,y,z)) x y z
 
 let box_opt = function
   | None   -> box None
