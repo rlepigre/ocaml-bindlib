@@ -83,8 +83,8 @@ type ('a,'b) binder =
   ; rank  : int        (* Number of remaining free variables (>= 0). *)
   ; value : 'a -> 'b } (* Substitution function. *)
 
-let binder_from_fun name f =
-  { name; bind = true; rank = 0; value = f }
+let binder_from_fun name rank f =
+  { name; bind = true; rank; value = f }
 
 (* Obtain the name of the bound variable. *)
 let binder_name : ('a,'b) binder -> string =
@@ -326,10 +326,10 @@ let value_first_bind esize pt arg =
   Env.set v 0 arg;
   pt v
 
-let mk_first_bind rank x esize pt =
+let mk_first_bind x esize pt =
   let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
   let pt = pt htbl in
-  { name = merge_name x.prefix x.suffix; rank; bind = true
+  { name = merge_name x.prefix x.suffix; rank = 0; bind = true
   ; value = value_first_bind esize pt }
 
 (* Build a normal binder (the default case) *)
@@ -343,7 +343,7 @@ let value_bind pt pos v arg =
      for i = pos + 1 to next - 1 do Env.set v i 0 done; pt v)
 
 let fn_bind pt pos name v =
-  { name; rank = pos - 1; bind = true; value = value_bind pt pos v }
+  { name; rank = pos; bind = true; value = value_bind pt pos v }
 
 let mk_bind cols x pos pt htbl =
   let suffix = get_suffix cols htbl x.suffix in
@@ -371,7 +371,7 @@ let bind_var x = function
      try
        match vs with
        | [y] -> if x.key <> y.key then raise Not_found;
-                Closed (mk_first_bind (List.length vs) x (nb + 1) t)
+                Closed (mk_first_bind x (nb + 1) t)
        | _   -> let vt = search x vs in
                 let eq_pref y = x.prefix = y.prefix in
                 let cols = filter_map eq_pref (fun v -> v.key) vt in
@@ -420,7 +420,7 @@ let value_mbind arity binds pos pt v args =
   end
 
 let fn_mbind names arity binds pos pt v =
-  { names; ranks = pos-1; binds; values = value_mbind arity binds pos pt v }
+  { names; ranks = pos; binds; values = value_mbind arity binds pos pt v }
 
 (* Auxiliary functions *)
 let mk_mbind colls prefixes suffixes keys pos pt htbl =
