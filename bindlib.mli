@@ -109,6 +109,11 @@ val bind  : ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox)
   -> ('a,'b) binder bindbox
 val mbind : ('a variable -> 'a) -> string array
   -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+(* Building of binders. *)
+val vbind  : ('a variable -> 'a) -> string -> ('a variable -> 'b bindbox)
+  -> ('a,'b) binder bindbox
+val mvbind : ('a variable -> 'a) -> string array
+  -> ('a variable array -> 'b bindbox) -> ('a,'b) mbinder bindbox
 
 (* Breaking binders. *)
 val unbind : ('a variable -> 'a) -> ('a,'b) binder -> 'a variable * 'b

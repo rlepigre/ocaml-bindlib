@@ -388,6 +388,10 @@ let bind mkfree name f =
   let x = new_var mkfree name in
   bind_var x (f x.bindbox)
 
+let vbind mkfree name f =
+  let x = new_var mkfree name in
+  bind_var x (f x)
+
 let unbind mkfree b =
   let x = new_var mkfree (binder_name b) in
   (x, subst b (free_of x))
@@ -539,6 +543,10 @@ let mbind mkfree names f =
   let vs = new_mvar mkfree names in
   let args = Array.map box_of_var vs in
   bind_mvar vs (f args)
+
+let mvbind mkfree names f =
+  let vs = new_mvar mkfree names in
+  bind_mvar vs (f vs)
 
 (* Optimized equivalent of [let box_apply f ta = apply (unit f) ta]. *)
 let box_apply f = function
