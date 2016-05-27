@@ -6,7 +6,7 @@ lambda: lambda.ml
 
 ## Second-order predicate calculus
 pred2: pred2.ml
-	ocamlfind ocamlc -package bindlib -o $@ bindlib.cma $<
+	ocamlfind ocamlc -package bindlib -g -o $@ bindlib.cma $<
 
 ## Clean
 clean:

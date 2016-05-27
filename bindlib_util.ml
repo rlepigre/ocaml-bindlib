@@ -7,21 +7,21 @@ module Env = struct
   type t =
     { tab          : any array (* An array with elements of any type. *)
     ; mutable next : int }     (* Next free cell of the array. *)
-  
+
   (* Creates an empty environment of a given size. *)
   let create : int -> t =
     fun size ->
       let dummy = Obj.repr () in
       { tab = Array.make size dummy; next = 0 }
-  
+
   (* Sets the value stored at some position in the environment. *)
   let set : t -> int -> 'a -> unit =
     fun env i e -> Array.set env.tab i (Obj.repr e)
-  
+
   (* Gets the value stored at some position in the environment. *)
   let get : t -> int -> 'a =
     fun env i -> Obj.obj (Array.get env.tab i)
-  
+
   (* Make a copy of the environment. *)
   let dup : t -> t =
     fun env -> { tab = Array.copy env.tab; next = env.next }
@@ -44,10 +44,10 @@ module SMap = Map.Make(
   end)
 
 let new_counter =
-  let c = ref 0 in
+  let c = ref 1 in
   fun () ->
     let fresh () = let n = !c in incr c; n in
-    let reset () = c := 0 in
+    let reset () = c := 1 in
     (fresh, reset)
 
 let swap f a b = f b a

@@ -67,7 +67,7 @@ let rec print_form : out_channel -> form -> unit = fun och f ->
 
 (* Equality functions. *)
 let eq_arrays : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool =
-  fun eq_elt a1 a2 -> 
+  fun eq_elt a1 a2 ->
     let l = Array.length a1 in
     if Array.length a2 <> l then false else
     let eq = ref true in
@@ -122,6 +122,14 @@ type proof =
   | Univ2_e of proof * pred
   | Axiom   of form * proof variable
 
+let imply_i = box_apply2 (fun p q -> Imply_i(p,q))
+let imply_e = box_apply2 (fun p q -> Imply_e(p,q))
+let univ1_i = box_apply (fun p -> Univ1_i p)
+let univ1_e = box_apply2 (fun p q -> Univ1_e(p,q))
+let univ2_i arity = box_apply (fun p -> Univ2_i(arity,p))
+let univ2_e = box_apply2 (fun p q -> Univ2_e(p,q))
+let axiom f v = Axiom(f,v)
+
 exception Bad_proof of string
 
 let print_goal och hyps concl =
@@ -133,92 +141,93 @@ let print_goal och hyps concl =
   output_string och "----------------------------------------\n";
   Printf.fprintf och " %a\n" print_form concl
 
-(* FIXME from here. *)
-
 let assume f x = Axiom(f,x)
 
-let type_infer p = 
+let imply = box_apply2 (fun f g -> Imply(f,g))
+
+let univ1 = box_apply (fun f -> Univ1 f)
+
+let univ2 arity = box_apply (fun f -> Univ2(arity,f))
+
+let type_infer p =
   let ctxt = empty_context in
-  let rec fn hyps ctxt p = 
-    let r = match p with 
+  let rec fn hyps ctxt p =
+    let r = match p with
       | Imply_i(f,p) ->
-          assert false (*
-          (match p with bind (assume f) ax for ctxt in p' ->
-            Imply(^ box_form f, fn (ax::hyps) ctxt p' ^) ) *)
+	 let ax, ctxt = new_var_in ctxt (assume f) (binder_name p) in
+	 let p' = subst p (free_of ax) in
+         imply (box_form f) (fn (ax::hyps) ctxt p')
       | Imply_e(p1,p2) ->
-          assert false (*
         begin
           let f1' = unbox (fn hyps ctxt p2) in
-          match unbox (fn hyps ctxt p1) with 
+          match unbox (fn hyps ctxt p1) with
             Imply(f1,f2) when equal_form f1 f1' -> box_form f2
           | Imply(f1,f2) ->
-              print_form 0 f1; print_string "<>"; print_form 0 f1';
-              print_newline ();
-              raise (Bad_proof("Imply"))
+             Printf.eprintf "%a <> %a\n%!" print_form f1 print_form f1';
+            raise (Bad_proof("Imply"))
           | _ ->
               raise (Bad_proof("Imply"))
-        end *)
+        end
       | Univ1_i(p) ->
-          assert false (*
-        (match p with bind fvar1 t for ctxt in p' ->
-        Univ1(^ bindvar t in  fn hyps ctxt p'^) ) *)
+	 let t,ctxt = new_var_in ctxt fvar1 (binder_name p) in
+	 univ1 (bind_var t (fn hyps ctxt (subst p (free_of t))))
       | Univ1_e(p,t) ->
-          assert false (*
         begin
           match unbox (fn hyps ctxt p) with
-            Univ1(f) -> box_form (subst f t) 
+            Univ1(f) -> box_form (subst f t)
           | _ -> raise (Bad_proof("Univ1"))
-        end *)
+        end
       | Univ2_i(arity,f) ->
-          assert false (*
-        (match f with bind (fvar2 arity) x for ctxt in p' ->
-        Univ2(^ (^arity^),  bindvar x in fn hyps ctxt p' ^) ) *)
+	 let t,ctxt = new_var_in ctxt (fvar2 arity) (binder_name f) in
+	 univ2 arity (bind_var t (fn hyps ctxt (subst f (free_of t))))
       | Univ2_e(p,pred) ->
-          assert false (*
-        begin
+         begin
           match unbox (fn hyps ctxt p) with
             Univ2(arity, f) when arity = mbinder_arity pred ->
-              box_form (subst f pred) 
+              box_form (subst f pred)
           | _ -> raise (Bad_proof("Univ2"))
-        end *)
+        end
       | Axiom(f,_) -> box_form f
     in print_goal stdout (List.map free_of hyps) (unbox r); r
   in
   unbox (fn [] ctxt p)
-        
+
 let type_check p f =
   if not (equal_form (type_infer p) f) then
     raise (Bad_proof "Infered type does not match expected type.")
 
 
-(*
+let _ = Printexc.record_backtrace true
+
 (* Here is an example of second order predicate: leibniz equality *)
-let leq = bind fvar1 u(2) as [| "u"; "v" |] in
-  Univ2 (^ (^1^), bind (fvar2 1) pX as "X" in Imply(^ pX ^|^ [|^ u.(0) ^|], pX ^|^ [|^ u.(1) ^|] ^) ^)
+let leq = mbind fvar1 [| "u"; "v" |] (fun u ->
+  univ2 1 (bind (fvar2 1) "X" (fun pX ->
+    imply (mbind_apply pX (box_array [|u.(0)|]))
+          (mbind_apply pX (box_array [|u.(1)|])))))
 
 let equal_transitive = unbox (
-  Univ1(^ bind fvar1 x in
-    Univ1(^ bind fvar1 y in
-      Univ1(^ bind fvar1 z in
-        Imply(^ leq ^|^ [|^x; y^|],
-          Imply(^ leq ^|^ [|^y; z^|], leq ^|^ [|^x; z^|] ^) ^) ^) ^) ^) )
+  univ1 (bind fvar1 "x" (fun x ->
+    univ1 (bind fvar1 "y" (fun y ->
+      univ1 (bind fvar1 "z" (fun z ->
+        imply (mbind_apply leq (box_array [|x; y|])) (
+          imply (mbind_apply leq (box_array [|y; z|]))
+	      (mbind_apply leq (box_array [|x; z|]))))))))))
 
 let equal_transitive_proof = unbox (
-  Univ1_i(^ bind fvar1 x in
-    Univ1_i(^ bind fvar1 y in
-      Univ1_i(^ bind fvar1 z in
-        (let f = leq ^|^ [|^x; y^|] in 
-        Imply_i(^ f , bind (assume (unbox f)) h1 in 
-          (let g = leq ^|^ [|^y; z^|] in 
-          Imply_i(^ g,  bind (assume (unbox g)) h2 in 
-            Univ2_i(^ (^1^), bind (fvar2 1) pX as "X" in
-              (let p = pX ^|^ [|^ x ^|] in 
-              Imply_i(^ p, bind (assume (unbox p)) h3 in
-                (Imply_e(^ Univ2_e(^h2, pX^), 
-                   Imply_e(^ Univ2_e(^h1, pX^), h3  
-                              ^) ^) ) ^) ) ^) ^) ) ^) ) ^) ^) ^) )
+  univ1_i (bind fvar1 "x" (fun x ->
+    univ1_i (bind fvar1 "y" (fun y ->
+      univ1_i (bind fvar1 "z" (fun z ->
+        let f = mbind_apply leq (box_array [|x; y|]) in
+        imply_i f (bind (assume (unbox f)) "h1" (fun h1 ->
+          let g = mbind_apply leq (box_array [|y; z|]) in
+          imply_i g  (bind (assume (unbox g)) "h2" (fun h2 ->
+            univ2_i 1 (bind (fvar2 1) "X" (fun pX ->
+              let p = mbind_apply pX (box_array [|x|]) in
+              imply_i p (bind (assume (unbox p)) "h3" (fun h3 ->
+                imply_e (univ2_e h2 pX)
+                   (imply_e (univ2_e h1 pX) h3))))))))))))))))
+
 let _ =
-  print_form 0 (type_infer equal_transitive_proof);
+  print_form stdout (type_infer equal_transitive_proof);
   type_check equal_transitive_proof equal_transitive;
   print_newline ()
-*)

@@ -1,4 +1,4 @@
-LIBDIR=$(shell ocamlc -where)
+LIBDIR=$(shell ocamlfind printconf destdir)
 OCAMLC=ocamlc -g
 OCAMLOPT=ocamlopt -g
 
