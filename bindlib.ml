@@ -434,7 +434,7 @@ let mk_mbind colls prefixes suffixes keys pos pt htbl =
   let f i key =
     let suffix = get_suffix colls.(i) !htbl suffixes.(i) in
     names.(i) <- merge_name prefixes.(i) suffix;
-    if key <> 0 then
+    if key >= 0 then
       (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
     else false
   in
@@ -484,7 +484,7 @@ let mk_first_mbind colls prefixes suffixes keys esize pt =
   let f i key =
     let suffix = get_suffix colls.(i) !htbl suffixes.(i) in
     names.(i) <- merge_name prefixes.(i) suffix;
-    if key <> 0 then
+    if key >= 0 then
       (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
     else false
   in
@@ -526,7 +526,7 @@ let bind_mvar vs = function
         with Not_found ->
           colls.(i) <- filter_map (fun v' -> v.prefix = v'.prefix)
               (fun v -> v.key) !vt;
-          keys.(i) <- 0
+          keys.(i) <- -1
       done;
       if !vt = [] then
         Closed(mk_first_mbind colls prefixes suffixes keys !nnbt t)

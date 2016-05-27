@@ -44,10 +44,10 @@ module SMap = Map.Make(
   end)
 
 let new_counter =
-  let c = ref 1 in
+  let c = ref 0 in
   fun () ->
     let fresh () = let n = !c in incr c; n in
-    let reset () = c := 1 in
+    let reset () = c := 0 in
     (fresh, reset)
 
 let swap f a b = f b a
