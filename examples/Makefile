@@ -1,4 +1,4 @@
-all: lambda pred2
+all: lambda pred2 unif
 
 ## Lambda calculus
 lambda: lambda.ml
@@ -8,9 +8,13 @@ lambda: lambda.ml
 pred2: pred2.ml
 	ocamlfind ocamlc -package bindlib -g -o $@ bindlib.cma $<
 
+## Higher-order unification
+unif: unif.ml
+	ocamlfind ocamlc -package bindlib -g -o $@ bindlib.cma $<
+
 ## Clean
 clean:
 	rm -f *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
 
 distclean: clean
-	rm -f lambda pred2
+	rm -f lambda pred2 unif
