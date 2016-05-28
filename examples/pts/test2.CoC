@@ -1,0 +1,71 @@
+load "test.F";
+
+let pierre1 =  λX:*. λY:(X → *). λx:(∃z:X.(Y z)). (x.1)
+	    : ∀X:*.∀Y:(X → *).∀x:(∃z:X.(Y z)). X;
+
+let pierre2a =  λX:*. λY:*. λx:(X × Y). (x.2)
+	     : ∀X:*.∀Y:*.∀x:(X × Y). Y;
+
+let pierre2b =  λX:*. λY:(X → *). λx:(∃z:X.(Y z)). (x.2)
+	     : ∀X:*.∀Y:(X → *).∀x:(∃z:X.(Y z)). Y (x.1);
+
+
+let pierre2A=  λX:#. λY:#. λx:(X × Y). (x.2)
+	     : ∀X:#.∀Y:#.∀x:(X × Y). Y;
+
+let pierre2B =  λX:#. λY:(X → #). λx:(∃z:X.(Y z)). (x.2)
+	     : ∀X:#.∀Y:(X → #).∀x:(∃z:X.(Y z)). Y (x.1);
+
+let Eq0 : ∀A:*. ∀x,y:A.* = λA:*.λx,y:A. ∀X:(A → *). (X x → X y);
+
+let refl0 : ∀A:*. ∀x:A. Eq0 A x x =
+            λA:*.  λx:A. λX:A → *. λh:X x. h;
+
+let Uip0 : ∀A:*. ∀x:A. ∀p,q:Eq0 A x x. Eq0 (Eq0 A x x) p q = {" Axiom "};
+
+let Eq : ∀A:#. ∀x,y:A.* = λA:#.λx,y:A. ∀X:(A → *). (X x → X y);
+
+let refl : ∀A:#. ∀x:A. Eq A x x =
+            λA:#.  λx:A. λX:A → *. λh:X x. h;
+
+let sigma_eta0 : ∀X:*.∀Y:(X → *).∀p:∃z:X.(Y z). Eq0 (∃z:X. Y z) p [p.1, p.2]
+  = λX:*.λY:(X → *).λp:∃z:X.(Y z). refl0 (∃z:X. Y z) p;
+
+let sigma_eta : ∀X:#.∀Y:(X → #).∀p:∃z:X.(Y z). Eq (∃z:X. Y z) p [p.1, p.2]
+  = λX:#.λY:(X → #).λp:∃z:X.(Y z). refl (∃z:X. Y z) p;
+
+let PNat = λx : Nat. ∀X:Nat → *.
+  (X n0 → (∀y:Nat. X y → X (succ y)) → X x)
+: Nat → *;
+
+let UPNatP : ∀n:Nat. ∀p,q:PNat n. Eq0 (PNat n) p q
+  = {" Axiom "};
+
+let IN = ∃n:Nat. PNat n : *;
+
+let Zero : IN = [ n0, λX:Nat → *.λa:X n0.λf:(∀y:Nat. X y → X (succ y)).a ];
+
+let Succ : IN → IN = λn:IN. [ succ (n.1), λX:Nat → *.λa:X n0.λf:(∀y:Nat. X y → X (succ y)). f (n.1) (n.2 X a f) ];
+
+let Rec : * = ∀X:IN → *. X Zero → (∀n:IN. (X n → X (Succ n))) → ∀n:IN. X n;
+
+
+let ElimRec : Rec =
+  λX:IN → *. λH0:X Zero. λHS:(∀n:IN. (X n → X (Succ n))). λn:IN.
+    (λp:(∃q:(PNat (n.1)). X[(n.1), q]). UPNatP (n.1) (p.1) (n.2) (λq:PNat (n.1).X[n.1, q]) (p.2))
+      (n.2
+       (λn:Nat.∃q:(PNat n). X [n,q])
+       {" H0 "}
+       {" HS "});
+
+
+
+//let lem : ∀n:Nat. ∀p:PNat n. Eq Nat (pred (succ n)) n
+//        = λn:Nat. λp:PNat n.λX:Nat → *.λh:X n.
+//	    p (λn:Nat.Eq Nat (pred (succ n)) n)
+//	      (refl Nat n0)
+//              p;
+
+//let Succ_inj : ∀n,m:Nat. ∀p:PNat n. ∀q:PNat m. Eq Nat (succ n) (succ m) → Eq Nat n m
+//            = λn,m:Nat. λp:PNat n. λq:PNat m.λh:Eq Nat (succ n) (succ m)
+//	         λX:Nat → *.λr:X n

@@ -17,9 +17,9 @@ module F_definition =
       	Star -> print_string "*"
       |	Box -> print_string "#"
     let keywords = [ "*"; "#"]
-    let parse_sort = parser 
-	[< 'Genlex.Kwd "*" >] -> Star
-      |	[< 'Genlex.Kwd "#" >] -> Box
+    let parser parse_sort =
+	'*' -> Star
+      |	'#' -> Box
   end
 
 module F = Main.Make(F_definition)
