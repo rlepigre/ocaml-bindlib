@@ -1,31 +1,31 @@
 open Bindlib
 open Decap
-       
+
 module Lambda = struct
   type term = {
     mutable address: int;
     mutable key:int;
     data:term';
   }
-             
+
   and term' =
     | HVar of int
-                
+
     | Var of term variable
-                  
+
     | App of term * term
     | Lam of (term, term) binder
-                                       
+
     | Con of string * term
     | Case of term * (string * (term, term) binder) list * (term, term) binder option
 
 (*
-  { a = t; b = u } ⟹ fun x -> case x with A[k] -> k t  | B[k] -> k u 
+  { a = t; b = u } ⟹ fun x -> case x with A[k] -> k t  | B[k] -> k u
   { a : tₐ; b : t_b } ⟹ [A[tₐ → ⊥] | B[t_b → ⊥]] -> ⊥
   k s.a ⟹ s A[k]
 
  *)
-                                                                        
+
     | Struct of term option * (string * (term, term) binder) list
     | VStruct of (string, term) Hashtbl.t
     | Proj of term * string
@@ -44,10 +44,10 @@ module Lambda = struct
   let canonical_var f =
     let n = if binder_occur f then binder_rank f + 1 else 0 in
     mkHVar n
-           
+
   let hash_binder f =
     Hashtbl.hash(binder_occur f,(subst f (canonical_var f)).key)
-                                                                              
+
   let hash' = function
     | HVar n -> Hashtbl.hash (`HVar, n)
     | Var v -> hash_var v
@@ -70,10 +70,10 @@ module Lambda = struct
        let cases = List.sort (fun (s,_) (s',_) -> compare s s') cases in
        Hashtbl.hash(`VStruct,cases)
 
-  let equal_binder f f' =                    
+  let equal_binder f f' =
     binder_rank f = binder_rank f' && binder_occur f = binder_occur f' &&
       (subst f (canonical_var f)).address = (subst f' (canonical_var f)).address
-                                                                        
+
   let equal' t1 t2 = t1 == t2 || match t1, t2 with
     | HVar n1, HVar n2 -> n1 = n2
     | Var v1, Var v2 -> compare_variables v1 v2 = 0
@@ -112,7 +112,7 @@ module Lambda = struct
 
   let equal r1 r2 = equal' r1.data r2.data
 end
-                  
+
 module WLambda = Weak.Make(Lambda)
 
 include Lambda
@@ -155,7 +155,7 @@ let rec print ch t =
   match t.data with
     Lam(f) ->
     let v = new_var (fun v -> hashCons (Var v)) (binder_name f) in
-    Printf.fprintf ch "λ%s.%a" (name_of v) print (subst f (free_of v)) 
+    Printf.fprintf ch "λ%s.%a" (name_of v) print (subst f (free_of v))
   | App(t1,t2) ->
     Printf.fprintf ch "(%a %a)" print t1 print t2
   | Var v -> Printf.fprintf ch "%s" (name_of v)
@@ -165,55 +165,57 @@ let rec print ch t =
   | Struct(any,cases) -> Printf.fprintf ch "{…}"
   | VStruct(cases) ->
      Printf.eprintf "{";
-     Hashtbl.iter (fun str t -> Printf.eprintf "%s = %a; " str print t) cases; 
+     Hashtbl.iter (fun str t -> Printf.eprintf "%s = %a; " str print t) cases;
      Printf.eprintf "}"
   | Proj(t,str) -> Printf.fprintf ch "(%a).%s" print t str
 
 let var v = hashCons (Var v)
-                  
+
 let mkApp(t1, t2) =
-  unit_apply hashCons (unit_apply2 (fun t1 t2 -> App(t1,t2)) t1 t2 )
+  box_apply hashCons (box_apply2 (fun t1 t2 -> App(t1,t2)) t1 t2 )
 
 let mkApp2(t1,t2) = hashCons(App(t1,t2))
-                            
-let mkLam(name, f) =              
-  unit_apply hashCons (unit_apply (fun x -> Lam x) (bind var name f ) )
+
+let mkLam(name, f) =
+  box_apply hashCons (box_apply (fun x -> Lam x) (bind var name f ) )
 
 let mkCon(str,t) =
-  unit_apply hashCons (unit_apply2 (fun s t -> Con(s,t)) (unit str) t)
+  box_apply hashCons (box_apply2 (fun s t -> Con(s,t)) (box str) t)
 
 let mkCon2(str,t) =
   hashCons (Con(str, t))
 
 let mkCase(t,cases,any) =
-  unit_apply hashCons
-             (unit_apply3 (fun t c a -> Case(t,c,a)) t
-                          (lift_list ((List.map (fun (str,f) -> lift_pair (unit str) (bind var "c" f))) cases))
-                          (match any with None -> unit None | Some f -> (unit_apply (fun x -> Some x) (bind var "d" f))))
+  box_apply hashCons
+             (box_apply3 (fun t c a -> Case(t,c,a)) t
+                          (box_list ((List.map (fun (str,f) -> box_pair (box str) (bind var "c" f))) cases))
+                          (match any with None -> box None | Some f -> (box_apply (fun x -> Some x) (bind var "d" f))))
 
 let mkProj(t,str) =
-  unit_apply hashCons (unit_apply2 (fun s t -> Proj(t,s)) (unit str) t)
+  box_apply hashCons (box_apply2 (fun s t -> Proj(t,s)) (box str) t)
 
 let mkProj2(t,str) =
   hashCons (Proj(t,str))
 
 let mkStruct(self,any,cases) =
-  unit_apply hashCons
-             (unit_apply2 (fun a c -> Struct(a,c))
-                          (match any with None -> unit None | Some a -> (unit_apply (fun x -> Some x) a))
-                          (lift_list ((List.map (fun (str,f) -> lift_pair (unit str) (bind var self f))) cases)))
+  box_apply hashCons
+             (box_apply2 (fun a c -> Struct(a,c))
+                          (match any with None -> box None | Some a -> (box_apply (fun x -> Some x) a))
+                          (box_list ((List.map (fun (str,f) -> box_pair (box str) (bind var self f))) cases)))
 
 let mkUnit = mkStruct("_",None, [])
-                     
+
 let atom_term = declare_grammar "atom_term"
 let term = declare_grammar "term"
-let ident = parser str:''[A-Za-z][A-Za-z0-9_']*'' -> str
-                                                      
+let kwds = [ "case"; "of"; "let" ]
+let ident = parser str:''[A-Za-z][A-Za-z0-9_']*'' ->
+  if List.mem str kwds then give_up ""; str
+
 let _ = set_grammar atom_term (parser
 
       | '(' t:term ')' -> t
-                                                    
-      | id:ident -> (fun env -> try List.assoc id env with Not_found -> raise (Give_up ("Unbound: "^id)))
+
+      | id:ident -> (fun env -> try List.assoc id env with Not_found -> give_up ("Unbound: "^id))
 
       | "fun" l:ident+ {"->"|"→"} t:term ->
          let rec fn l env = match l with
@@ -223,17 +225,17 @@ let _ = set_grammar atom_term (parser
                     let env = (id, x)::env in
                     fn l env)
          in
-         fn l                                           
+         fn l
 
       | str:ident '[' t:term? ']' ->
             (fun env -> let t = match t with None -> mkUnit | Some t -> t env in mkCon(str,t))
-                                      
+
       | "case" t:term "of"
-               cases:{"|" c:ident "[" i:{ident|''_''}?["_"] "]" _:{"->"|"→"} t:term}*
+               cases:{"|" c:ident "[" i:{ident|''_''}?["_"] "]" _:{"->"|"→"} t:term}*$
                any:{"|" i:{ident|''_''} _:{"->"|"→"} t:term }? ->
          (fun env ->
           let cases = List.map (fun (c,i,t) -> (c, fun x ->
-                                
+
                                                    let env = (i,x)::env in t env)) cases in
           let any = match any with
             | None -> None
@@ -243,23 +245,23 @@ let _ = set_grammar atom_term (parser
 
       | '{'
             any:{term '|' }?
-            cases:{ident '=' term ';'}* '}'  self:{"as" ident}?["_"] -> (fun env -> 
+            cases:{ident '=' term ';'}* '}'  self:{"as" ident}?["_"] -> (fun env ->
                   let cases = List.map (fun (i,t) -> (i, fun x ->
                      let env = (self,x)::env in t env)) cases in
                   let any = match any with
                     | None -> None
                     | Some t -> Some (t env)
                   in
-                  (mkStruct(self,any,cases) : term bindbox))                         
+                  (mkStruct(self,any,cases) : term bindbox))
       )
 
-let proj_term = parser                    
-      | t:atom_term l:{ '.' - ident}* ->
+let proj_term = parser
+      | t:atom_term l:{ '.' - ident}*$ ->
           (fun env -> List.fold_left (fun acc str -> mkProj(acc,str)) (t env) l)
 
 let _ = set_grammar term (parser
-         | t:proj_term l:proj_term* -> (fun env -> List.fold_left (fun t u -> mkApp(t,u env)) (t env) l))
-                                
+         | t:proj_term l:proj_term*$ -> (fun env -> List.fold_left (fun t u -> mkApp(t,u env)) (t env) l))
+
 let rec eval t =
   (*  Printf.eprintf "%a\n%!" print t;*)
   match t.data with
@@ -276,7 +278,7 @@ let rec eval t =
   | Case(t,cases,any) ->
      let Con(str,t') = (eval t).data in
      (try eval (subst (List.assoc str cases) t') with Not_found ->
-        match any with Some f -> eval (subst f t))
+        match any with Some f -> eval (subst f t) | _ -> assert false)
   | VStruct(cases) -> t
   | Struct(any,cases) ->
      (let tbl:(string, term) Hashtbl.t =
@@ -293,7 +295,7 @@ let rec eval t =
       reHashCons self)
   | Proj(t,str) ->
      (let VStruct t = (eval t).data in try Hashtbl.find t str with Not_found -> Printf.eprintf "Not found: %S\n%!" str; exit 1)
-                                            
+
   | Var _ -> failwith "open term"
   | HVar _ -> failwith "open term (H)"
 
@@ -308,6 +310,7 @@ let zero = term_of_string "fun f x -> x"
 let succ = term_of_string "fun n f x -> n f (f x)"
 let two = term_of_string "fun f x -> f (f x)"
 let add = term_of_string "fun n m f x -> n f (m f x)"
+
 let test = term_of_string "case S[Z[]] of | Z[] -> A[] | S[n] -> B[n]"
 
 let gros = term_of_string "{ zero = Z[]; \
@@ -319,32 +322,32 @@ let gros = term_of_string "{ zero = Z[]; \
                              fact = fun n -> case n of | Z[] -> self.one | S[n'] -> self.mul n (self.fact n'); \
                              test = self.fact self.four; \
                            } as self"
-(*                          
+(*
 
- 
+
   two = self.add self.one self.one;
 } as self*)
-                          
+
 let dog = eval (mkApp2(mkApp2(mkApp2(two,two),succ),zero))
 let four = eval (mkApp2(mkApp2(mkApp2(mkApp2(add,two),two),succ),zero))
-                 
+
 let _ = assert (idt.address = idt'.address)
 let _ = assert (idt.data == idt'.data)
 
 let _ = assert (delta.address = delta'.address &&
                   delta.data == delta'.data)
-               
+
 let idt'' = eval (mkApp2(delta, mkApp2(delta', idt)))
 
 let _ =
-  Printf.eprintf "%a\n%!" print idt; 
-  Printf.eprintf "%a\n%!" print idt'; 
-  Printf.eprintf "%a\n%!" print delta; 
-  Printf.eprintf "%a\n%!" print delta'; 
-  Printf.eprintf "%a\n%!" print idt''; 
+  Printf.eprintf "%a\n%!" print idt;
+  Printf.eprintf "%a\n%!" print idt';
+  Printf.eprintf "%a\n%!" print delta;
+  Printf.eprintf "%a\n%!" print delta';
+  Printf.eprintf "%a\n%!" print idt'';
   Printf.eprintf "%a\n%!" print two;
   Printf.eprintf "%a\n%!" print four;
-  Printf.eprintf "%a\n%!" print dog; 
+  Printf.eprintf "%a\n%!" print dog;
   Printf.eprintf "%a\n%!" print test;
   Printf.eprintf "%a\n%!" print (eval test);
   Printf.eprintf "%a\n%!" print gros;

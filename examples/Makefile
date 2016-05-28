@@ -1,16 +1,20 @@
-all: lambda pred2 unif
+all: lambda pred2 unif hash_lambda
 
 ## Lambda calculus
 lambda: lambda.ml
-	ocamlfind ocamlc -package bindlib -o $@ bindlib.cma $<
+	ocamlfind ocamlc -package bindlib -linkpkg -g -o $@ $<
+
+## Hash consed lambda calculus, need decap
+hash_lambda: hash_lambda.ml
+	- ocamlfind ocamlc -pp pa_ocaml -package bindlib,decap -linkpkg -o $@ $<
 
 ## Second-order predicate calculus
 pred2: pred2.ml
-	ocamlfind ocamlc -package bindlib -g -o $@ bindlib.cma $<
+	ocamlfind ocamlc -package bindlib -linkpkg -g -o $@ $<
 
 ## Higher-order unification
 unif: unif.ml
-	ocamlfind ocamlc -package bindlib -g -o $@ bindlib.cma $<
+	ocamlfind ocamlc -package bindlib -linkpkg -g -o $@ $<
 
 ## Clean
 clean:
