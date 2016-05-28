@@ -49,14 +49,14 @@ module Make(Pts: PtsType) =
 
       | '{' s:string '}' -> (fun env -> box (Goal s))
 
-    and parse_app =
-       	t:parse_atom t':parse_app' -> (fun env -> t' env (t env))
+    and parse_proj =
+      |	t:parse_atom -> t
+      |	t:parse_proj ".1" -> (fun env -> proj1 (t env))
+      |	t:parse_proj ".2" -> (fun env -> proj2 (t env))
 
-    and parse_app' =
-      |	".1" t'':parse_app' -> (fun env t -> t'' env (proj1 t))
-      | ".2" t'':parse_app' -> (fun env t -> t'' env (proj2 t))
-      |	t':parse_atom t'':parse_app' -> (fun env t -> t'' env (app t (t' env)))
-      |	EMPTY -> (fun env t -> t)
+    and parse_app =
+      | t:parse_proj -> t
+      |	t:parse_app t':parse_proj -> (fun env -> app (t env) (t' env))
 
     and parse_arrow =
       | {"->"|"→"} t':parse_expr' -> (fun env t -> pi "_" t (fun _ -> (t' env)))

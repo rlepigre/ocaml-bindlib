@@ -25,22 +25,18 @@ module Make(Pts: PtsType) =
       	    fn app_lvl t2;
       	    if b >= app_lvl then print_string ")"
 	| Proj1(t) ->
-      	    if b >= app_lvl then print_string "(";
       	    fn app_lvl t;
-      	    print_string ".1";
-      	    if b >= app_lvl then print_string ")"
+      	    print_string ".1"
 	| Proj2(t) ->
-      	    if b >= app_lvl then print_string "(";
       	    fn app_lvl t;
-      	    print_string ".2";
-      	    if b >= app_lvl then print_string ")"
+      	    print_string ".2"
 	| Pair(t1,t2) ->
-	    print_string "(";
+	    print_string "[";
 	    fn ini_lvl t1;
 	    print_string ", ";
 	    let rec gn = function
 	    	Pair(t2,t3) -> fn ini_lvl t2; print_string ", "; gn t3
-	      | t2 ->  fn ini_lvl t2; print_string ")"
+	      | t2 ->  fn ini_lvl t2; print_string "]"
 	    in gn t2
     	| Lambda(t,f) ->
     	    if b >= abs_lvl then print_string "(";
@@ -65,7 +61,7 @@ module Make(Pts: PtsType) =
 	    in gn u;
     	    if b >= abs_lvl then print_string ")"
 
-        | Pi(t,f) when binder_closed f ->
+        | Pi(t,f) when binder_constant f ->
     	    if b >= arr_lvl then print_string "(";
 	    fn arr_lvl t;
 	    print_string " → ";
@@ -74,7 +70,7 @@ module Make(Pts: PtsType) =
 	    fn (if b >= arr_lvl then ini_lvl else b) u;
     	    if b >= arr_lvl then print_string ")"
 
-        | Sigma(t,f) when binder_closed f ->
+        | Sigma(t,f) when binder_constant f ->
     	    if b >= arr_lvl then print_string "(";
 	    fn arr_lvl t;
 	    print_string " × ";

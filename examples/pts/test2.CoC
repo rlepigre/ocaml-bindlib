@@ -3,18 +3,18 @@ load "test.F";
 let pierre1 =  λX:*. λY:(X → *). λx:(∃z:X.(Y z)). (x.1)
 	    : ∀X:*.∀Y:(X → *).∀x:(∃z:X.(Y z)). X;
 
-let pierre2a =  λX:*. λY:*. λx:(X × Y). (x.2)
+let pierre2a =  λX:*. λY:*. λx:(X × Y). x.2
 	     : ∀X:*.∀Y:*.∀x:(X × Y). Y;
 
-let pierre2b =  λX:*. λY:(X → *). λx:(∃z:X.(Y z)). (x.2)
-	     : ∀X:*.∀Y:(X → *).∀x:(∃z:X.(Y z)). Y (x.1);
+let pierre2b =  λX:*. λY:(X → *). λx:(∃z:X.(Y z)). x.2
+	     : ∀X:*.∀Y:(X → *).∀x:(∃z:X.(Y z)). Y x.1;
 
 
-let pierre2A=  λX:#. λY:#. λx:(X × Y). (x.2)
+let pierre2A=  λX:#. λY:#. λx:(X × Y). x.2
 	     : ∀X:#.∀Y:#.∀x:(X × Y). Y;
 
-let pierre2B =  λX:#. λY:(X → #). λx:(∃z:X.(Y z)). (x.2)
-	     : ∀X:#.∀Y:(X → #).∀x:(∃z:X.(Y z)). Y (x.1);
+let pierre2B =  λX:#. λY:(X → #). λx:(∃z:X.(Y z)). x.2
+	     : ∀X:#.∀Y:(X → #).∀x:(∃z:X.(Y z)). Y x.1;
 
 let Eq0 : ∀A:*. ∀x,y:A.* = λA:*.λx,y:A. ∀X:(A → *). (X x → X y);
 
@@ -45,14 +45,14 @@ let IN = ∃n:Nat. PNat n : *;
 
 let Zero : IN = [ n0, λX:Nat → *.λa:X n0.λf:(∀y:Nat. X y → X (succ y)).a ];
 
-let Succ : IN → IN = λn:IN. [ succ (n.1), λX:Nat → *.λa:X n0.λf:(∀y:Nat. X y → X (succ y)). f (n.1) (n.2 X a f) ];
+let Succ : IN → IN = λn:IN. [ succ n.1, λX:Nat → *.λa:X n0.λf:(∀y:Nat. X y → X (succ y)). f n.1 (n.2 X a f) ];
 
 let Rec : * = ∀X:IN → *. X Zero → (∀n:IN. (X n → X (Succ n))) → ∀n:IN. X n;
 
 
 let ElimRec : Rec =
   λX:IN → *. λH0:X Zero. λHS:(∀n:IN. (X n → X (Succ n))). λn:IN.
-    (λp:(∃q:(PNat (n.1)). X[(n.1), q]). UPNatP (n.1) (p.1) (n.2) (λq:PNat (n.1).X[n.1, q]) (p.2))
+    (λp:(∃q:(PNat n.1). X[n.1, q]). UPNatP n.1 p.1 n.2 (λq:PNat n.1.X[n.1, q]) p.2)
       (n.2
        (λn:Nat.∃q:(PNat n). X [n,q])
        {" H0 "}
