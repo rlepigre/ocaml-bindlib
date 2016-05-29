@@ -1,8 +1,15 @@
 open Basic
 open Bindlib
 open Genlex
-open File
 open Format
+
+let blank = Decap.blank_regexp ''\([ \n\r\t]\|\(//[^\n]*\n\)\)*''
+
+let read_file parse_cmds filename =
+  let ch = open_in filename in
+  Printf.printf "reading %s\n%!" filename;
+  try Decap.parse_channel parse_cmds blank ch
+  with End_of_file -> ()
 
 module Make(Pts: PtsType) =
   struct
@@ -95,7 +102,7 @@ module Make(Pts: PtsType) =
 
       | "quit" -> exit 0
 
-      | EOF -> raise Exit
+      | EOF -> raise End_of_file
 
     and parse_cmds = _:{parse_cmd ';'}*
 

@@ -7,8 +7,6 @@ module StringCmp =
 module StringSet = Set.Make(StringCmp)
 module StringMap = Map.Make(StringCmp)
 
-exception Quit
-
 exception Unbound of string
 
 module type PtsType =

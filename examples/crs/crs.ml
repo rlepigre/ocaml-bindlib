@@ -5,32 +5,18 @@ open Format
 open Filename
 open Sys
 open Parser
-open File
 
-let _ = 
-  catch_break true;
-  let strc = Stream.from read_fun in
-  while true do
-    try
-      let str = lexer strc in
-      parse_cmd str; ()
-    with
-      Stream.Error s ->
-        print_pos ();
+let treat_exc fn a =
+  try
+    fn a
+  with
+    | Decap.Parse_error (s,l,c,l',c') ->
         print_string "*** Syntax error: ";
-        resetlex strc;
 	print_string s;
         print_newline()
     | Unbound s ->
-        print_pos ();
         print_string "*** Unbound variable: ";
-        resetlex strc;
 	print_string s;
-        print_newline()
-    | Stream.Failure ->
-        print_pos ();
-        print_string "*** Syntax error";
-        resetlex strc;
         print_newline()
     | Failure s ->
         print_newline();
@@ -40,7 +26,7 @@ let _ =
         print_string "*** System error: "; print_string s; print_newline()
     | Invalid_argument s ->
         print_newline();
-        print_string "*** Invalid_argument: "; print_string s; 
+        print_string "*** Invalid_argument: "; print_string s;
         print_newline()
     | Break ->
         print_newline();
@@ -54,14 +40,15 @@ let _ =
     | Out_of_memory ->
         print_newline();
         print_string "*** Out of memory"; print_newline()
-    | Bindlib_error ->
-        print_newline();
-        print_string "*** Bindlib_error"; print_newline()
     | End_of_file ->
-        print_pos ();
-        print_newline();
-        print_string "*** Unexpected end of file"; print_newline()
-    | Quit -> 
-	print_endline " Bye";
-	exit 0
+       exit 0
+
+let _ =
+  catch_break true;
+  for i = 1 to Array.length Sys.argv - 1 do
+    treat_exc (read_file parse_cmds) Sys.argv.(i);
+  done;
+  while true do
+    Printf.printf "reading standard input\n%!";
+    treat_exc (Decap.parse_channel parse_cmds blank) stdin
   done

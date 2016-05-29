@@ -3,7 +3,7 @@ CAMLO = ocamlfind ocamlopt -package unix,decap -pp pa_ocaml -I ../..
 CAMLDEP = ocamlfind ocamldep -package unix,decap -pp pa_ocaml -I ../..
 
 FILES = basic.ml globals.ml print.ml type_check.ml \
-	action.ml file.ml parser.ml main.ml
+	action.ml parser.ml main.ml
 
 VFILES = F.ml CoC.ml lntt.ml CoCu.ml
 

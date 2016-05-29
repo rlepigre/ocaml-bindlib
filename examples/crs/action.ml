@@ -5,16 +5,16 @@ open Globals
 open Print
 
 exception Ill_tactic of string
-	  
+
 let define name e =
   environment := {
-     definitions = 
+     definitions =
        StringMap.add name (Def(name,ref false,e)) !environment.definitions;
      constants = !environment.constants
-   } 
+   }
 
 let add_cst name arity fix priority  =
-  if fix <> Prefix && (arity < 1 or arity > 2) then 
+  if fix <> Prefix && (arity < 1 || arity > 2) then
     failwith "Illegal arity for constant";
   let nsymbol = {
     symbol_name = name;
@@ -26,19 +26,13 @@ let add_cst name arity fix priority  =
   environment := {
      definitions = !environment.definitions;
      constants = StringMap.add name nsymbol !environment.constants
-   } 
-  
+   }
+
 let add_red (arities, pat, res as pattern) =
-  let vars = 
-    Array.map 
-      (fun n -> unbox (bind var x(n) in unit Dummy))
-      arities
-  in 
-  let pat = msubst pat vars in
   match pat with
     App(_,_,symbol, _) ->
       symbol.symbol_rewrite <- pattern::symbol.symbol_rewrite
-  | _ -> failwith "Illegal pattern" 
+  | _ -> failwith "Illegal pattern"
 
 
 let do_prn e =
@@ -58,14 +52,11 @@ let do_prn e =
 let do_show_all () =
   StringMap.iter (fun _ e -> do_prn e) !environment.definitions;
   StringMap.iter (fun _ sym -> print_constants sym) !environment.constants
-    
+
 let do_show name =
-  let sym = 
-    try 
+  let sym =
+    try
       StringMap.find name !environment.constants
     with Not_found -> raise (Unbound name)
   in
   print_constants sym
-
-
-

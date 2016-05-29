@@ -5,7 +5,6 @@ open Format
 open Filename
 open Sys
 open Parser
-open File
 
 module Make(Pts: PtsType) =
   struct
@@ -18,16 +17,11 @@ module Make(Pts: PtsType) =
     open GlobalsPts
     open BasicPts
 
-    let main() =
-      catch_break true;
-      for i = 1 to Array.length Sys.argv - 1 do
-	read_file parse_cmds Sys.argv.(i);
-      done;
-      while true do
-	try
-	  Decap.parse_channel parse_cmds blank stdin
-      	with
-	| Exit -> exit 0
+    let treat_exc fn a =
+      try
+	fn a
+      with
+	| End_of_file -> exit 0
        	| Decap.Parse_error(s,l,c,l',c') ->
             print_string "*** Syntax error: ";
 	    print_string s;
@@ -36,27 +30,24 @@ module Make(Pts: PtsType) =
             print_string "*** Unbound variable: ";
 	    print_string s;
             print_newline()
-      	|	Stream.Failure ->
-            print_string "*** Syntax error";
-            print_newline()
-      	|	Ill_axiom s ->
+      	| Ill_axiom s ->
             print_string "*** No axiom starting with ";
 	    print_sort s;
             print_newline()
-      	|	Ill_rule (s1,s2) ->
+      	| Ill_rule (s1,s2) ->
             print_string "*** No rule starting with ";
 	    print_sort s1;
 	    print_string ",";
 	    print_sort s2;
             print_newline()
-      	|	Ill_sort (e) ->
+      	| Ill_sort (e) ->
 	    open_hovbox 0;
             print_string "*** Can not infer sort of";
 	    print_break 1 2;
 	    print_expr e;
 	    close_box ();
             print_newline()
-      	|	Ill_type (e,t) ->
+      	| Ill_type (e,t) ->
 	    open_hovbox 0;
             print_string "*** Type mismatch ";
 	    print_break 1 2;
@@ -66,7 +57,7 @@ module Make(Pts: PtsType) =
 	    print_expr t;
 	    close_box ();
             print_newline()
-      	|	Mismatch (e,e') ->
+      	| Mismatch (e,e') ->
 	    open_hovbox 0;
             print_string "*** Convertibility mismatch:";
 	    print_break 1 2;
@@ -98,8 +89,14 @@ module Make(Pts: PtsType) =
     	| Sys_error s ->
             print_newline();
             print_string "*** System error: "; print_string s; print_newline()
-       	| Quit ->
-	    print_endline " Bye";
-	    exit 0
+
+    let main() =
+      catch_break true;
+      for i = 1 to Array.length Sys.argv - 1 do
+	treat_exc (read_file parse_cmds) Sys.argv.(i);
+      done;
+      while true do
+	Printf.printf "reading standard input\n%!";
+	treat_exc (Decap.parse_channel parse_cmds blank) stdin
       done
   end

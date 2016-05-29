@@ -1,4 +1,10 @@
-all: lambda pred2 unif hash_lambda
+all: lambda pred2 unif hash_lambda make_pts make_crs
+
+make_pts:
+	make -C pts
+
+make_crs:
+	make -C crs
 
 ## Lambda calculus
 lambda: lambda.ml
