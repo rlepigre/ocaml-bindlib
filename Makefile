@@ -1,6 +1,10 @@
-LIBDIR=$(shell ocamlfind printconf destdir)
-OCAMLC=ocamlc -g
-OCAMLOPT=ocamlopt -g
+VERSION   = 4.0
+LIBDIR    = $(shell ocamlfind printconf destdir)
+OCAMLFIND = ocamlfind
+OCAMLC    = $(OCAMLFIND) ocamlc
+OCAMLOPT  = $(OCAMLFIND) ocamlopt
+INSTALL   = $(OCAMLFIND) install
+REMOVE    = $(OCAMLFIND) remove
 
 all: bindlib.cma bindlib.cmxa
 
@@ -43,15 +47,52 @@ bindlib.cmxa: ptmap.cmx bindlib_util.cmx bindlib.cmx
 
 ## Install
 uninstall:
-	rm -rf $(LIBDIR)/bindlib
+	- $(REMOVE) bindlib
 
 install: all uninstall
-	install -m 755 -d $(LIBDIR)/bindlib
-	install -m 644 -p *.cmi *.cmo *.cmx *.mli *.o $(LIBDIR)/bindlib
-	install -m 644 -p *.a *.cma *.cmxa META $(LIBDIR)/bindlib
+	- $(REMOVE) bindlib
+	$(INSTALL) bindlib *.cmi *.cmo *.cmx *.mli *.o *.a *.cma *.cmxa META
 
 ## Clean
 clean:
-	rm -rf *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
+	- rm -rf *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
+	make -C examples clean
 
 distclean: clean
+	- rm opam README.html html/*
+	make -C examples distclean
+
+URLSSH=lama.univ-savoie.fr:WWW/bindlib
+URL=https://lama.univ-savoie.fr/~raffalli/bindlib
+
+doc: README.html
+	ocamldoc -t "Bindlib" -keep-code -html -d html bindlib.mli
+	mv html/index.html html/main.html
+	cp README.html html/index.html
+
+tar: distclean doc
+	cd ../bindlib_tar; darcs pull; make all clean
+	cd ..; tar cvfz bindlib-$(VERSION).tar.gz --exclude=_darcs --transform "s,bindlib_tar,bindlib-$(VERSION),"  bindlib_tar
+
+distrib: distclean tar
+	scp -r html/* $(URLSSH)/
+	darcs push lama.univ-savoie.fr:WWW/repos/bindlib/
+	scp ../bindlib-$(VERSION).tar.gz $(URLSSH)/
+	ssh lama.univ-savoie.fr "cd WWW/bindlib; ln -sf bindlib-$(VERSION).tar.gz bindlib-latest.tar.gz"
+
+OPAMREPO=$(HOME)/Caml/opam-repository/packages/bindlib3
+
+README.html: README.tmpl
+	sed -e s/__VERSION__/$(VERSION)/g README.tmpl > README.html
+
+opam: opam.tmpl distrib
+	sed -e s/__VERSION__/$(VERSION)/g opam.tmpl > opam
+	mkdir -p $(OPAMREPO)/bindlib-$(VERSION)
+	cp opam $(OPAMREPO)/bindlib-$(VERSION)/opam
+	cp description.txt $(OPAMREPO)/bindlib-$(VERSION)/descr
+	echo -n "archive: \""  > $(OPAMREPO)/bindlib-$(VERSION)/url
+	echo -n "$(URL)/bindlib3-$(VERSION).tar.gz" >> $(OPAMREPO)/bindlib-$(VERSION)/url
+	echo "\"" >> $(OPAMREPO)/bindlib-$(VERSION)/url
+	echo -n "checksum: \"" >> $(OPAMREPO)/bindlib-$(VERSION)/url
+	echo -n `md5sum ../bindlib3-$(VERSION).tar.gz | cut -b -32` >> $(OPAMREPO)/bindlib-$(VERSION)/url
+	echo "\"" >> $(OPAMREPO)/bindlib-$(VERSION)/url
