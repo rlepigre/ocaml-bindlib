@@ -94,5 +94,5 @@ opam: opam.tmpl distrib
 	echo -n "$(URL)/bindlib-$(VERSION).tar.gz" >> $(OPAMREPO)/bindlib-$(VERSION)/url
 	echo "\"" >> $(OPAMREPO)/bindlib-$(VERSION)/url
 	echo -n "checksum: \"" >> $(OPAMREPO)/bindlib-$(VERSION)/url
-	echo -n `md5sum ../bindlib3-$(VERSION).tar.gz | cut -b -32` >> $(OPAMREPO)/bindlib-$(VERSION)/url
+	echo -n `md5sum ../bindlib-$(VERSION).tar.gz | cut -b -32` >> $(OPAMREPO)/bindlib-$(VERSION)/url
 	echo "\"" >> $(OPAMREPO)/bindlib-$(VERSION)/url
