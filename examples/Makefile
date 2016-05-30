@@ -24,9 +24,9 @@ unif: unif.ml
 
 ## Clean
 clean:
-	rm -f *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
+	- rm -f *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
 	make -C pts clean
 	make -C crs clean
 
 distclean: clean
-	rm -f lambda pred2 unif hash_lambda
+	- rm -f lambda pred2 unif hash_lambda
