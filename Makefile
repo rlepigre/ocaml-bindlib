@@ -71,7 +71,7 @@ doc: README.html
 	cp README.html html/index.html
 
 tar: distclean doc
-	cd ../bindlib_tar; darcs pull; make all clean
+	cd ../bindlib_tar; darcs pull; make all distclean
 	cd ..; tar cvfz bindlib-$(VERSION).tar.gz --exclude=_darcs --transform "s,bindlib_tar,bindlib-$(VERSION),"  bindlib_tar
 
 distrib: distclean tar
@@ -80,7 +80,7 @@ distrib: distclean tar
 	scp ../bindlib-$(VERSION).tar.gz $(URLSSH)/
 	ssh lama.univ-savoie.fr "cd WWW/bindlib; ln -sf bindlib-$(VERSION).tar.gz bindlib-latest.tar.gz"
 
-OPAMREPO=$(HOME)/Caml/opam-repository/packages/bindlib3
+OPAMREPO=$(HOME)/Caml/opam-repository/packages/bindlib
 
 README.html: README.tmpl
 	sed -e s/__VERSION__/$(VERSION)/g README.tmpl > README.html
