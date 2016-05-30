@@ -23,17 +23,13 @@ module Make(Pts: PtsType) =
       with
 	| End_of_file -> exit 0
        	| Decap.Parse_error(s,l,c,l',c') ->
-            print_string "*** Syntax error: ";
-	    print_string s;
-            print_newline()
+           eprintf "*** Syntax error line %d column %d: %s\n%!" l c s;
       	| Unbound s ->
-            print_string "*** Unbound variable: ";
-	    print_string s;
-            print_newline()
+           eprintf "*** Unbound variable: %s\n%!" s;
       	| Ill_axiom s ->
-            print_string "*** No axiom starting with ";
-	    print_sort s;
-            print_newline()
+           print_string "*** No axiom starting with ";
+	   print_sort s;
+           print_newline()
       	| Ill_rule (s1,s2) ->
             print_string "*** No rule starting with ";
 	    print_sort s1;

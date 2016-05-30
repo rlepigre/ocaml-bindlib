@@ -1,7 +1,7 @@
 cst \ 1 Prefix 0.0;
 
 red (\x.T[x]) U[] -> T[U[]];
-red (\x.(U[] x)) -> U[];
+red \x.U[] x -> U[];
 
 let n0 = \f.\x.x;
 let S = \n.\f.\x.f (n f x);
@@ -29,7 +29,7 @@ let pred = \n.n
 n10;
 n10 pred n10;
 
-cst $ 0 Prefix 0.0;
+cst $ Atom;
 cst :: 2 RInfix 6.0;
 cst @ 2 RInfix 5.0;
 
@@ -38,17 +38,17 @@ red (X[]::L[]) @ M[] -> X[]::(L[] @ M[]);
 
 n0::n1:: $ @ $;
 
-cst map 0 Prefix 0.0;
+cst map Atom;
 red map f[] $ -> $;
 red map f[] (X[]::L[]) -> (f[] X[])::(map f[] L[]);
 
 \f.map f (n0::n1:: $);
 
-cst B 0 Prefix 1.0;
-cst M 0 Prefix 1.0;
-cst C 0 Prefix 1.0;
+cst B Atom;
+cst M Atom;
+cst C Atom;
 cst <- 2 LInfix 5.0;
-cst E 0 Prefix 1.0;
+cst E Atom;
 
 red B X[] (M Y[]) -> M (Y[] <- X[]);
 red B (M Y[]) X[] -> M (Y[] <- X[]);
@@ -60,3 +60,4 @@ red E <- Z[] -> E;
 let A1 = M (B (C E) (C E));
 let A2 = M (B A1 A1);
 let A3 = M (B A2 A2);
+A2;

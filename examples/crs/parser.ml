@@ -25,7 +25,7 @@ let is_infix lvl_left lvl_top s =
 let is_prefix lvl_top s =
     try
       let sym = lookup s in
-      sym.symbol_fix = Prefix (* & sym.symbol_priority >= lvl_top *)
+      sym.symbol_fix = Prefix && sym.symbol_priority >= lvl_top
     with
       Not_found -> false
 
@@ -35,11 +35,13 @@ let is_ident s =
     with
       Not_found ->
     	match s.[0] with
-	  'a'..'z' | 'A'..'Z' -> true
+	  'a'..'z' | 'A'..'Z' | '_' -> true
 	|  _ -> false
 
 let parser ident =
-  s:{''[a-zA-Z0-9_]*'' | RE("[-^@$:+*/<>%&!|\\]*")} ->
+  | s:''[a-zA-Z_][a-zA-Z0-9_']*'' ->
+    if List.mem s keywords then Decap.give_up "" else s
+  | s:RE("[-=~^@$:+*/<>%&!|\\]+") ->
     if List.mem s keywords then Decap.give_up "" else s
 
 let parser int =
@@ -49,7 +51,7 @@ let parser string=
   '"' s:''[^"]*'' '"' -> s
 
 let parser float =
-  s:''[0-9]+\(.[0-9]+\)'' -> float_of_string s
+  s:''-?[0-9]+\(.[0-9]+\)'' -> float_of_string s
 
 let parser parse_infix (lvl_left, lvl_top) =
   s:ident -> if is_infix lvl_left lvl_top s then lookup s else Decap.give_up ""
@@ -93,8 +95,7 @@ and parse_prefix_args sym =
 
 and parse_prefix_args' (lvl,n) =
     | EMPTY when n = 0 -> (fun env -> [])
-    | t:(parse_expr' lvl)
-	args:(parse_prefix_args' (lvl,n-1)) when n > 0 ->
+    | t:(parse_expr' lvl) args:(parse_prefix_args' (lvl,n-1)) when n > 0 ->
        (fun env -> t env::args env)
 
 and parse_infix_suit' (sym, lvl_top) =
@@ -124,7 +125,7 @@ and parse_infix_suit (lvl_left, lvl_top) =
 
 and parse_expr' lvl =
   | sym:(parse_prefix lvl) ->> t:(parse_prefix_args sym)
-      t':(parse_infix_suit (max_priority, lvl)) ->
+      t':(parse_infix_suit (sym.symbol_priority, lvl)) ->
 	  (fun env -> t' env (t env))
   | t:(parse_atom lvl)
       t':(parse_infix_suit (max_priority, lvl)) ->
@@ -155,7 +156,7 @@ let read_file parse_cmds filename =
 let parser parse_cmd =
   | "let" name:ident '=' e:parse_expr -> define name e
 
-  | "cst" name:ident arity:int fix:parse_syntax priority:float ->
+  | "cst" name:ident (arity,fix,priority):{int parse_syntax float | "Atom" -> 0, Prefix, max_priority} ->
       add_cst name arity fix priority
 
   | "red" pat:parse_red -> add_red pat

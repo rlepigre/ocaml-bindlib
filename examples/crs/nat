@@ -1,4 +1,4 @@
-cst Z 0 Prefix 10.0;
+cst Z Atom;
 cst S 1 Prefix 10.0;
 cst + 2 Infix 1.0;
 cst * 2 Infix 2.0;
@@ -22,7 +22,7 @@ red Z + X[] -> X[];
 red S X[] * Y[] -> Y[] + X[] * Y[];
 red Z * Y[] -> Z;
 
-red Z ! -> n1;
+red Z! -> n1;
 red (S X[])! -> S X[] * X[]!;
 
-n7 !;
+n7!;

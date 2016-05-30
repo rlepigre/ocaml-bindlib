@@ -11,9 +11,7 @@ let treat_exc fn a =
     fn a
   with
     | Decap.Parse_error (s,l,c,l',c') ->
-        print_string "*** Syntax error: ";
-	print_string s;
-        print_newline()
+        eprintf "*** Syntax error line %d column %d: %s\n%!" l c s;
     | Unbound s ->
         print_string "*** Unbound variable: ";
 	print_string s;
