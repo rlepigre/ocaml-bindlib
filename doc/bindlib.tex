@@ -7,9 +7,9 @@
 \parindent=0pt
 \parskip=0.8ex
 \title{Bindlib \\ A package for abstract syntax with binder. \\
-          version 3.2}
-\author{Christophe Raffalli \\
-Université de Savoie}
+          version 4.0}
+\author{Christophe Raffalli - Rodolphe Lepigre\\
+UniversitÃ© de Savoie}
 
 
 
@@ -24,9 +24,9 @@ Université de Savoie}
 \maketitle
 
 \begin{abstract}
-  \verb!bindlib! is a library and a camlp4 syntax extension for the
+  \verb!bindlib! is a library for the
 OCaml language. It proposes a set of tools to manage data structures
-with bound and free variables. It includes fast substitution and management 
+with bound and free variables. It includes fast substitution and management
 of variables names including renaming.
 \end{abstract}
 
@@ -37,7 +37,7 @@ of variables names including renaming.
 Data structures with bound and free variables are not so rare in
 computer science. For instance, computer programs and mathematical
 formulae are data structures using bound and free variables and are needed to write
-compilers and computer algebra system.
+compilers and proof assistant.
 
 Representing these variables, implementing the necessary primitives
 (substitution
@@ -48,10 +48,6 @@ when substitution is needed.
 Bindlib aims at providing a library resulting in both simple and
 efficient code. It provides tools to deal with substitution and
 renaming.
-
-The version 3.0 of bindlib is simpler to use than the previous ones
-because of its camlp4 syntax extension and completely 
-rewritten documentation.
 
 This documentation is in two parts : an informal presentation
 introducing each concept step by step illustrated with examples. Then,
@@ -65,272 +61,207 @@ will give the required mathematical definitions.
 
 \section{Using and installing}
 
-This library only works with ocaml version 3.09.x., 3.10.x and after 
+This library has been test with ocaml version 3.12.1 and later. It
+might work with earlier version.
 
 To install the library follow the following steps:
-\begin{description}
-\item [\tt cp Makefile-3.XX Makefile] copy Makefile-3.09 or Makefile-3.10 to Makefile depending upon your
+\begin{itemize}
+\item you can install bind lib via opam,
 ocaml version
 
-\item[\tt make checkconfig]:
-  check the guessed value of BINDIR and LIBDIR. If it does not suit you,
-  edit the Makefile.
+\item or install it from source, just using \verb#make# and \verb#make install#.
 
-\item[\tt make]:
-  this compiles the library.
-
-\item[\tt make check]: 
-  optional, to test the library.
-
-\item[\tt make install]:
-  to install everything.
-\end{description}
-
-To use the library, compile your files with one of the following
-commands:
-
-\begin{description}
-\item[\tt ocamlc -pp camlp4bo -c foo.ml]: to produce \verb#foo.cmo# from
-  \verb#foo.ml#, if it uses bindlib.
-
-\item[\tt ocamlc -pp camlp4bop -c foo.ml]: to produce \verb#foo.cmo# from
-  \verb#foo.ml#, if it uses both bindlib and stream pattern matching.
-
-\item[\tt ocamlc -pp "camlp4 pa\_bindlib.cmo ..." -c foo.ml]: if you
-  want to use bindlib together with your other favorite extension.
-
-\item[] The same options work with \verb#ocamlopt#.
-
-\item[] Finally, link with \verb#bindlib.cma# or \verb#bindlib.cmxa#.
-\end{description}
+\item You can check your installation by compiling the examples
+  (available in opam's doc directory if you installed via opam).
+\end{itemize}
 
 \section{Basic types}
 
-Before considering bound and free variables in data structures, we
-should say what a data structure is. For this documentation, we will
-consider that a data structure is an ML value (like a list of
-integers, a tree, etc.) with no ML function
-inside. 
-
 Now, the main type constructor of the bindlib library is:
-$$\verb!('a,'b) binder!.$$
+\verb!('a,'b) binder!.
 
-This is the type of a data structure of type \verb!'b! with one bound
-variable of type \verb!'a!.
+This is the type of a value of type \verb!'b! with one bound
+variable of type \verb!'a!. This is very similar to the type
+ \verb!'a -> 'b!.
 
-For variables, bindlib provide a type 
-$$\verb!'a variable!$$ 
-for variable in data structure of type \verb!'a!.
+For variables, bindlib provide a type
+$$\verb!'a variable!$$
+for variable of type \verb!'a!.
 
 With these type constructors, we can define easily the type of
 lambda-terms:
 
+\begin{quote}
 \begin{verbatim}
-type term = 
+type term =
   App of term * term         (* application of two terms *)
-| Abs of (term, term) binder (* abstraction of a variable in a term *)
-| FVar of term variable      (* free variable *) 
+| Lam of (term, term) binder (* abstraction of a variable in a term *)
+| Var of term variable       (* free variable *)
 \end{verbatim}
+\end{quote}
 
 \section{How to use a data structure with variables ?}
 
-Now let us start by using data structure with bound and free
-variables.
 Consider the following function to print lambda-terms:
 
-
+\begin{quote}
 \begin{verbatim}
-let fVar x = FVar(x)
+let fVar x = Var(x)
 
-let rec print_term t =
-  App(t1,t2) ->
-    print_string "("; 
-    print_term t1; print_string " "; print_term t2; 
-    print_string ")"
-| Abs f ->
-    match f with bind fVar x in t ->
-      print_string "fun "; print_string (name_of x); print_string " ";
-      print_term t
-| FVar(x) ->
-    print_string (name_of x)
+let rec print_term ch = function
+  | App(t,u) -> Printf.fprintf ch "(%a) %a" print_term t print_term u
+  | Var x    -> Printf.fprintf ch "%s" (name_of x)
+  | Lam b    -> let (x,t) = unbind fVar b in
+                Printf.fprintf ch "Î»%s.%a" (name_of x) print_term t
 \end{verbatim}
+\end{quote}
 
-The first line creates a function synonymous to the \verb!FVar!
-constructor. Then, printing of application is straight forward.
+The function \verb!fVar! is just a synonymous of the type constructor
+\verb!Var! that can be easily passed in argument to functions.
 
-For abstraction, we use one of our camlp4 extension:
-\verb!match f with bind fVar x in t! destruct \verb!f! which is an
-expression $e$ with one bound variable $v$ (remark: the programmer has
-no direct access to $e$ and $v$, this is why we do not use a
-typewriter font for them). A new variable \verb!x! is created by
-this construct, and \verb!t! denotes $e$ where $v$ is replaced by
-\verb!fVar x!. This explains the two last line of the program. Notice
-the function \verb!name_of! to get the variable name.
+Printing application is immediate, just recursive calls. All cases not
+dealing with bindlib's type constructor should be straightforward. For
+variables, bindlib manages function name and renaming and provide a
+function \verb!name_of : 'a variable -> string! to get the variable name.
 
-Let us now give an equivalent to the camlp4 syntax extension we
-use. The line 
-\begin{center}
-\verb!match f with bind fVar x in t ->! 
-\end{center}
-is equivalent to the following three lines:
-\begin{center}
+For binder, one may use
+\begin{quote}
 \begin{verbatim}
-                      let name = binder_name f in
-                      letvar fVar x as name in
-                      let t = subst f (free_of x) in
+unbind : ('a, 'b) binder -> ('a variable -> 'a) -> 'a variable *'b
 \end{verbatim}
-\end{center}
+\end{quote}
+A natural question arises: what is the
+role of the first argument of \verb!unbind!. It is mandatory when
+constructing a value of type \verb!'a variable! to provide a function
+of type \verb!'a variable -> 'a!, which is used when we need to
+consider the variable as an object of type \verb!'a!.
+
+In the above example, \verb!fVar! is not used and it is possible to
+replace it by \verb!(fun _ -> assert false)!.
+
+The function \verb!let (x,t) = unbind fVar b in! could be replaced by the following lines:
+\begin{quote}
+\begin{verbatim}
+let name = binder_name f in
+let x = new_var name fVar x in
+let t = subst f (free_of x) in
+\end{verbatim}
+\end{quote}
 
 These lines use the following functions:
- 
+
 \begin{itemize}
-\item \verb#binder_name : ('a, 'b) binder -> string# to get the name of
-the bound variable.
+\item \verb#binder_name : ('a, 'b) binder -> string# to get the name
+  of the bound variable that is kept and managed by bindlib.
 
-\item \verb#letvar fVar x as name in# is yet another a camlp4 extension
-creating a new variable \verb#x : term variable#. 
+\item \verb#new_var# is a function to create a new variable.
+The name you give is only an indication, it might be changed by
+bindlib if necessary, but will be always kept as prefix.
 
-\verb#fVar# means that \verb#free_of x# 
-evaluates to \verb#fVar x# which evaluates itself to \verb#FVar(x)#
+\item \verb#free_of x# is in fact equivalent to \verb#fVar x#.
 
-\verb#as name# means that the name of the variable \verb#x# will be
-\verb#name#. This means that \verb#name_of x# evaluates to \verb#name#.
-
-This camlp4 syntax extension is equivalent to 
-\verb#let x = new_var fVar name in# where
-
-\verb#new_var : ('a variable -> 'a) -> string -> 'a variable# 
-
-(we will see later the interest of the \verb#letvar# camlp4
-extension)
-
-\item \verb#free_of : 'a variable -> 'a# has been explained above with
-  \verb#letvar#.
-
-\item \verb#subst : ('a, 'b) binder -> 'a -> 'b# to substitute a value
-to the bound variable in \verb#f#.
+\item \verb#subst : ('a, 'b) binder -> 'a -> 'b# is finally use to
+  substitute a value in place of the bound variable in \verb#f#.
 \end{itemize}
 
 
 n\section{How to construct a data structure with variables ?}
 
-To construct data structure with bound variables, we provide a new type 
+To construct data structure with bound variables, we provide a new type
 \begin{center}
-\verb!'a bindbox!  
+\verb!'a bindbox!
 \end{center}
 
-Which is the type of a data structure of type \verb#'a# under
+which is the type of a data structure of type \verb#'a# under
 construction.
+In fact this type contructor defines a monad. If you do not know what
+a monad is just consider this is the notion of morphism associated to
+typed programming language. If you do not know what a morphism is,
+then just ignore this paragraph !
 
-In fact this type contructor is a monad. If you do not know what a
-monad is just consider this is the notion of morphism associated to
-typed programming language. If you do not know what a morphism is, then
-just ignore this paragraph !
+Using a type \verb!'a bindbox! when constructing a data structure with
+bind variable is the main idea behind bindlib. As an approximation,
+you can view a value of type \verb!'a bindbox! as a pair with a set
+of bound variables, and a function that buid a value of type \verb!'a!
+from the value of all these variabes.
 
-Let use give some examples:
+Working with \verb!'a bindbox! requires to lift the constructor to
+this type. Indeed, we need a some kind of way to transform the
+\verb!App! constructor into a term of type
+\verb!'a bindbox -> 'a bindbox -> 'a bindbox!. The bindlib library
+provide the necessary function to do that in a few lines:
 
+\begin{quote}
 \begin{verbatim}
-let fVar x = FVar(x)
-
-let idt = unbox (Abs(^ bind fVar x in x ^))
-let delta = unbox (Abs(^ bind fVar x in App(^x,x^) ^))
+let app : term bindbox -> term bindbox -> term bindbox =
+  fun x y -> box_apply2 (fun x y -> App(x,y)) x y
+let lam : string -> (term bindbox -> term bindbox) -> term bindbox =
+  fun name f -> box_apply (fun x -> Lam(x))
+    (let v = new_var fVar name in bind_var v (f (free_of v)))
 \end{verbatim}
+\end{quote}
 
-Here are the basic idea in the above examples: we use \verb#Abs(^ ... ^)# and
-\verb#App(^ ... ^)# to construct value of type \verb#term bindbox#
-instead of \verb#term# directly. Then, the camlp4 syntax extension 
-\verb#bind fVar x in# allows to construct a value of type 
-\verb#(term, term) binder bindbox#. Finally, \verb#unbox# finishes the work and produces a
-value of type \verb#term# from a value of type \verb#term bindbox#.
-
-Here is a list with more detailed explanation of the common functions
-and camlp4 syntax extensions to construct data structure with bound and
-free variables:
-
-\begin{itemize}
-\item \verb#unit : 'a -> 'a bindbox# : you use this function when you
-  have an object of type \verb#'a# that you want to extend. 
-
-Warning: with \verb#unit t#, you will not be able to bind free
-variables in \verb#t#.
-
-\item \verb#(^t^)# : a camlp4 syntax extension for \verb#unit t# (t is
-  parsed at the priority \verb#LEVEL ":="#).
-
-\item \verb#(^t1, ... , tn^)# : to construct tuples in the \verb#bindbox#
-  type.
-If \verb#t1 : 'a1 bindbox#, \dots, \verb#tn : 'an bindbox#, then 
-\verb#(^t1, ..., tn^) : ('a1 * ... * 'an) bindbox#
-
-\item \verb#[^t1; ... ; tn^]# to construct lists in the bindbox type.
-If \verb#t1 : 'a bindbox#, \dots, \verb#tn : 'a bindbox#, then 
-\verb#[^t1; ...; tn^] : 'a list bindbox#
-
-\item \verb#[|^t1; ... ;tn^|]# to construct arrays in the bindbox type.
-If \verb#t1 : 'a bindbox#, \dots, \verb#tn : 'a bindbox#, then 
-\verb#[|^t1; ...; tn^|] : 'a array bindbox#
-
-\item \verb# ( ^:: ) : 'a bindbox -> 'a list bindbox -> 'a list  bindbox#: 
-to construct list cells. Remark: this is a camlp4 extension to have the
-same priority as \verb#::#.
-
-\item \verb#Cstr(^t1, ... , tn^)#\label{liftconstr} : to apply a variant constructor 
-in the \verb#bindbox#
-  type. This also works for polymorphic variant constructors.
-
-Example: if \verb#t1# and \verb#t2# are of type \verb#term bindbox#,
-then \verb#App(^t1,t2^)# is also of type \verb#term bindbox#.
-
-More generally, if you have a type constructor \verb#Cstr# with the following typing rule:
-$$
-\frac{x_1 : t_1  \hspace{1cm} \dots  \hspace{1cm} x_n : t_n}
-{\hbox{\tt Cstr(}x_1,\dots,x_n\hbox{\tt)} : u}
-$$
-Then, you also have
-$$
-\frac{x_1 : t_1 \hbox{ \tt bindbox} \hspace{1cm} \dots \hspace{1cm} x_n : t_n \hbox{ \tt bindbox}}
-{\hbox{Cstr\tt(\circum}x_1,\dots,x_n\hbox{\tt\circum)} : u \hbox{ \tt bindbox}}
-$$ 
-\item \verb#{^ l1 = t1; ...;  ln = tn ^}# : to construct a structure
-  in the bindbox type. 
-
-Example: if one defines the type 
-\verb#defi = { name : string;  value : term}#
-and if \verb#t : term bindbox#, then 
-\verb#{^ name = (^ "foo" ^);  value = t ^} : defi bindbox#.
-\end{itemize}
-
-Now one also need the following functions and camlp4 extension to deal
-with variables:
-
-\begin{itemize}
-\item \verb#bindbox_of : 'a variable -> 'a bindbox# : this is the
-  correct (and unique) way to use a variable in order to be able to
-  bind it.
-
-\item \verb#bindvar x in t# : this is a camlp4 extension. If 
-\verb#x : 'a variable# and \verb#t : 'b bindbox#, then 
-\verb#bindvar x in t : ('a, 'b) binder bindbox#.
-
-\item \verb#bind f x in t# : this is a camlp4 extension (the variable
-  \verb#x# is bound in \verb#t#) and it is a short cut for:
+Those \emph{smart constructors} are build using the following functions:
+\begin{quote}
 \begin{verbatim}
-letvar f x' in
-let x = bindbox_of x' in
-bindvar x' in t
-\end{verbatim}  
+box : 'a -> 'a bindbox
+apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
+bind_var : 'a variable  -> 'b bindbox -> ('a, 'b) binder bindbox
+box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox#
+box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c
+\end{verbatim}
+\end{quote}
 
-\item \verb#unbox : 'a bindbox -> 'a# : this is the function to
-produce the final data-structure. In \verb#unbox t#, all the variables
-that were not bound using the \verb#bind# or \verb#bindvar# camlp4
-extension will become free variables by calling the function 
-\verb#f : 'b variable -> 'b# that you had to give when creating the variable
-with the \verb#letvar# or \verb#bind# camlp4 extension.
-\end{itemize}
+Remark: it you are used to monad, \verb#box# and \verb#apply_box# are
+the \verb#return# and \verb#bind# operation of the monad. We did not
+use the name \verb#bind# ... Because this name is not appropriate
+hare. This means that \verb#box_apply# and \verb#box_apply2# can
+easily be defined from \verb#box# and \verb#apply_box#.
 
+The key function to bind variables is \verb#bind_var#. Two short cut
+are provided:
+\begin{quote}
+\begin{verbatim}
+let bind fv name f =
+  let v = new_var fVar name in bind_var v (f (free_of v))
+let vbind fv name f =
+  let v = new_var fVar name in bind_var v (f v)
+\end{verbatim}
+\end{quote}
+
+Using these short cut, we could give a shorter definition and an
+alternative version of \verb#lam#:
+
+\begin{quote}
+\begin{verbatim}
+let lam : string -> (term bindbox -> term bindbox) -> term bindbox =
+  fun name f -> box_apply (fun x -> Lam(x)) (bind fVar name f)
+let vlam : string -> (term variable -> term bindbox) -> term bindbox =
+  fun name f -> box_apply (fun x -> Lam(x)) (vbind fVar name f)
+\end{verbatim}
+\end{quote}
+
+Depending what we do when we construct a term, we might prefer
+the bound variable to be directly of type \verb#term bindbox# as in
+\verb#lam# or of type \verb#term variable# as in the latest definition.
+
+Using these \emph{smart constructors}, we can start to define value of
+type term. We also need the function \verb#unbox : 'a bindbox -> 'a#
+to finalise the construction.
+\begin{quote}
+\begin{verbatim}
+let idt = unbox (lam "x" (fun x -> x))
+let delta = unbox (lam "x" (fun x -> app x x))
+let omega = App(delta,delta)
+\end{verbatim}
+\end{quote}
+
+Remark: in the last definition, because we are not binding any new
+variables, we do not need to work inside the type \verb#'a bindbox#.
 
 Here is another example, which performs the following transformation on
-$\lambda$-term (it marks all the application with a variable):
+$\lambda$-term (it marks all the application with a variable and the
+bind this variable):
 $$
 \begin{array}{rcl}
 \hbox{mark}(t) &=& \lambda x.\phi_x(t) \cr
@@ -340,21 +271,22 @@ $$
 \end{array}
 $$
 
-Here is the corresponding code:
+Here is the corresponding code, which illustrates the different use
+of \verb#lam# and \verb#vlam#:
 
 \begin{verbatim}
 let mark t =
   let rec phi x = function
-    FVar(y) -> bindbox_of y
-  | App(u,v) -> App(^App(^x,phi x u^),phi x v^)
-  | Abs(f) ->
-      match f with bind fVar y in f' ->
-        Abs(^ bindvar y in phi x f' ^)
-  in
-  unbox(Abs(^ bind fVar x in phi x t^))
+  | Var(y) -> box_of_var y
+  | App(u,v) -> app (app x (phi x u)) (phi x v)
+  | Lam(f) -> vlam (binder_name f) (fun y -> phi x (subst f (Var y)))
+  in unbox (lam "x" (fun x -> phi x t))
 \end{verbatim}
 
 This code is very similar to the mathematical definition.
+The use of \verb#binder_name f# allows to use the original name
+(eventually with a changed suffix).
+
 Here is another example: the computation of the normal form of a term:
 
 \begin{verbatim}
@@ -362,22 +294,22 @@ Here is another example: the computation of the normal form of a term:
 let rec whnf = function
   App(t1,t2) as t0 -> (
     match (whnf t1) with
-      Abs f -> whnf (subst f t2)
-    | t1' -> 
+    | Lam f -> whnf (subst f t2)
+    | t1' ->
        (* a small optimization here when the term is in whnf *)
        if t1' == t1 then t0 else App(t1', t2))
 | t -> t
 
-(* call by name normalisation *)
-let norm t = let rec fn t = 
+(* call by name normalisation, all step at once *)
+let norm t = let rec fn t =
   match whnf t with
-    Abs f -> 
-      match f with bind fVar x in u ->
-      Abs(^ bindvar x in fn u ^)
-  | t -> 
+  | Lam f ->
+      let (x,t) = unbind fVar f in
+      vlam (binder_name f) (fun x -> fn (subst f (Var x)))
+  | t ->
       let rec unwind = function
-          FVar(x) -> bindbox_of x
-        | App(t1,t2) -> App(^unwind t1,fn t2^)
+        | Var(x) -> box_of_var x
+        | App(t1,t2) -> app (unwind t1) (fn t2)
         | t -> assert false
       in unwind t
 in unbox (fn t)
@@ -385,9 +317,7 @@ in unbox (fn t)
 
 This function is very similar to the previous one, with one function
 to compute the ``weak head normal form'', which is used in the second
-function to compute the full normal form. Understanding this function
-is more a question of knowledge of $\lambda$-calculus than a problem of
-the library itself.
+function to compute the full normal form.
 
 \section{Naming of variables}
 
@@ -408,7 +338,7 @@ letvar f x as name in t
 
 This means that \verb#name_of x# will return \verb#name#. However,
 when binding \verb#x# using \verb#bindvar x in u#, the suffix of
-the name may be changed to avoid name conflict. In 
+the name may be changed to avoid name conflict. In
 \verb#letvar f x in t#, the default name for \verb#x# will be
 \verb#"x"# (that is the string build from the name of the identifier).
 
@@ -436,19 +366,19 @@ variable conflict. But this is not enough:
 \item The \verb#subst# function does not perform renaming. Therefore,
   it is only just after the call to \verb#unbox# that the bound
   variables are named correctly. If you use the result of \verb#unbox#
-  and perform substitution then, the naming may become incorrect. 
+  and perform substitution then, the naming may become incorrect.
 
   This can not be avoided if one want a reasonable complexity for
   substitution.
 
 \item By default, bindlib perform minimal renaming. This means it
   accepts name collision in \verb#fun x -> fun x -> x# that you might prefer printed as
-\verb#fun x -> fun x0 -> x0#. 
+\verb#fun x -> fun x0 -> x0#.
 \end{enumerate}
 
 To solve these problems, bindlib provides an abstract notion of context
  which are ``sets'' of free variables which should have
- distinct names. 
+ distinct names.
 \begin{itemize}
 \item\verb#type context# is  an abstract type.
 \item\verb#empty_context : context# is the initial empty context.
@@ -529,7 +459,7 @@ This section covers advanced feature of the library. The reader is
 advised to read, practise and understand the previous section before
 reading this.
 
-We will consider second order predicate logic. 
+We will consider second order predicate logic.
 We chose this example, because the definition of second-order
 substitution is non trivial ... and this is a very good example for
 the power of \verb#bindlib#.
@@ -539,11 +469,11 @@ corresponding definition using \verb#bindlib#:
 
 \newtheorem{definition}{definition}\
 \begin{definition}[Syntax of second order logic]\rm
-We assume a signature 
+We assume a signature
 $$\Sigma = \{(f,1), (g,2), (a,0), \dots\}$$ with various
 constants and function symbols of
 various arity. An infinite set of first-order variables (written
-$x,y,z\dots$) and for each natural number $n$ an infinite set of 
+$x,y,z\dots$) and for each natural number $n$ an infinite set of
 second-order variables of arity $n$ (written $X,Y,Z,\dots$).
 
 Terms are defined by
@@ -570,7 +500,7 @@ and $X$ is a second-order variable.
 type symbol = {name : string; arity : int }
 
 (* the type of first order term *)
-type term = 
+type term =
     Fun of symbol * term array
   | TermVar of term variable
 
@@ -587,7 +517,7 @@ and pred = (term, form) mbinder          (* a predicate is a binder ! *)
 
 let lam1 x = TermVar(x)
 
-let lam2 n x = 
+let lam2 n x =
   unbox (bind lam1 args(n) in FormVar(^ (^x^), lift_array args^))
 \end{verbatim}
 
@@ -599,20 +529,20 @@ represent predicates, that is formula with $n$ parameters.
 
 \item \verb#Forall2 of int * (pred, form) binder#: for second order
 quantification, we bind a variable of arity $n$. The arity is the
-first argument of the constructor. For the second argument, 
+first argument of the constructor. For the second argument,
 \verb#(pred, form) binder#, we mean that we bind a ``predicate''
 variable. This variable is
 itself a \verb#mbinder#, this is why it is a ``second-order'' variable.
 
 \item \verb#FormVar of pred variable * term array#: as usual
-for any free variable, we have to store 
-the variable itself of type \verb#pred variable#. 
+for any free variable, we have to store
+the variable itself of type \verb#pred variable#.
 But here, we should also store the terms which
 are the arguments of the second-order predicate variable.
 
 \item \verb#let lam1 x = TermVar(x)#: we introduce the
 function to construct first-order binder. Every time we will want to
-construct a first-order quantification, we will write 
+construct a first-order quantification, we will write
 
 \verb#Forall1(^ bind lam1 x in ... ^)#
 
@@ -643,8 +573,8 @@ and \verb#x : pred variable#. And we need an
 object of type \verb#pred#. We have:
 
 \begin{itemize}
-\item \verb#x : pred variable# and therefore,  
-\verb#(^x^) : pred variable bindbox#   
+\item \verb#x : pred variable# and therefore,
+\verb#(^x^) : pred variable bindbox#
 \item \verb#args : term bindbox array# gives
 \verb#lift_array args : term array bindbox#
 \item all this gives
@@ -656,7 +586,7 @@ object of type \verb#pred#. We have:
 \end{itemize}
 
 Like for first-order variables, every time we will want to
-construct a second-order quantification of arity \verb#n#, we will write 
+construct a second-order quantification of arity \verb#n#, we will write
 \verb#Forall2(^ unit n, bind lam2 x(n) in ... ^)#.
 \end{itemize}
 
@@ -714,7 +644,7 @@ let rec equal_term t t' = match t, t' with
   | _ -> false
 
 let rec equal_form f f' = match f, f' with
-    Imply(f,g), Imply(f',g') -> 
+    Imply(f,g), Imply(f',g') ->
       equal_form f f' && equal_form g g'
   | Forall1(f), Forall1(f') ->
       match f with bind lam1 t in g ->
@@ -724,7 +654,7 @@ let rec equal_form f f' = match f, f' with
       match f with bind (lam2 arity) x in g ->
       equal_form g (subst f' (free_of x))
   | FormVar(x,ta), FormVar(x',ta') ->
-      x == x' && 
+      x == x' &&
       let r = ref true in
       for i = 0 to Array.length ta - 1 do
         r := !r && equal_term ta.(i) ta'.(i)
@@ -742,10 +672,10 @@ variable is a structure whose first field is a unique identifier. But
 you should be aware that one of the field of this structure is an ML
 closure (the function of type \verb#'a variable -> 'a# given when
 creating the variable).
- 
+
 Now, we give the lifting functions (already mentioned about naming): very often, we have
 an object \verb#o# of type \verb#t bindbox# that we want to
-read/match. Therefore, we will use \verb#unbox#. 
+read/match. Therefore, we will use \verb#unbox#.
 But then, we will want to reuse the subterms of \verb#o# with
 type  \verb#t bindbox# to continue the construction of an object of
 type \verb#t# with some bound variables. For this, we need this kind
@@ -769,8 +699,8 @@ let rec lift_form = function
 \end{verbatim}
 
 The functions
-\verb#bind_apply : ('a -> 'b) binder bindbox -> 'a bindbox -> 'b bindbox# and 
-\verb#mbind_apply  ('a -> 'b) mbinder bindbox -> 'a bindbox array -> 'b bindbox# 
+\verb#bind_apply : ('a -> 'b) binder bindbox -> 'a bindbox -> 'b bindbox# and
+\verb#mbind_apply  ('a -> 'b) mbinder bindbox -> 'a bindbox array -> 'b bindbox#
 for multiple binder are
 used to apply to its arguments a variable representing a binder.
 
@@ -800,11 +730,11 @@ conclusion. We need to copy the hypotheses because they result from a
 substitution. This is not the case for the conclusion of the sequent
 which is passed to \verb#print_goal# just after the call to \verb#unbox#.
 \begin{verbatim}
-let print_goal hyps concl = 
+let print_goal hyps concl =
   List.iter (
   function
       Axiom(f, v) ->
-        print_string (name_of v); print_string ":="; 
+        print_string (name_of v); print_string ":=";
         print_form 0 (unbox (lift_form f)); print_newline ()
     | _ ->
         failwith ("not an axiom")) hyps;
@@ -825,17 +755,17 @@ Here is the code that we will explain bellow:
 \begin{verbatim}
 exception Bad_proof of string
 
-let type_infer p = 
+let type_infer p =
   let ctxt = empty_context in
-  let rec fn hyps ctxt p = 
-    let r = match p with 
+  let rec fn hyps ctxt p =
+    let r = match p with
       Imply_intro(f,p) ->
         match p with bind (assume f) ax for ctxt in p' ->
         Imply(^ lift_form f, fn (ax::hyps) ctxt p' ^)
     | Imply_elim(p1, p2) ->
         begin
           let f1' = unbox (fn hyps ctxt p2) in
-          match unbox (fn hyps ctxt p1) with 
+          match unbox (fn hyps ctxt p1) with
             Imply(f1,f2) when equal_form f1 f1' -> lift_form f2
           | Imply(f1,f2) ->
               print_form 0 f1; print_string "<>"; print_form 0 f1';
@@ -850,7 +780,7 @@ let type_infer p =
     | Forall1_elim(p,t) ->
         begin
           match unbox (fn hyps ctxt p) with
-            Forall1(f) -> lift_form (subst f t) 
+            Forall1(f) -> lift_form (subst f t)
           | _ -> raise (Bad_proof("Forall1"))
         end
     | Forall2_intro(arity, f) ->
@@ -860,7 +790,7 @@ let type_infer p =
         begin
           match unbox (fn hyps ctxt p) with
 n            Forall2(arity, f) when arity = mbinder_arity pred ->
-              lift_form (subst f pred) 
+              lift_form (subst f pred)
           | _ -> raise (Bad_proof("Forall2"))
         end
     | Axiom(f,_) ->
@@ -870,16 +800,16 @@ n            Forall2(arity, f) when arity = mbinder_arity pred ->
     r
   in
   unbox (fn [] ctxt p)
-        
+
 let type_check p f =
   if not (equal_form (type_infer p) f) then raise (Bad_proof "conclusion")
 \end{verbatim}
- 
-There are two important things to comment in these programs: 
+
+There are two important things to comment in these programs:
 \begin{enumerate}
 \item We care about variable names using a context for the free
   variables and the \verb#lift_form# function for the bound ones as explained
-  before. 
+  before.
 
 \item The second important point is the use of \verb#unbox# together
 with the \verb#lift_form# function to type-check the elimination rules.
@@ -904,98 +834,36 @@ bringing a substantial gain in efficiency.
 
 \appendix
 
-\input{bindlib.mli.tex} 
-
-\subsection{Syntactic extension of the language for bindlib}
-
-We describe here the syntactic extension provided by
-\verb#pa_bindlib.cmo#.
-
-{\begin{tabular}{rcl}
-\it expr &::=& ... \cr
-     &$|$& \verb#(^# \it expr \verb#^)# \cr
-     &$|$& \verb#(^# \it expr\verb#,# expr {\verb#,# expr} \verb#^)# \cr
-     &$|$& \verb#[^ ^]# \cr
-     &$|$& \verb#[^# \it expr  {\verb#;# expr} \verb#^]# \cr
-     &$|$& \verb#[|^ ^|]# \cr
-     &$|$& \verb#[|^# \it expr  {\verb#;# expr} \verb#^|]# \cr
-     &$|$& {\it constr}\verb#(^# \it expr \verb#^)# \cr
-     &$|$& {\it constr}\verb#(^# \it expr\verb#,# expr {\verb#,# expr} \verb#^)# \cr
-     &$|$& \verb#{^# \it field \verb#=# expr  \{\verb#;# field \verb#=# expr\} \verb#^}# \cr
-     &$|$& \verb#{^# \it expr \verb#with# field \verb#=# expr  \{\verb#;# field \verb#=# expr\} \verb#^}# \cr
-     &$|$& \verb#letvar# {\it expr lowercase-ident\/}[\verb#(# {\it
-       expr} \verb#)#] [\verb#as# {\it expr}]
-         [\verb#for# {\it lowercase-ident}] \verb#in#  \it expr \cr
-     &$|$& \verb#bindvar#  {\it lowercase-ident\/}[\verb#()#]
-     \verb#in#  \it expr \cr
-     &$|$& \verb#bind# {\it expr lowercase-ident\/}[\verb#(# {\it
-       expr} \verb#)#] [\verb#as# {\it expr}]
-         [\verb#for# {\it lowercase-ident}] \verb#in#  \it expr \cr
-     &$|$& \verb#match# {\it expr}  \verb#with bind# {\it expr lowercase-ident\/}[\verb#(# 
-       {\it lowercase-ident\/} \verb#)#] \cr&& \hspace{2em}[\verb#as# {\it expr}]
-         [\verb#for# {\it lowercase-ident}] \verb#in#  {\it
-           lowercase-ident} \verb#->#\it expr \cr
-     &$|$& \it expr \verb#^^# expr \cr
-     &$|$& \it expr \verb#^|^# expr \cr
-    \cr
-\end{tabular}}
-
-Remarks and comment:
-\begin{itemize}
-\item \verb#(^e^)# is equivalent to \verb#unit e#
-\item In \verb#letvar# and \verb#bind#, the first {\it expr} is parser
-  at priority level ``simple'' and therefore it should be
-  parenthesised if it is not an identifier.
-\item in \verb#match ... bind#, the [\verb#as# {\it expr}] option is
-  not a pattern to hold the name of the bound variable, but a string you
-  can give to rename the variable.
-\item \verb#e ^^ e'# is equivalent to \verb#bind_apply e e'# and it is
-  left associative and 
-  parsed at the priority level of application. This is why it is a
-  syntactic extension and not an infix operator.
-\item \verb#e ^|^ e'# is equivalent to \verb#mbind_apply e e'# and it is
-  left associative and
-  parsed at the priority level of application.
-\end{itemize}
-
-\input{nvbindlib.mli.tex}
-
-\subsection{Syntactic extension of the language for nvbindlib}
-
-The syntactic extension provided by
-\verb#pa_nvbindlib.cmo# are the same as for bindlib, except that the [\verb#as# {\it
-  expr}] and
-         [\verb#for# {\it lowercase-ident}] options dealing with
-         variables are not allowed.
+\input{bindlib.mli.tex}
 
 \section{Semantics}
 
-Here is an equational specification of bindlib. 
+Here is an equational specification of bindlib.
 To give the semantics, we will use the following convention:
 \begin{itemize}
-\item variables are structure of type 
+\item variables are structure of type
 
 \verb#'a variable = {id : int; name : string; f : 'a variable -> 'a}#
 
-that are produced only by a function 
+that are produced only by a function
 
 \verb#new_var : ('a variable -> 'a) -> string -> 'a variable#
 
 which always generates fresh \verb#id#.
 
-\item We will use values written  
+\item We will use values written
  $\verb#unbox#_e$ where $e$ is an association list associating to a
  value of type \verb#'a variable# a value of type \verb#'a#.
 
 In fact $e$ has type $\verb#env# = \exists \verb#'a (('a variable * 'a) list)#$.
 
 This is not a valid ML type, but it could be coded in ML. However, we
-will use a search function \verb#assoc# (searching for variables)  which should have type 
+will use a search function \verb#assoc# (searching for variables)  which should have type
 $$\verb#'a variable -> env -> 'a#$$
 
 which is not possible in  ML. However, in our case, this is type safe only because the same value can
 not have type \verb#'a variable# and \verb#'b variable# if
-$\verb#'a# \neq \verb#'b#$. This is enforced when the type 
+$\verb#'a# \neq \verb#'b#$. This is enforced when the type
 \verb#'a variable# is abstract.
 
 \item Value of type \verb#context# will be set of strings. We
@@ -1011,15 +879,15 @@ changed) and $c'$ is the addition of $s'$ to the set $c$.
 the name of the identifier is used as a \verb#string# for the variable
 name (or as a \verb#string array# with a constant value for multiple binding).
 
-\item In the semantics, we also use 
+\item In the semantics, we also use
 \verb#map#, the standard map function on array
-(\verb#Array.map#), and 
+(\verb#Array.map#), and
 \verb#fold_map : ('a -> 'b -> 'c * 'b) -> 'a array -> 'b -> 'c array * 'b#
 which definition follows
 \begin{verbatim}
 let fold_map f tbl acc =
   let acc = ref acc in
-  let fn x = 
+  let fn x =
     let x', acc' = f x !acc in
     acc := acc';
     x'
@@ -1042,13 +910,13 @@ $\verb#letvar#\;f\;id\;\verb#as#\;s\;\verb#for#\;ctxt\;\verb#in#\;p$&=&\cr
 \multicolumn{3}{r}{$\hbox{\tt let}\;s',ctxt = \hbox{\tt fresh
   }s\;ctxt\;\hbox{\tt in let }\;id\; \hbox{\tt = new\_var}\;f\;s\;\hbox{\tt in}\;p$} \cr
 $\verb#name_of # v $ &=& v\verb#.name# \cr
-$\verb#subst# \verb#(#\verb#unbox#_e \verb#(#\verb#bindvar#\;v\;\verb#in# f\verb#)#\verb#)# a$ &=& $\verb#unbox#_{\verb#(#v,a\verb#)#::e} f$\cr  
+$\verb#subst# \verb#(#\verb#unbox#_e \verb#(#\verb#bindvar#\;v\;\verb#in# f\verb#)#\verb#)# a$ &=& $\verb#unbox#_{\verb#(#v,a\verb#)#::e} f$\cr
 $\verb#unbox#_e \verb#(#\verb#bindbox_of#\;v\verb#)#$ &=& $\verb#try assoc #v\;e \verb# with Not_found -> # v\verb#.f#\;v$ \cr
 $\verb#unbox#_e \verb#(^#a_1, \dots, a_n\verb#^)#$ &=& $\verb#(#\verb#unbox#_e\; a_1, \dots, \verb#unbox#_e\; a_n\verb#)#$ \cr
 $\verb#unbox#_e \verb#[^#a_1; \dots; a_n\verb#^]#$ &=& $\verb#[#\verb#unbox#_e\; a_1; \dots; \verb#unbox#_e\; a_n\verb#]#$ \cr
 $\verb#unbox#_e \verb#[|^#a_1; \dots; a_n\verb#^|]#$ &=& $\verb#[|#\verb#unbox#_e\; a_1; \dots; \verb#unbox#_e\; a_n\verb#|]#$ \cr
 $\verb#unbox#_e \verb#(#\verb#Cstr(^#a_1, \dots, a_n\verb#^)#\verb#)#$ &=& $\verb#Cstr#\verb#(#\verb#unbox#_e\; a_1, \dots, \verb#unbox#_e\; a_n\verb#)#$ \cr
-$\verb#letvar#\;f\;ids\verb#(#n\verb#)#\;\verb#as#\;s\;\verb#in#\;p$ &=& 
+$\verb#letvar#\;f\;ids\verb#(#n\verb#)#\;\verb#as#\;s\;\verb#in#\;p$ &=&
   $\verb#let #ids\verb# = map (new_var#\;f\verb#)#\;s\;\verb#in#\;p$ \cr
 $\verb#letvar#\;f\;ids\verb#(#n\verb#)#\;\verb#as#\;s\;\verb#for#\;ctxt\;\verb#in#\;p$&=&\cr
 \multicolumn{3}{r}{$\hbox{\tt let}\;s',ctxt = \hbox{\tt fold\_map fresh }s\;ctxt\;\hbox{\tt in let }ids\;\hbox{\tt  = map (new\_var}\;f)\;s\;\hbox{\tt in}\;p$} \cr

@@ -1,4 +1,4 @@
-VERSION   = 4.0
+VERSION   = 4.0.1
 LIBDIR    = $(shell ocamlfind printconf destdir)
 OCAMLFIND = ocamlfind
 OCAMLC    = $(OCAMLFIND) ocamlc
