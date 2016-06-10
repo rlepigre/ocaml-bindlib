@@ -90,17 +90,17 @@ type term =
 
 \section{How to use a data structure with variables ?}
 
-Consider the following function to print lambda-terms:
+Consider the following function to convert lambda-terms to string:
 
 \begin{quote}
 \begin{verbatim}
 let fVar x = Var(x)
 
-let rec print_term ch = function
-  | App(t,u) -> Printf.fprintf ch "(%a) %a" print_term t print_term u
-  | Var x    -> Printf.fprintf ch "%s" (name_of x)
-  | Lam b    -> let (x,t) = unbind fVar b in
-                Printf.fprintf ch "\lambda %s.%a" (name_of x) print_term t
+let rec term_to_string = function
+  | Var x    -> name_of x
+  | Lam b    -> let (x,t) = unbind b in
+                "\\" ^ (name_of x) ^ (term_to_string t)
+  | App(t,u) -> (term_to_string t) ^ "(" ^ (term_to_string u) ^ ")"
 \end{verbatim}
 \end{quote}
 
@@ -153,7 +153,7 @@ bindlib if necessary, but will be always kept as prefix.
 \end{itemize}
 
 
-n\section{How to construct a data structure with variables ?}
+\section{How to construct a data structure with variables ?}
 
 To construct data structure with bound variables, we provide a new type
 \begin{center}
@@ -819,10 +819,6 @@ important that \verb#bindlib# allow to easily notice this when using
 the ``lifting'' functions and to allow to avoid them in a lot of cases,
 bringing a substantial gain in efficiency.
 \end{enumerate}
-
-\appendix
-
-\input{bindlib.mli.tex}
 
 \section{Semantics}
 

@@ -27,6 +27,13 @@ let omega = app delta delta
 let fsty  = app fst y
 let fstyx = app fsty x
 
+(* Translation to string. *)
+let rec term_to_string = function
+  | Var x    -> name_of x
+  | Lam b    -> let (x,t) = unbind b in
+                "λ" ^ (name_of x) ^ (term_to_string t)
+  | App(t,u) -> (term_to_string t) ^ "(" ^ (term_to_string u) ^ ")"
+
 (* Printing function. *)
 let rec print_term ch = function
   | Var x    -> Printf.fprintf ch "%s" (name_of x)

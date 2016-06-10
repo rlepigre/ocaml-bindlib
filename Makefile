@@ -69,6 +69,7 @@ doc: README.html
 	ocamldoc -t "Bindlib" -keep-code -html -d html bindlib.mli
 	mv html/index.html html/main.html
 	cp README.html html/index.html
+	make -C doc
 
 tar: distclean doc
 	cd ../bindlib_tar; darcs pull; make all distclean
@@ -76,6 +77,7 @@ tar: distclean doc
 
 distrib: distclean tar
 	scp -r html/* $(URLSSH)/
+	scp -r doc/bindlib.pdf $(URLSSH)/bindlib.pdf
 	darcs push lama.univ-savoie.fr:WWW/repos/bindlib/
 	scp ../bindlib-$(VERSION).tar.gz $(URLSSH)/
 	ssh lama.univ-savoie.fr "cd WWW/bindlib; ln -sf bindlib-$(VERSION).tar.gz bindlib-latest.tar.gz"
