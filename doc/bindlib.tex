@@ -855,15 +855,14 @@ which always generates fresh \verb#id#.
  $\verb#unbox#_e$ where $e$ is an association list associating to a
  value of type \verb#'a variable# a value of type \verb#'a#.
 
-In fact $e$ has type $\verb#env# = \exists \verb#'a (('a variable * 'a) list)#$.
+In fact $e$ has type $\verb#env# = \exists \verb#('a.'a variable * 'a) list#$.
 
 This is not a valid ML type, but it could be coded in ML. However, we
-will use a search function \verb#assoc# (searching for variables)  which should have type
-$$\verb#'a variable -> env -> 'a#$$
-
+will use a search function \verb#assoc# (searching for variables)
+which should have type \verb#'a variable -> env -> 'a#
 which is not possible in  ML. However, in our case, this is type safe only because the same value can
 not have type \verb#'a variable# and \verb#'b variable# if
-$\verb#'a# \neq \verb#'b#$. This is enforced when the type
+$\verb#'a# \neq \verb#'b#$. This is enforced because the type
 \verb#'a variable# is abstract.
 
 \item Value of type \verb#context# will be set of strings. We
@@ -901,8 +900,8 @@ let fold_map f tbl acc =
 \begin{figure}
 \begin{tabular}{rcl}
 \verb#unbox# &=& $\verb#unbox#_{\verb#[]#}$\cr
-$\verb#unbox#_e \verb#(#\verb#unit#\;v\verb#)#$ &=& $v$\cr
-$\verb#unbox#_e \verb#(#\verb#apply#\;f\;v\verb#)#$ &=& $\verb#(#\verb#unbox#_e\; f\verb#)#
+$\verb#unbox#_e \verb#(#\verb#box#\;v\verb#)#$ &=& $v$\cr
+$\verb#unbox#_e \verb#(#\verb#apply_box#\;f\;v\verb#)#$ &=& $\verb#(#\verb#unbox#_e\; f\verb#)#
 \verb#(#\verb#unbox#_e\; v\verb#)#$\cr
 $\verb#unbox#_e \verb#(#\verb#bind_apply#\;f\;v\verb#)#$ &=& $\verb#(#\verb#unbox#_e\; f\verb#)# \verb#(#\verb#unbox#_e\; v\verb#)#$\cr
 $\verb#letvar#\;f\;id\;\verb#as#\;s\;\verb#in#\;p$ &=& $\verb#let #id \verb# = new_var#\;f\;s\;\verb#in#\;p$ \cr
