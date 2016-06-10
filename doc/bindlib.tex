@@ -1,53 +1,47 @@
 \documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
 \usepackage{a4wide}
 \usepackage{ocamldoc}
 \usepackage{textcomp}
 
-\hfuzz=5pt
-\parindent=0pt
-\parskip=0.8ex
-\title{Bindlib \\ A package for abstract syntax with binder. \\
-          version 4.0}
-\author{Christophe Raffalli - Rodolphe Lepigre\\
-Université de Savoie}
-
-
-
-\def\circum{\textasciicircum}
-\def\example#1{%
-  \def\bverbatim{\begin{verbatim}}%
-  \def\inputf{\input{\string#1\string.\expandafter\string\language}}%
-  \expandafter\bverbatim\inputf}
+\title{
+  Bindlib, version 4.0 \\
+  A package for abstract syntax with binder
+}
+\author{
+  Christophe Raffalli \& Rodolphe Lepigre \\
+  Université Savoie Mont Blanc
+}
 
 \begin{document}
-
 \maketitle
 
+\vspace{1cm}
 \begin{abstract}
-  \verb!bindlib! is a library for the
-OCaml language. It proposes a set of tools to manage data structures
-with bound and free variables. It includes fast substitution and management
-of variables names including renaming.
+  Bindlib is an \verb#OCaml# library providing a set of tools for managing
+  data structures with (bound and free) variables. It is very well suited for
+  defining abstract syntax trees.
+  %
+  Bindlib includes support for fast substitutions and for the management of
+  variables names. In particular, bound variables are renamed in a minimal
+  way to avoid capture.
 \end{abstract}
+\vspace{1cm}
 
 \tableofcontents
 
-\section{Introduction.}
+\section{Introduction}
 
-Data structures with bound and free variables are not so rare in
-computer science. For instance, computer programs and mathematical
-formulae are data structures using bound and free variables and are needed to write
-compilers and proof assistant.
-
-Representing these variables, implementing the necessary primitives
-(substitution
-of a variables, renaming to avoid captures, etc.) is not so easy and
-often the simple implementation result in poor performance, especially
-when substitution is needed.
-
-Bindlib aims at providing a library resulting in both simple and
-efficient code. It provides tools to deal with substitution and
-renaming.
+Data structures with bound and free variables are very common in computer
+science. For instance, they are required to encode mathematical formulas or
+computer programs into so-called abstract syntax trees. The manipulation of
+bound and free variables is hence essential when it comes to writing
+compilers or proof assistants. However, implementing the necessary primitives
+(mainly capture-avoiding substitution and renaming) is cumbersome. Moreover,
+the simplest implementations often result in poor performance, especially
+when a lot of substitutions are required. Bindlib aims at providing a library
+that enables both simplicity and efficiency. It provides high-level tools for
+deal with binders, substitutions and free variables.
 
 This documentation is in two parts : an informal presentation
 introducing each concept step by step illustrated with examples. Then,
@@ -61,42 +55,36 @@ will give the required mathematical definitions.
 
 \section{Using and installing}
 
-This library has been test with ocaml version 3.12.1 and later. It
-might work with earlier version.
+Bindlib works with \verb#OCaml# version 3.12.1 or later, but it has not been
+tested with earlier versions. It can be compiled and installed using the
+command
+\begin{center}
+  \verb#make && make install#
+\end{center}
+in the source directory. Alternatively, Bindlib can be installed using the
+\verb#opam# package manager using the following command.
+\begin{center}
+  \verb#opam install bindlib#
+\end{center}
 
-To install the library follow the following steps:
-\begin{itemize}
-\item you can install bind lib via opam,
-ocaml version
-
-\item or install it from source, just using \verb#make# and \verb#make install#.
-
-\item You can check your installation by compiling the examples
-  (available in opam's doc directory if you installed via opam).
-\end{itemize}
+Several examples of applications (including an implementation of the
+$\lambda$-calculus) are provided in Bindlib's source directory (or in
+\verb#opam#'s doc directory if you installed via \verb#opam#).
 
 \section{Basic types}
 
-Now, the main type constructor of the bindlib library is:
-\verb!('a,'b) binder!.
-
-This is the type of a value of type \verb!'b! with one bound
-variable of type \verb!'a!. This is very similar to the type
- \verb!'a -> 'b!.
-
-For variables, bindlib provide a type
-$$\verb!'a variable!$$
-for variable of type \verb!'a!.
-
-With these type constructors, we can define easily the type of
-lambda-terms:
-
+The main type constructor provided by Bindlib is \verb#('a,'b) binder#. It
+corresponds to a value of type \verb#'b# with one bound variable of type
+\verb#'a#. Intuitively, it is very similar to the type \verb#'a -> 'b# used
+when using higher-order abstract syntax. For free variables, bindlib provides
+a type \verb#'a variable# for free variable of type \verb#'a#. Using these
+types, we can define the type of $\lambda$-terms as follows.
 \begin{quote}
 \begin{verbatim}
 type term =
-  App of term * term         (* application of two terms *)
-| Lam of (term, term) binder (* abstraction of a variable in a term *)
-| Var of term variable       (* free variable *)
+  | App of term * term         (* application                 *)
+  | Lam of (term, term) binder (* abstraction (i.e. function) *)
+  | Var of term variable       (* free variable               *)
 \end{verbatim}
 \end{quote}
 
@@ -112,7 +100,7 @@ let rec print_term ch = function
   | App(t,u) -> Printf.fprintf ch "(%a) %a" print_term t print_term u
   | Var x    -> Printf.fprintf ch "%s" (name_of x)
   | Lam b    -> let (x,t) = unbind fVar b in
-                Printf.fprintf ch "λ%s.%a" (name_of x) print_term t
+                Printf.fprintf ch "\lambda %s.%a" (name_of x) print_term t
 \end{verbatim}
 \end{quote}
 
