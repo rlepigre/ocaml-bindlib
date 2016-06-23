@@ -83,9 +83,6 @@ type ('a,'b) binder =
   ; rank  : int        (* Number of remaining free variables (>= 0). *)
   ; value : 'a -> 'b } (* Substitution function. *)
 
-let binder_from_fun name rank f =
-  { name; bind = true; rank; value = f }
-
 (* Obtain the name of the bound variable. *)
 let binder_name : ('a,'b) binder -> string =
   fun b -> b.name
@@ -568,6 +565,8 @@ let box_apply3 f ta tb tc = apply_box (box_apply2 f ta tb) tc
 let bind_apply f = box_apply2 (fun f -> f.value) f
 
 let mbind_apply f = box_apply2 (fun f -> f.values) f
+
+let binder_from_fun name f = unbox (bind (fun _ -> assert false) name (fun x -> box_apply f x))
 
 let fixpoint = function
   | Closed t      -> let rec fix t =

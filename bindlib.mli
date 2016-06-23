@@ -42,7 +42,15 @@ val binder_constant : ('a,'b) binder -> bool
 val binder_closed   : ('a,'b) binder -> bool
 val binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder
 val binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
-val binder_from_fun : string -> int -> ('a -> 'b) -> ('a,'b) binder
+
+(** binder from fun, transform a function into a binder,
+    but the function will only be called when the
+    binder is subsituted. This is not the normal way to build
+    binder. Still it may be a good way, for instance to contract
+    two binders into one without copying the whole structure.
+    Ex: to transform (lam x lam y.t(x,y)) into (lam x.t(x,x))
+*)
+val binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder
 
 val mbinder_arity    : ('a,'b) mbinder -> int
 val mbinder_names    : ('a,'b) mbinder -> string array
