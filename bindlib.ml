@@ -11,7 +11,7 @@
 open Bindlib_util
 
 (* In the internals of bindlib, each variable is identified by a unique (int)
-key. Closures are then be formed by mapping free variables in an environment
+key. Closures are then formed by mapping free variables in an environment
 represented using an array. The type [varpos] provides hashtables associating
 each variable a couple of its index in the environment and the integer suffix
 of its name (used for renaming in capture-avoiding substitution). *)
