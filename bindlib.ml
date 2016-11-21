@@ -11,7 +11,7 @@
 open Bindlib_util
 
 (* In the internals of bindlib, each variable is identified by a unique (int)
-key. Closures are then formed by mapping free variables in an environment
+key. Closures are then be formed by mapping free variables in an environment
 represented using an array. The type [varpos] provides hashtables associating
 each variable a couple of its index in the environment and the integer suffix
 of its name (used for renaming in capture-avoiding substitution). *)
@@ -561,6 +561,8 @@ let box_apply2 f ta tb =
       Open(merge va vb, 0, fun h -> let a = a h and b = b h in fun v -> f (a v) (b v))
 
 let box_apply3 f ta tb tc = apply_box (box_apply2 f ta tb) tc
+
+let box_apply4 f ta tb tc td = apply_box (box_apply3 f ta tb tc) td
 
 let bind_apply f = box_apply2 (fun f -> f.value) f
 
