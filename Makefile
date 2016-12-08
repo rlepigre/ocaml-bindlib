@@ -87,8 +87,7 @@ OPAMREPO=$(HOME)/Caml/opam-repository/packages/bindlib
 README.html: README.tmpl
 	sed -e s/__VERSION__/$(VERSION)/g README.tmpl > README.html
 
-opam: opam.tmpl distrib
-	sed -e s/__VERSION__/$(VERSION)/g opam.tmpl > opam
+opamrepo: opam distrib
 	mkdir -p $(OPAMREPO)/bindlib.$(VERSION)
 	cp opam $(OPAMREPO)/bindlib.$(VERSION)/opam
 	cp description.txt $(OPAMREPO)/bindlib.$(VERSION)/descr

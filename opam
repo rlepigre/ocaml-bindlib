@@ -1,5 +1,3 @@
-name: "bindlib"
-version: "__VERSION__"
 maintainer: "Christophe Raffalli <raffalli@univ-savoie.fr>"
 bug-reports:  "http://lama.univ-savoie.fr/mantis/view_all_bug_page.php?project_id=3"
 authors:
