@@ -45,7 +45,7 @@ val binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
 
 (** binder from fun, transform a function into a binder,
     but the function will only be called when the
-    binder is subsituted. This is not the normal way to build
+    binder is substituted. This is not the normal way to build
     binder. Still it may be a good way, for instance to contract
     two binders into one without copying the whole structure.
     Ex: to transform (lam x lam y.t(x,y)) into (lam x.t(x,x))
