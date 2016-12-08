@@ -59,7 +59,7 @@ clean:
 	make -C examples clean
 
 distclean: clean
-	- rm opam README.html html/*
+	- rm README.html html/*
 	make -C examples distclean
 
 URLSSH=lama.univ-savoie.fr:WWW/bindlib
