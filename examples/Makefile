@@ -1,4 +1,4 @@
-all: lambda pred2 unif hash_lambda make_pts make_crs
+all: lambda pred2 unif translate hash_lambda make_pts make_crs
 
 make_pts:
 	make -C pts
@@ -22,6 +22,10 @@ pred2: pred2.ml
 unif: unif.ml
 	ocamlfind ocamlc -I .. bindlib.cma -g -o $@ $<
 
+## Translation without any environment
+translate: translate.ml
+	ocamlfind ocamlc -I .. bindlib.cma -g -o $@ $<
+
 ## Clean
 clean:
 	- rm -f *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
@@ -29,4 +33,4 @@ clean:
 	make -C crs clean
 
 distclean: clean
-	- rm -f lambda pred2 unif hash_lambda
+	- rm -f lambda pred2 unif translate hash_lambda

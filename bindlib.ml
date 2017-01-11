@@ -184,12 +184,15 @@ let build_new_var name mkfree bindbox =
   let (prefix, suffix) = split_name name in
   { key = fresh_key () ; var_name = name ; prefix; suffix; mkfree; bindbox }
 
+let update_var_bindbox : 'a variable -> unit =
+  let mk_var x htbl = (swap Env.get) (fst (IMap.find x.key htbl)) in
+  fun x -> x.bindbox <- Open([generalise_var x], 0, mk_var x)
+
 (* Create a new free variable using a wrapping function and a default name. *)
 let new_var : ('a variable -> 'a) -> string -> 'a variable =
-  let mk_var x htbl = (swap Env.get) (fst (IMap.find x.key htbl)) in
   fun mkfree name ->
     let x = build_new_var name mkfree dummy_bindbox in
-    x.bindbox <- Open([generalise_var x], 0, mk_var x); x
+    update_var_bindbox x; x
 
 (* Same function for multi-variables. *)
 let new_mvar : ('a variable -> 'a) -> string array -> 'a mvariable =
@@ -200,7 +203,9 @@ wrapper but with the same key. *)
 let copy_var : 'b variable -> string -> ('a variable -> 'a) -> 'a variable =
   fun x name mkfree ->
     let y = new_var mkfree name in
-    { y with key = x.key }
+    let r = { y with key = x.key } in
+    update_var_bindbox r;
+    r
 
 (* Test if a variable occurs in a bindbox. *)
 let occur v = function
