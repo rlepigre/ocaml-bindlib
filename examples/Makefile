@@ -12,7 +12,7 @@ lambda: lambda.ml
 
 ## Hash consed lambda calculus, need decap
 hash_lambda: hash_lambda.ml
-	- ocamlfind ocamlc -pp pa_ocaml -I .. bindlib.cma -package decap -linkpkg -o $@ $<
+	- ocamlfind ocamlc -pp pa_ocaml -I .. bindlib.cma -package earley,earley.str -linkpkg -o $@ $<
 
 ## Second-order predicate calculus
 pred2: pred2.ml

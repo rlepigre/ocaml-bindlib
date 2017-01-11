@@ -8,10 +8,8 @@ open Parser
 
 let treat_exc fn a =
   try
-    fn a
+    Earley.handle_exception fn a (* handle parse error *)
   with
-    | Decap.Parse_error (s,l,c,l',c') ->
-        eprintf "*** Syntax error line %d column %d: %s\n%!" l c s;
     | Unbound s ->
         print_string "*** Unbound variable: ";
 	print_string s;
@@ -48,5 +46,5 @@ let _ =
   done;
   while true do
     Printf.printf "reading standard input\n%!";
-    treat_exc (Decap.parse_channel parse_cmds blank) stdin
+    treat_exc (Earley.parse_channel parse_cmds blank) stdin
   done

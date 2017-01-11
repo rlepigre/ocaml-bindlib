@@ -3,12 +3,12 @@ open Bindlib
 open Genlex
 open Format
 
-let blank = Decap.blank_regexp ''\([ \n\r\t]\|\(//[^\n]*\n\)\)*''
+let blank = EarleyStr.blank_regexp ''\([ \n\r\t]\|\(//[^\n]*\n\)\)*''
 
 let read_file parse_cmds filename =
   let ch = open_in filename in
   Printf.printf "reading %s\n%!" filename;
-  try Decap.parse_channel parse_cmds blank ch
+  try Earley.parse_channel parse_cmds blank ch
   with End_of_file -> ()
 
 module Make(Pts: PtsType) =
@@ -30,7 +30,7 @@ module Make(Pts: PtsType) =
     let reserved = [ "let"; "load"; "quit" ]
     let parser ident =
       | s:''[a-zA-Z_][a-zA-Z_0-9]*'' ->
-	if List.mem s reserved then Decap.give_up ""; s
+	if List.mem s reserved then Earley.give_up (); s
 
     let parser string =
       | '"' - s:''[^"]*'' - '"' -> s

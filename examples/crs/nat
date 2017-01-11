@@ -25,4 +25,4 @@ red Z * Y[] -> Z;
 red Z! -> n1;
 red (S X[])! -> S X[] * X[]!;
 
-n7!;
+n5!;

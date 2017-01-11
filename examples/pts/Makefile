@@ -1,6 +1,6 @@
-CAMLC = ocamlfind ocamlc -package unix,decap -pp pa_ocaml -I ../..
-CAMLO = ocamlfind ocamlopt -package unix,decap -pp pa_ocaml -I ../..
-CAMLDEP = ocamlfind ocamldep -package unix,decap -pp pa_ocaml -I ../..
+CAMLC = ocamlfind ocamlc -package unix,earley,earley.str -pp pa_ocaml -I ../..
+CAMLO = ocamlfind ocamlopt -package unix,earley,earley.str -pp pa_ocaml -I ../..
+CAMLDEP = ocamlfind ocamldep -package unix,earley,earley.str -pp pa_ocaml -I ../..
 
 FILES = basic.ml globals.ml print.ml type_check.ml \
 	action.ml parser.ml main.ml

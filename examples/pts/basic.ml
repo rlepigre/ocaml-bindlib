@@ -18,7 +18,7 @@ module type PtsType =
     val get_rule : sort -> sort -> sort
     val print_sort : sort -> unit
     val keywords : string list
-    val parse_sort : sort Decap.grammar
+    val parse_sort : sort Earley.grammar
   end
 
 module Make(Pts: PtsType) =

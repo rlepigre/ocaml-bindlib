@@ -1,5 +1,5 @@
 open Bindlib
-open Decap
+open Earley
 
 module Lambda = struct
   type term = {
@@ -209,13 +209,13 @@ let atom_term = declare_grammar "atom_term"
 let term = declare_grammar "term"
 let kwds = [ "case"; "of"; "let" ]
 let ident = parser str:''[A-Za-z][A-Za-z0-9_']*'' ->
-  if List.mem str kwds then give_up ""; str
+  if List.mem str kwds then give_up (); str
 
 let _ = set_grammar atom_term (parser
 
       | '(' t:term ')' -> t
 
-      | id:ident -> (fun env -> try List.assoc id env with Not_found -> give_up ("Unbound: "^id))
+      | id:ident -> (fun env -> try List.assoc id env with Not_found -> give_up ())
 
       | "fun" l:ident+ {"->"|"→"} t:term ->
          let rec fn l env = match l with
@@ -299,7 +299,7 @@ let rec eval t =
   | Var _ -> failwith "open term"
   | HVar _ -> failwith "open term (H)"
 
-let blank = blank_regexp ''[ \n\t\r]*''
+let blank = EarleyStr.blank_regexp ''[ \n\t\r]*''
 
 let term_of_string s = unbox (parse_string term blank s [])
 let idt = term_of_string "fun x -> x"

@@ -82,7 +82,6 @@ let rec whnf = function
 let norm t = let rec fn t =
   match whnf t with
     Lam f ->
-      let (x,t) = unbind f in
       vlam (binder_name f) (fun x -> fn (subst f (Var x)))
   | t ->
       let rec unwind = function

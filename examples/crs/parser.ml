@@ -40,9 +40,9 @@ let is_ident s =
 
 let parser ident =
   | s:''[a-zA-Z_][a-zA-Z0-9_']*'' ->
-    if List.mem s keywords then Decap.give_up "" else s
+    if List.mem s keywords then Earley.give_up () else s
   | s:RE("[-=~^@$:+*/<>%&!|\\]+") ->
-    if List.mem s keywords then Decap.give_up "" else s
+    if List.mem s keywords then Earley.give_up () else s
 
 let parser int =
   s:''[0-9]+'' -> int_of_string s
@@ -54,13 +54,13 @@ let parser float =
   s:''-?[0-9]+\(.[0-9]+\)'' -> float_of_string s
 
 let parser parse_infix (lvl_left, lvl_top) =
-  s:ident -> if is_infix lvl_left lvl_top s then lookup s else Decap.give_up ""
+  s:ident -> if is_infix lvl_left lvl_top s then lookup s else Earley.give_up ()
 
 let parser parse_prefix lvl_top =
-  s:ident -> if is_prefix lvl_top s then lookup s else Decap.give_up ""
+  s:ident -> if is_prefix lvl_top s then lookup s else Earley.give_up ()
 
 let parser parse_ident =
-  s:ident -> if is_ident s then s else Decap.give_up ""
+  s:ident -> if is_ident s then s else Earley.give_up ()
 
 let parse_list fn = parser
   | x:fn l:{_:',' x:fn}* -> x::l
@@ -73,7 +73,7 @@ let not_bracket =
     let (c,_,_) = Input.read buf pos in
     ((), c <> '[' && c <> '.')
   in
-  Decap.test ~name:"no_bracket" Charset.full_charset f
+  Earley.test ~name:"no_bracket" Charset.full f
 
 let parser parse_atom lvl =
   | name:parse_ident t:(parse_bind lvl) -> (fun env -> t env name)
@@ -145,12 +145,12 @@ let parser parse_red =
    let arities, t1, t2 = bind_reduction t1 t2 in
    arities, t1, t2
 
-let blank = Decap.blank_regexp ''\([ \n\r\t]\|\(//[^\n]*\n\)\)*''
+let blank = EarleyStr.blank_regexp ''\([ \n\r\t]\|\(//[^\n]*\n\)\)*''
 
 let read_file parse_cmds filename =
   let ch = open_in filename in
   Printf.printf "reading %s\n%!" filename;
-  try Decap.parse_channel parse_cmds blank ch
+  try Earley.parse_channel parse_cmds blank ch
   with End_of_file -> ()
 
 let parser parse_cmd =

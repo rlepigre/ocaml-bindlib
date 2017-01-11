@@ -19,11 +19,9 @@ module Make(Pts: PtsType) =
 
     let treat_exc fn a =
       try
-	fn a
+	Earley.handle_exception fn a (* handle Parse_error *)
       with
 	| End_of_file -> exit 0
-       	| Decap.Parse_error(s,l,c,l',c') ->
-           eprintf "*** Syntax error line %d column %d: %s\n%!" l c s;
       	| Unbound s ->
            eprintf "*** Unbound variable: %s\n%!" s;
       	| Ill_axiom s ->
@@ -79,9 +77,6 @@ module Make(Pts: PtsType) =
       	| Out_of_memory ->
             print_newline();
             print_string "*** Out of memory"; print_newline()
-      	| End_of_file ->
-            print_newline();
-            print_string "*** Unexpected end of file"; print_newline()
     	| Sys_error s ->
             print_newline();
             print_string "*** System error: "; print_string s; print_newline()
@@ -93,6 +88,6 @@ module Make(Pts: PtsType) =
       done;
       while true do
 	Printf.printf "reading standard input\n%!";
-	treat_exc (Decap.parse_channel parse_cmds blank) stdin
+	treat_exc (Earley.parse_channel parse_cmds blank) stdin
       done
   end
