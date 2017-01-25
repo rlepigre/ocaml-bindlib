@@ -424,7 +424,7 @@ let rec lift_term = function
 let rec print_term ch = function
   | Var x    -> Printf.fprintf ch "%s" (name_of x)
   | Lam b    -> let (x,t) = unbind b in
-                Printf.fprintf ch "λ%s.%a" (name_of x) print_term t
+                Printf.fprintf ch "fun %s -> %a" (name_of x) print_term t
   | App(t,u) -> Printf.fprintf ch "(%a) %a" print_term t print_term u
 let print_term t =
   Printf.printf "%a\n%!" print_term (unbox (lift_term t))
@@ -473,29 +473,34 @@ and $X$ is a second-order variable.
 \end{definition}
 
 \begin{verbatim}
-(* a structure to store the information about a function symbol *)
-type symbol = {name : string; arity : int }
+(* A structure representing a function symbol. *)
+type symbol = { name : string ; arity : int }
 
-(* the type of first order term *)
+(* The type of first order terms. *)
 type term =
-    Fun of symbol * term array
-  | TermVar of term variable
+  | Var of term variable
+  | Fun of symbol * term array
 
-(* the type of second order formula *)
+(* The type of formulas. *)
 type form =
-  Imply of form * form
-| Forall1 of (term, form) binder         (* fitst order quantifier *)
-| Forall2 of int * (pred, form) binder   (* second order quantifier *)
-                                         (* the int in the arity *)
-| FormVar of pred variable * term array  (* a predicate variables and *)
-                                         (* its arguments *)
+  (* Implication. *)
+  | Imply of form * form
+  (* First-order universal quantification. *)
+  | Univ1 of (term, form) binder
+  (* Second-order universal quantification. *)
+  | Univ2 of int * (pred, form) binder
+  (* Variable. *)
+  | FVari of pred variable * term array
 
-and pred = (term, form) mbinder          (* a predicate is a binder ! *)
+(* Predicate (implemented as a binder). *)
+and pred = (term, form) mbinder
 
-let lam1 x = TermVar(x)
+let fvar1 : term variable -> term = fun x -> Var x
 
-let lam2 n x =
-  unbox (bind lam1 args(n) in FormVar(^ (^x^), lift_array args^))
+let fvar2 : int -> pred variable -> pred = fun arity x ->
+  let vs = Array.init arity (Printf.sprintf "x%i") in
+  let f xs = box_apply (fun y -> FVari(x,y)) (box_array xs) in
+  unbox (mbind fvar1 vs f)
 \end{verbatim}
 
 Let us review these definitions:
@@ -504,68 +509,48 @@ Let us review these definitions:
 of type \verb#form# with an array of bound variables. We use this to
 represent predicates, that is formula with $n$ parameters.
 
-\item \verb#Forall2 of int * (pred, form) binder#: for second order
+\item \verb#Univ2 of int * (pred, form) binder#: for second order
 quantification, we bind a variable of arity $n$. The arity is the
 first argument of the constructor. For the second argument,
 \verb#(pred, form) binder#, we mean that we bind a ``predicate''
 variable. This variable is
 itself a \verb#mbinder#, this is why it is a ``second-order'' variable.
 
-\item \verb#FormVar of pred variable * term array#: as usual
+\item \verb#FVari of pred variable * term array#: as usual
 for any free variable, we have to store
 the variable itself of type \verb#pred variable#.
 But here, we should also store the terms which
 are the arguments of the second-order predicate variable.
 
-\item \verb#let lam1 x = TermVar(x)#: we introduce the
-function to construct first-order binder. Every time we will want to
-construct a first-order quantification, we will write
+\item \verb#let fvar1 : term variable -> term = fun x -> Var x#: we introduce the
+function to construct first-order variable. Every time we will want to
+construct a first-order quantification, we will have to pass fvar1 to
+the binding function.
 
-\verb#Forall1(^ bind lam1 x in ... ^)#
+\item \verb#mbind : ('a variable -> 'a) -> string array  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox# is
+  the main function to build multiple binder. The array of names give
+  the name of the bound variables and the arity of this multiple binder.
 
-\item \verb#bind lam1 args(n) in ...# : this binds an array of
-  \verb#term variable# of arity \verb#n#. The typing rule of this camlp4
-extension is:
-$$
-\frac{
-\begin{array}{l}\Gamma, \hbox{\tt x :$\!$ 'a array bindbox} \vdash \hbox{\tt e
-:$\!$ 'b bindbox}
-\cr \Gamma \vdash \hbox{\tt f :$\!$ 'a variable
--> 'a}
-\cr \Gamma \vdash \hbox{\tt n : int}
-\end{array}}
-{\Gamma \vdash \hbox{\tt bind f x(n) in e :$\!$ ('a, 'b) mbinder bindbox}}
-$$
-
-\item \verb#lift_array# : this is a function of type
+\item \verb#box_array# : this is a function of type
   \verb#'a bindbox array -> 'a array binxbox#, which is often used when
   binding array of variables.
 
-\item \verb#let lam2 n x =#\\
-\verb#  unbox (bind lam1 args(n) in FormVar(^ (^x^), lift_array args^))#:
-we introduce the
-function to construct second-order binder. It is a bit complex, but
-typing gives very little choice: we have \verb#arity : int#,
-and \verb#x : pred variable#. And we need an
-object of type \verb#pred#. We have:
+\item \verb#let fvar2 ...#: is the anlogous function for second order
+  variable. It is more complex, because a second order variable is a
+  binder. We must construct a binder with \verb#mbind# and provide for
+  it \verb#fvar1# as we bind variable of type term, an array of names for
+  printing
+  (but its size gives the arity of the predicate variable) and
+  finally, the function \verb#f# from which we build the binder. The wanted
+  type for \verb#f# is \verb#term bindbox array -> form# and it is not
+  too hard to assemble \verb#box_apply#, \verb#FVari# and
+  \verb#box_array# to get it right.
 
-\begin{itemize}
-\item \verb#x : pred variable# and therefore,
-\verb#(^x^) : pred variable bindbox#
-\item \verb#args : term bindbox array# gives
-\verb#lift_array args : term array bindbox#
-\item all this gives
-\verb#FormVar(^ ... ^) : form bindbox#, using the rule given page
-\pageref{liftconstr} for lifted constructor.
-\item
-\verb#bind lam1 args(arity) in FormVar(^ ... ^) : pred bindbox#.
-\item Finally, \verb#unbox (bind lam1 args(arity) in FormVar(^ ... ^)) : pred#
+  We end with \verb#unbox# to remove the \verb#bindbox# type
+  constructor as no free variables remain.
 \end{itemize}
 
-Like for first-order variables, every time we will want to
-construct a second-order quantification of arity \verb#n#, we will write
-\verb#Forall2(^ unit n, bind lam2 x(n) in ... ^)#.
-\end{itemize}
+FIXME BELOW IS NOT UP TO DATE
 
 Now, we write the printing function for terms and formulas:
 

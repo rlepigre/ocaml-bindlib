@@ -23,16 +23,11 @@ type form =
 (* Predicate (implemented as a binder). *)
 and pred = (term, form) mbinder
 
-let unbind : ('a variable -> 'a) -> ('a,'b) binder -> 'a variable * 'b =
-  fun fv b ->
-    let x = new_var fv (binder_name b) in
-    (x, subst b (free_of x))
+let fvar1 : term variable -> term = fun x -> Var x
 
-let fvar1 x = Var x
-
-let fvar2 ar x =
-  let vs = Array.init ar (Printf.sprintf "x%i") in
-  let f xs = box_apply2 (fun x y -> FVari(x,y)) (box x) (box_array xs) in
+let fvar2 : int -> pred variable -> pred = fun arity x ->
+  let vs = Array.init arity (Printf.sprintf "x%i") in
+  let f xs = box_apply (fun y -> FVari(x,y)) (box_array xs) in
   unbox (mbind fvar1 vs f)
 
 let unbind1 : (term, form) binder -> term variable * form =
