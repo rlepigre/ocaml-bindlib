@@ -34,6 +34,13 @@ let rec term_to_string = function
                 "λ" ^ (name_of x) ^ (term_to_string t)
   | App(t,u) -> (term_to_string t) ^ "(" ^ (term_to_string u) ^ ")"
 
+(* lifting *)
+let rec lift_term = function
+  | Var(y) -> box_of_var y
+  | App(u,v) -> app (lift_term u)  (lift_term v)
+  | Lam(f) ->
+      vlam (binder_name f) (fun x -> lift_term (subst f (Var x)))
+
 (* Printing function. *)
 let rec print_term ch = function
   | Var x    -> Printf.fprintf ch "%s" (name_of x)
@@ -41,7 +48,8 @@ let rec print_term ch = function
                 Printf.fprintf ch "λ%s.%a" (name_of x) print_term t
   | App(t,u) -> Printf.fprintf ch "(%a) %a" print_term t print_term u
 let print_term t =
-  Printf.printf "%a\n%!" print_term t
+  Printf.printf "%a\n%!" print_term (unbox (lift_term t))
+
 
 (* Step by step evaluation function. *)
 let rec cbn_step = function

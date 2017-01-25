@@ -98,7 +98,7 @@ let fVar x = Var(x)
 
 let rec term_to_string = function
   | Var x    -> name_of x
-  | Lam b    -> let (x,t) = unbind b in
+  | Lam b    -> let (x,t) = unbind fVar b in
                 "\\" ^ (name_of x) ^ (term_to_string t)
   | App(t,u) -> (term_to_string t) ^ "(" ^ (term_to_string u) ^ ")"
 \end{verbatim}
@@ -168,13 +168,13 @@ typed programming language. If you do not know what a morphism is,
 then just ignore this paragraph !
 
 Using a type \verb!'a bindbox! when constructing a data structure with
-bind variable is the main idea behind bindlib. As an approximation,
+bound variables is the main idea behind bindlib. As an approximation,
 you can view a value of type \verb!'a bindbox! as a pair with a set
 of bound variables, and a function that buid a value of type \verb!'a!
 from the value of all these variabes.
 
 Working with \verb!'a bindbox! requires to lift the constructor to
-this type. Indeed, we need a some kind of way to transform the
+this type. Indeed, we need some kind of way to transform the
 \verb!App! constructor into a term of type
 \verb!'a bindbox -> 'a bindbox -> 'a bindbox!. The bindlib library
 provide the necessary function to do that in a few lines:
@@ -203,10 +203,10 @@ box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c
 Remark: it you are used to monad, \verb#box# and \verb#apply_box# are
 the \verb#return# and \verb#bind# operation of the monad. We did not
 use the name \verb#bind# ... Because this name is not appropriate
-hare. This means that \verb#box_apply# and \verb#box_apply2# can
+here. This means that \verb#box_apply# and \verb#box_apply2# can
 easily be defined from \verb#box# and \verb#apply_box#.
 
-The key function to bind variables is \verb#bind_var#. Two short cut
+The key function to bind variables is \verb#bind_var#. Two short cuts
 are provided:
 \begin{quote}
 \begin{verbatim}
@@ -217,7 +217,7 @@ let vbind fv name f =
 \end{verbatim}
 \end{quote}
 
-Using these short cut, we could give a shorter definition and an
+Using these short cuts, we could give a shorter definition and an
 alternative version of \verb#lam#:
 
 \begin{quote}
@@ -248,8 +248,7 @@ Remark: in the last definition, because we are not binding any new
 variables, we do not need to work inside the type \verb#'a bindbox#.
 
 Here is another example, which performs the following transformation on
-$\lambda$-term (it marks all the application with a variable and the
-bind this variable):
+$\lambda$-term (it marks all the applications with a variable and bind this variable):
 $$
 \begin{array}{rcl}
 \hbox{mark}(t) &=& \lambda x.\phi_x(t) \cr
@@ -414,37 +413,27 @@ what I call a ``lifting'' function to copy the data structure before
 printing as in the following example:
 
 \begin{verbatim}
+(* lifting *)
 let rec lift_term = function
-    FVar(y) -> bindbox_of y
-  | App(u,v) -> App(^lift_term u, lift_term v^)
-  | Abs(f) ->
-      match f with bind fVar x in u ->
-        Abs(^ bindvar x in lift_term u ^)
+  | Var(y) -> box_of_var y
+  | App(u,v) -> app (lift_term u)  (lift_term v)
+  | Lam(f) ->
+      vlam (binder_name f) (fun x -> lift_term (subst f (Var x)))
 
+(* Printing function. *)
+let rec print_term ch = function
+  | Var x    -> Printf.fprintf ch "%s" (name_of x)
+  | Lam b    -> let (x,t) = unbind b in
+                Printf.fprintf ch "λ%s.%a" (name_of x) print_term t
+  | App(t,u) -> Printf.fprintf ch "(%a) %a" print_term t print_term u
 let print_term t =
-  let rec fn = function
-      App(t1,t2) ->
-        print_string "(";
-        fn t1;
-        print_string " ";
-        fn t2;
-        print_string ")"
-    | Abs f ->
-        match f with bind fVar x in t ->
-          print_string "fun ";
-          print_string (name_of x);
-          print_string " ";
-          fn t
-    | FVar(v) ->
-        print_string (name_of v)
-  in
-  fn (unbox (lift_term t))
+  Printf.printf "%a\n%!" print_term (unbox (lift_term t))
 \end{verbatim}
 
 \section{A more complete example and advanced features}
 
 This section covers advanced feature of the library. The reader is
-advised to read, practise and understand the previous section before
+advised to read, practice and understand the previous section before
 reading this.
 
 We will consider second order predicate logic.
