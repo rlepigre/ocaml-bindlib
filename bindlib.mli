@@ -121,6 +121,7 @@ val mvbind : ('a variable -> 'a) -> string array
 
 (** Breaking binders. *)
 val unbind : ('a variable -> 'a) -> ('a,'b) binder -> 'a variable * 'b
+val unmbind : ('a variable -> 'a) -> ('a,'b) mbinder -> 'a mvariable * 'b
 
 (** Variable binding. *)
 val bind_var  : 'a variable  -> 'b bindbox -> ('a, 'b) binder bindbox
@@ -221,6 +222,12 @@ val new_var_in : context -> ('a variable -> 'a) -> string
 (** Similar function for multi-variables. *)
 val new_mvar_in : context -> ('a variable -> 'a) -> string array
   -> 'a mvariable * context
+
+(** Breaking binders. *)
+val unbind_in : context -> ('a variable -> 'a) -> ('a,'b) binder ->
+                 'a variable * 'b * context
+val unmbind_in : context -> ('a variable -> 'a) -> ('a,'b) mbinder ->
+                 'a mvariable * 'b * context
 
 (** Binding operation in a context (corresponds to [bind]). *)
 val bind_in : context -> ('a variable -> 'a) -> string

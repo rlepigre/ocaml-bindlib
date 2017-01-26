@@ -505,6 +505,10 @@ let unbind mkfree b =
   let x = new_var mkfree (binder_name b) in
   (x, subst b (free_of x))
 
+let unmbind mkfree b =
+  let x = new_mvar mkfree (mbinder_names b) in
+  (x, msubst b (Array.map free_of x))
+
 let value_mbind arity binds pos pt v args =
   let size = Array.length args in
   if size <> arity then raise (Invalid_argument "bad arity in msubst");
@@ -830,3 +834,11 @@ let mbind_in ctxt mkfree names fpt =
   let (vs, ctxt) = new_mvar_in ctxt mkfree names in
   let args = Array.map box_of_var vs in
   bind_mvar vs (fpt args ctxt)
+
+let unbind_in ctxt mkfree b =
+  let (x, ctxt) = new_var_in ctxt mkfree (binder_name b) in
+  (x, subst b (free_of x), ctxt)
+
+let unmbind_in ctxt mkfree b =
+  let (x, ctxt) = new_mvar_in ctxt mkfree (mbinder_names b) in
+  (x, msubst b (Array.map free_of x), ctxt)
