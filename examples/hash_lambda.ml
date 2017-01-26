@@ -11,7 +11,7 @@ module Lambda = struct
   and term' =
     | HVar of int
 
-    | Var of term variable
+    | Var of term var
 
     | App of term * term
     | Lam of (term, term) binder
@@ -76,7 +76,7 @@ module Lambda = struct
 
   let equal' t1 t2 = t1 == t2 || match t1, t2 with
     | HVar n1, HVar n2 -> n1 = n2
-    | Var v1, Var v2 -> compare_variables v1 v2 = 0
+    | Var v1, Var v2 -> compare_vars v1 v2 = 0
     | App(t1,t2), App(t1',t2') ->
        t1.address = t1'.address && t2.address = t2'.address
     | Lam(f), Lam(f') -> equal_binder f f'

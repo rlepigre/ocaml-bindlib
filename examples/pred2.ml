@@ -131,8 +131,6 @@ let univ2_i arity = box_apply (fun p -> Univ2_i(arity,p))
 let univ2_e = box_apply2 (fun p q -> Univ2_e(p,q))
 let axiom f v = Axiom(f,v)
 
-exception Bad_proof of string
-
 let print_goal och hyps concl =
   let print_hyp och = function
     | Axiom(a,x) -> Printf.fprintf och " %s : %a\n" (name_of x) print_form a
@@ -142,12 +140,14 @@ let print_goal och hyps concl =
   output_string och "----------------------------------------\n";
   Printf.fprintf och " %a\n" print_form concl
 
+exception Bad_proof of string
+
 let type_infer p =
   let ctxt = empty_ctxt in
   let rec fn hyps ctxt p =
     let r = match p with
       | Imply_i(f,p) ->
-	 let ax, ctxt = new_var_in ctxt (assume f) (binder_name p) in
+	 let ax, ctxt = new_var_in ctxt (axiom f) (binder_name p) in
 	 let p' = subst p (free_of ax) in
          imply (box_form f) (fn (ax::hyps) ctxt p')
       | Imply_e(p1,p2) ->
@@ -211,12 +211,12 @@ let equal_transitive_proof = unbox (
     univ1_i (bind fvar1 "y" (fun y ->
       univ1_i (bind fvar1 "z" (fun z ->
         let f = mbind_apply leq (box_array [|x; y|]) in
-        imply_i f (bind (assume (unbox f)) "h1" (fun h1 ->
+        imply_i f (bind (axiom (unbox f)) "h1" (fun h1 ->
           let g = mbind_apply leq (box_array [|y; z|]) in
-          imply_i g  (bind (assume (unbox g)) "h2" (fun h2 ->
+          imply_i g  (bind (axiom (unbox g)) "h2" (fun h2 ->
             univ2_i 1 (bind (fvar2 1) "X" (fun pX ->
               let p = mbind_apply pX (box_array [|x|]) in
-              imply_i p (bind (assume (unbox p)) "h3" (fun h3 ->
+              imply_i p (bind (axiom (unbox p)) "h3" (fun h3 ->
                 imply_e (univ2_e h2 pX)
                    (imply_e (univ2_e h1 pX) h3))))))))))))))))
 
