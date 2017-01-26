@@ -835,11 +835,6 @@ has the same prefix that $s$ (only the numerical suffix of
 $s$ is
 changed) and $c'$ is the addition of $s'$ to the set $c$.
 
-\item In the \verb#letvar# construct, when the \verb#as# keyword is
-  ommited,
-the name of the identifier is used as a \verb#string# for the variable
-name (or as a \verb#string array# with a constant value for multiple binding).
-
 \item In the semantics, we also use
 \verb#map#, the standard map function on array
 (\verb#Array.map#), and
@@ -866,21 +861,15 @@ $\verb#unbox#_e \verb#(#\verb#box#\;v\verb#)#$ &=& $v$\cr
 $\verb#unbox#_e \verb#(#\verb#apply_box#\;f\;v\verb#)#$ &=& $\verb#(#\verb#unbox#_e\; f\verb#)#
 \verb#(#\verb#unbox#_e\; v\verb#)#$\cr
 $\verb#unbox#_e \verb#(#\verb#bind_apply#\;f\;v\verb#)#$ &=& $\verb#(#\verb#unbox#_e\; f\verb#)# \verb#(#\verb#unbox#_e\; v\verb#)#$\cr
-$\verb#letvar#\;f\;id\;\verb#as#\;s\;\verb#in#\;p$ &=& $\verb#let #id \verb# = new_var#\;f\;s\;\verb#in#\;p$ \cr
-$\verb#letvar#\;f\;id\;\verb#as#\;s\;\verb#for#\;ctxt\;\verb#in#\;p$&=&\cr
-\multicolumn{3}{r}{$\hbox{\tt let}\;s',ctxt = \hbox{\tt fresh
-  }s\;ctxt\;\hbox{\tt in let }\;id\; \hbox{\tt = new\_var}\;f\;s\;\hbox{\tt in}\;p$} \cr
+$\verb#new_var#\;c\;f\;s$ &=& $\hbox{\tt let}\;s',c = \hbox{\tt
+                             fresh}s\;c\;(\hbox{\tt = new\_var}\;f\;s,
+                             c)$ \cr
 $\verb#name_of # v $ &=& v\verb#.name# \cr
 $\verb#subst# \verb#(#\verb#unbox#_e \verb#(#\verb#bindvar#\;v\;\verb#in# f\verb#)#\verb#)# a$ &=& $\verb#unbox#_{\verb#(#v,a\verb#)#::e} f$\cr
 $\verb#unbox#_e \verb#(#\verb#bindbox_of#\;v\verb#)#$ &=& $\verb#try assoc #v\;e \verb# with Not_found -> # v\verb#.f#\;v$ \cr
-$\verb#unbox#_e \verb#(^#a_1, \dots, a_n\verb#^)#$ &=& $\verb#(#\verb#unbox#_e\; a_1, \dots, \verb#unbox#_e\; a_n\verb#)#$ \cr
-$\verb#unbox#_e \verb#[^#a_1; \dots; a_n\verb#^]#$ &=& $\verb#[#\verb#unbox#_e\; a_1; \dots; \verb#unbox#_e\; a_n\verb#]#$ \cr
-$\verb#unbox#_e \verb#[|^#a_1; \dots; a_n\verb#^|]#$ &=& $\verb#[|#\verb#unbox#_e\; a_1; \dots; \verb#unbox#_e\; a_n\verb#|]#$ \cr
-$\verb#unbox#_e \verb#(#\verb#Cstr(^#a_1, \dots, a_n\verb#^)#\verb#)#$ &=& $\verb#Cstr#\verb#(#\verb#unbox#_e\; a_1, \dots, \verb#unbox#_e\; a_n\verb#)#$ \cr
-$\verb#letvar#\;f\;ids\verb#(#n\verb#)#\;\verb#as#\;s\;\verb#in#\;p$ &=&
-  $\verb#let #ids\verb# = map (new_var#\;f\verb#)#\;s\;\verb#in#\;p$ \cr
-$\verb#letvar#\;f\;ids\verb#(#n\verb#)#\;\verb#as#\;s\;\verb#for#\;ctxt\;\verb#in#\;p$&=&\cr
-\multicolumn{3}{r}{$\hbox{\tt let}\;s',ctxt = \hbox{\tt fold\_map fresh }s\;ctxt\;\hbox{\tt in let }ids\;\hbox{\tt  = map (new\_var}\;f)\;s\;\hbox{\tt in}\;p$} \cr
+$\verb#unbox#_e \verb#(# \verb#box_pair# \verb#(#a_1, \dots, a_n\verb#))#$ &=& $\verb#(#\verb#unbox#_e\; a_1, \dots, \verb#unbox#_e\; a_n\verb#)#$ \cr
+$\verb#unbox#_e \verb#(# \verb#box_list# \verb#[#a_1; \dots; a_n\verb#])#$ &=& $\verb#[#\verb#unbox#_e\; a_1; \dots; \verb#unbox#_e\; a_n\verb#]#$ \cr
+$\verb#unbox#_e \verb#(# \verb#box_array# \verb#[|#a_1; \dots; a_n\verb#|])#$ &=& $\verb#[|#\verb#unbox#_e\; a_1; \dots; \verb#unbox#_e\; a_n\verb#|]#$ \cr
 \end{tabular}
 \caption{Equational semantics for bindlib}
 \end{figure}
