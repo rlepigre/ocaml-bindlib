@@ -71,14 +71,14 @@ Several examples of applications (including an implementation of the
 $\lambda$-calculus) are provided in Bindlib's source directory (or in
 \verb#opam#'s doc directory if you installed via \verb#opam#).
 
-\section{Basic types}
+\section{Basic principles}
 
 The main type constructors and function provided by Bindlib are
 \begin{itemize}
-\item \verb#'a variable# represent a variable in the type \verb#'a#.
+\item \verb#'a var# represent a variable in the type \verb#'a#.
 \item \verb#('a,'b) binder# corresponds to a value of type \verb#'b# with one bound variable of type
   \verb#'a#
-\item \verb#subst : ('a, 'b) binder -> 'a -> 'b# performing
+\item \verb#subst : ('a,'b) binder -> 'a -> 'b# performing
   substitution of bound variables.
 \item \verb#'a bindbox# represent a term with free variables. This is
   the main concept to understand, because value of type
@@ -87,18 +87,17 @@ The main type constructors and function provided by Bindlib are
   bindlib provide the following functions to be able to build value of
   type \verb#'a bindbox#.
 
-\item \verb#new_var :   ('a variable -> 'a) -> string -> 'a variable#
+\item \verb#new_var :   ('a var -> 'a) -> string -> 'a var#
   creating a new variable from an initial name (that may change if
   necessary) and a function that we can ignore for now
     (it can often be \verb#fun _ -> assert false#).
 
-\item \verb#box_of_var : 'a variable -> 'a bindbox# to use a variable
+\item \verb#box_of_var : 'a var -> 'a bindbox# to use a variable
   inside a value of type \verb#'a#.
 
 \item
-  \verb#vbind : ('a variable -> 'a) -> 'a variable -> 'b bindbox -> ('a, 'b) binder bindbox#.
-  If we ignore as above the first function argument (which can often
-  be \verb#fun _ -> assert false#), \verb#vbind f v t# bind the
+  \verb#vbind : ('a var -> 'a) -> 'a var -> 'b bindbox -> ('a,b) binder bindbox#.\\
+  If we ignore as above the first function argument, \verb#vbind f v t# bind the
   variable \verb#v# in the term \verb#t#.
 
 \item Bindlib also provides a few function to use predefined OCaml
@@ -123,7 +122,7 @@ We first define the type of $\lambda$-terms as follows.
 type term =
   | App of term * term         (* application                 *)
   | Lam of (term, term) binder (* abstraction (i.e. function) *)
-  | Var of term variable       (* free variable               *)
+  | Var of term var            (* free variable               *)
 \end{verbatim}
 \end{quote}
 
@@ -144,25 +143,25 @@ let rec term_to_string = function
 The function \verb!fVar! is just a synonymous of the type constructor
 \verb!Var! that can be easily passed in argument to functions like
 \verb#new_var# or \verb#vbind# because it as the expected type
-\verb#term variable -> term#. We will see how it is use later ...
+\verb#term var -> term#. We will see how it is use later ...
 In this example, \verb!fVar! is not used and it is possible to
 replace it by \verb!(fun _ -> assert false)!.
 
 Printing application is immediate, just recursive calls. All cases not
 dealing with bindlib's type constructor should be straightforward. For
 variables, bindlib manages function name and renaming and provide a
-function \verb!name_of : 'a variable -> string! to get the variable name.
+function \verb!name_of : 'a var -> string! to get the variable name.
 
 For binder, one may use
 \begin{quote}
 \begin{verbatim}
-unbind : ('a, 'b) binder -> ('a variable -> 'a) -> 'a variable *'b
+unbind : ('a,'b) binder -> ('a var -> 'a) -> 'a var *'b
 \end{verbatim}
 \end{quote}
 % A natural question arises: what is the
 % role of the first argument of \verb!unbind!. It is mandatory when
-% constructing a value of type \verb!'a variable! to provide a function
-% of type \verb!'a variable -> 'a!, which is used when we need to
+% constructing a value of type \verb!'a var! to provide a function
+% of type \verb!'a var -> 'a!, which is used when we need to
 % consider the variable as an object of type \verb!'a!.
 
 The function \verb!let (x,t) = unbind fVar b in! could be replaced by the following lines:
@@ -178,7 +177,7 @@ let t = subst f (free_of x) in
 These lines use the following new functions:
 
 \begin{itemize}
-\item \verb#binder_name : ('a, 'b) binder -> string# to get the name
+\item \verb#binder_name : ('a,'b) binder -> string# to get the name
   of the bound variable that is kept and managed by bindlib.
 
 %\item \verb#new_var# is a function to create a new variable.
@@ -190,7 +189,7 @@ We can now reveal one of the use of the first argument of
 \verb#new_var#: \verb#free_of x# is equivalent to \verb#f x# when
 \verb#f# we use as first argument to create the variable.
 
-%\item \verb#subst : ('a, 'b) binder -> 'a -> 'b# is finally use to
+%\item \verb#subst : ('a,'b) binder -> 'a -> 'b# is finally use to
 %  substitute a value in place of the bound variable in \verb#f#.
 \end{itemize}
 
@@ -232,7 +231,7 @@ let lam : string -> (term bindbox -> term bindbox) -> term bindbox =
 Those \emph{smart constructors} are build using the following new functions:
 \begin{quote}
 \begin{verbatim}
-bind_var : 'a variable  -> 'b bindbox -> ('a, 'b) binder bindbox
+bind_var : 'a var  -> 'b bindbox -> ('a,'b) binder bindbox
 box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox#
 box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c
 \end{verbatim}
@@ -256,14 +255,14 @@ alternative version of \verb#lam#:
 \begin{verbatim}
 let lam : string -> (term bindbox -> term bindbox) -> term bindbox =
   fun name f -> box_apply (fun x -> Lam(x)) (bind fVar name f)
-let vlam : string -> (term variable -> term bindbox) -> term bindbox =
+let vlam : string -> (term var -> term bindbox) -> term bindbox =
   fun name f -> box_apply (fun x -> Lam(x)) (vbind fVar name f)
 \end{verbatim}
 \end{quote}
 
 Depending what we do when we construct a term, we might prefer
 the bound variables to be directly of type \verb#term bindbox# as in
-\verb#lam# or of type \verb#term variable# as in the latest definition.
+\verb#lam# or of type \verb#term var# as in the latest definition.
 
 Using these \emph{smart constructors}, we can start to define value of
 type term. We also need the function \verb#unbox : 'a bindbox -> 'a#
@@ -357,10 +356,10 @@ To access the name of variables, bindlib provides the following
 functions:
 
 \begin{itemize}
-\item \verb#name_of : 'a variable -> string# to access the name of a free
+\item \verb#name_of : 'a var -> string# to access the name of a free
   variable.
 
-\item \verb#binder_name : ('a, 'b) variable -> string# to access the
+\item \verb#binder_name : ('a,'b) var -> string# to access the
   name of a bound variable.
 \end{itemize}
 
@@ -389,7 +388,7 @@ To solve these problems, bindlib provides an abstract notion of context
 \begin{itemize}
 \item\verb#type ctxt# is  an abstract type.
 \item\verb#empty_ctxt : ctxt# is the initial empty context.
-\item\verb#new_var_in : ctxt -> ('a variable -> 'a) -> string -> 'a variable * ctxt#\\
+\item\verb#new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt#\\
   which is the same as \verb#new_var#, excep that it receives a
   context, renames the variable so the its name is not use in the
   context and returns a new context where this variable was added.
@@ -485,7 +484,7 @@ type symbol = { name : string ; arity : int }
 
 (* The type of first order terms. *)
 type term =
-  | Var of term variable
+  | Var of term var
   | Fun of symbol * term array
 
 (* The type of formulas. *)
@@ -497,14 +496,14 @@ type form =
   (* Second-order universal quantification. *)
   | Univ2 of int * (pred, form) binder
   (* Variable. *)
-  | FVari of pred variable * term array
+  | FVari of pred var * term array
 
 (* Predicate (implemented as a binder). *)
 and pred = (term, form) mbinder
 
-let fvar1 : term variable -> term = fun x -> Var x
+let fvar1 : term var -> term = fun x -> Var x
 
-let fvar2 : int -> pred variable -> pred = fun arity x ->
+let fvar2 : int -> pred var -> pred = fun arity x ->
   let vs = Array.init arity (Printf.sprintf "x%i") in
   let f xs = box_apply (fun y -> FVari(x,y)) (box_array xs) in
   unbox (mbind fvar1 vs f)
@@ -523,18 +522,18 @@ first argument of the constructor. For the second argument,
 variable. This variable is
 itself a \verb#mbinder#, this is why it is a ``second-order'' variable.
 
-\item \verb#FVari of pred variable * term array#: as usual
+\item \verb#FVari of pred var * term array#: as usual
 for any free variable, we have to store
-the variable itself of type \verb#pred variable#.
+the variable itself of type \verb#pred var#.
 But here, we should also store the terms which
 are the arguments of the second-order predicate variable.
 
-\item \verb#let fvar1 : term variable -> term = fun x -> Var x#: we introduce the
+\item \verb#let fvar1 : term var -> term = fun x -> Var x#: we introduce the
 function to construct first-order variable. Every time we will want to
 construct a first-order quantification, we will have to pass fvar1 to
 the binding function.
 
-\item \verb#mbind : ('a variable -> 'a) -> string array  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox# is
+\item \verb#mbind : ('a var -> 'a) -> string array  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox# is
   the main function to build multiple binder. The array of names give
   the name of the bound variables and the arity of this multiple binder.
 
@@ -639,7 +638,7 @@ bound variables.
 It is possible to use structural equality because a
 variable is a structure whose first field is a unique identifier. But
 you should be aware that one of the field of this structure is an ML
-closure (the function of type \verb#'a variable -> 'a# given when
+closure (the function of type \verb#'a var -> 'a# given when
 creating the variable).
 
 Now, we give the lifting functions (already mentioned about naming): very often, we have
@@ -682,7 +681,7 @@ type proof =
   | Forall1_elim of proof * term
   | Forall2_intro of int * (pred, proof) binder
   | Forall2_elim of proof * pred
-  | Axiom of form * proof variable
+  | Axiom of form * proof var
 
 let assume f x = Axiom(f,x)
 \end{verbatim}
@@ -808,27 +807,27 @@ To give the semantics, we will use the following convention:
 \begin{itemize}
 \item variables are structure of type
 
-\verb#'a variable = {id : int; name : string; f : 'a variable -> 'a}#
+\verb#'a var = {id : int; name : string; f : 'a var -> 'a}#
 
 that are produced only by a function
 
-\verb#new_var : ('a variable -> 'a) -> string -> 'a variable#
+\verb#new_var : ('a var -> 'a) -> string -> 'a var#
 
 which always generates fresh \verb#id#.
 
 \item We will use values written
  $\verb#unbox#_e$ where $e$ is an association list associating to a
- value of type \verb#'a variable# a value of type \verb#'a#.
+ value of type \verb#'a var# a value of type \verb#'a#.
 
-In fact $e$ has type $\verb#env# = \exists \verb#('a.'a variable * 'a) list#$.
+In fact $e$ has type $\verb#env# = \exists \verb#('a.'a var * 'a) list#$.
 
 This is not a valid ML type, but it could be coded in ML. However, we
 will use a search function \verb#assoc# (searching for variables)
-which should have type \verb#'a variable -> env -> 'a#
+which should have type \verb#'a var -> env -> 'a#
 which is not possible in  ML. However, in our case, this is type safe only because the same value can
-not have type \verb#'a variable# and \verb#'b variable# if
+not have type \verb#'a var# and \verb#'b var# if
 $\verb#'a# \neq \verb#'b#$. This is enforced because the type
-\verb#'a variable# is abstract.
+\verb#'a var# is abstract.
 
 \item Value of type \verb#ctxt# will be set of strings. We
   consider that we have a function
