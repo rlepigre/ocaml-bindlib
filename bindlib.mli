@@ -4,8 +4,7 @@
     an integer suffix can be added to avoid capture during
     substitution.
 
-    Author: Christophe Raffalli
-    Modified by: Rodolphe Lepigre
+    Author: Christophe Raffalli and Rodolphe Lepigre
 *)
 
 (** To build an abstract syntax tree using bindlib, one will need to make use
