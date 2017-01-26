@@ -8,7 +8,114 @@
  * Modified by: Rodolphe Lepigre                                            *
  ****************************************************************************)
 
-open Bindlib_util
+type any = Obj.t
+
+(* An environment is used to store the value of every bound variables. We
+   need to use Obj since bound variables may have different types and we
+   want to store them in a single array. *)
+module Env = struct
+  type t =
+    { tab          : any array (* An array with elements of any type. *)
+    ; mutable next : int }     (* Next free cell of the array. *)
+
+  (* Creates an empty environment of a given size. *)
+  let create : int -> t =
+    fun size ->
+      let dummy = Obj.repr () in
+      { tab = Array.make size dummy; next = 0 }
+
+  (* Sets the value stored at some position in the environment. *)
+  let set : t -> int -> 'a -> unit =
+    fun env i e -> Array.set env.tab i (Obj.repr e)
+
+  (* Gets the value stored at some position in the environment. *)
+  let get : int -> t -> 'a =
+    fun i env -> Obj.obj (Array.get env.tab i)
+
+  (* Make a copy of the environment. *)
+  let dup : t -> t =
+    fun env -> { tab = Array.copy env.tab; next = env.next }
+
+  (* Get next free cell index. *)
+  let next : t -> int =
+    fun env -> env.next
+
+  (* Set the next free cell index. *)
+  let set_next : t -> int -> unit =
+    fun env n -> env.next <- n
+end
+
+module IMap :
+  sig
+    type 'a t
+    val empty : 'a t
+    val add   : int -> 'a -> 'a t -> 'a t
+    val find  : int -> 'a t -> 'a
+  end =
+  struct
+    (** Maps over integers implemented as Patricia trees.
+        Copyright (C) 2000 Jean-Christophe FILLIATRE *)
+    type 'a t =
+      | Empty
+      | Leaf of int * 'a
+      | Branch of int * int * 'a t * 'a t
+    
+    let empty = Empty
+    
+    let rec mem k = function
+      | Empty -> false
+      | Leaf (j,_) -> k == j
+      | Branch (_, m, l, r) -> mem k (if k land m == 0 then l else r)
+    
+    let rec find k = function
+      | Empty -> raise Not_found
+      | Leaf (j,x) -> if k == j then x else raise Not_found
+      | Branch (_, m, l, r) -> find k (if k land m == 0 then l else r)
+    
+    let lowest_bit x = x land (-x)
+    
+    let branching_bit p0 p1 = lowest_bit (p0 lxor p1)
+    
+    let mask p m = p land (m-1)
+    
+    let join (p0,t0,p1,t1) =
+      let m = branching_bit p0 p1 in
+      if p0 land m == 0 then Branch (mask p0 m, m, t0, t1)
+      else Branch (mask p0 m, m, t1, t0)
+    
+    let match_prefix k p m = (mask k m) == p
+    
+    let add k x t =
+      let rec ins = function
+        | Empty                   -> Leaf (k,x)
+        | Leaf (j,_) as t         -> if j == k then Leaf (k,x)
+                                     else join (k, Leaf (k,x), j, t)
+        | Branch (p,m,t0,t1) as t ->
+            if match_prefix k p m then
+              if k land m == 0 then Branch (p, m, ins t0, t1)
+              else Branch (p, m, t0, ins t1)
+            else join (k, Leaf (k,x), p, t)
+      in ins t
+  end
+
+module SMap = Map.Make(
+  struct
+    type t = string
+    let compare = compare
+  end)
+
+let new_counter =
+  let c = ref 0 in
+  fun () ->
+    let fresh () = let n = !c in incr c; n in
+    let reset () = c := 0 in
+    (fresh, reset)
+
+let filter_map cond fn l =
+  let rec aux acc = function
+    | []   -> List.rev acc
+    | x::l -> if cond x then aux (fn x::acc) l else aux acc l
+  in aux [] l
 
 (* In the internals of bindlib, each variable is identified by a unique (int)
 key. Closures are then be formed by mapping free variables in an environment

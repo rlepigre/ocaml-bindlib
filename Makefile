@@ -8,41 +8,19 @@ REMOVE    = $(OCAMLFIND) remove
 
 all: bindlib.cma bindlib.cmxa
 
-## Ptmap module
-ptmap.cmi: ptmap.mli
+bindlib.cmi: bindlib.mli
 	$(OCAMLC) -c $<
 
-ptmap.cmo: ptmap.ml ptmap.cmi
+bindlib.cmo: bindlib.ml bindlib.cmi
 	$(OCAMLC) -c $<
 
-ptmap.cmx: ptmap.ml ptmap.cmi
+bindlib.cmx: bindlib.ml bindlib.cmi
 	$(OCAMLOPT) -c $<
 
-## Util
-
-bindlib_util.cmi: bindlib_util.mli ptmap.cmi
-	$(OCAMLC) -c $<
-
-bindlib_util.cmo: bindlib_util.ml bindlib_util.cmi
-	$(OCAMLC) -c $<
-
-bindlib_util.cmx: bindlib_util.ml bindlib_util.cmi
-	$(OCAMLOPT) -c $<
-
-## Bindlib
-bindlib.cmi: bindlib.mli bindlib_util.cmi
-	$(OCAMLC) -c $<
-
-bindlib.cmo: bindlib.ml bindlib.cmi bindlib_util.cmi
-	$(OCAMLC) -c $<
-
-bindlib.cmx: bindlib.ml bindlib.cmi bindlib_util.cmi
-	$(OCAMLOPT) -c $<
-
-bindlib.cma: ptmap.cmo bindlib_util.cmo bindlib.cmo
+bindlib.cma: bindlib.cmo
 	$(OCAMLC) -o $@ -a $^
 
-bindlib.cmxa: ptmap.cmx bindlib_util.cmx bindlib.cmx
+bindlib.cmxa: bindlib.cmx
 	$(OCAMLOPT) -o $@ -a $^
 
 ## Install
