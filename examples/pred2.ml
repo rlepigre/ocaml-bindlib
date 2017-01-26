@@ -23,6 +23,12 @@ type form =
 (* Predicate (implemented as a binder). *)
 and pred = (term, form) mbinder
 
+let imply = box_apply2 (fun f g -> Imply(f,g))
+
+let univ1 = box_apply (fun f -> Univ1 f)
+
+let univ2 arity = box_apply (fun f -> Univ2(arity,f))
+
 let fvar1 : term var -> term = fun x -> Var x
 
 let fvar2 : int -> pred var -> pred = fun arity x ->
@@ -135,14 +141,6 @@ let print_goal och hyps concl =
   List.iter (print_hyp och) hyps;
   output_string och "----------------------------------------\n";
   Printf.fprintf och " %a\n" print_form concl
-
-let assume f x = Axiom(f,x)
-
-let imply = box_apply2 (fun f g -> Imply(f,g))
-
-let univ1 = box_apply (fun f -> Univ1 f)
-
-let univ2 arity = box_apply (fun f -> Univ2(arity,f))
 
 let type_infer p =
   let ctxt = empty_ctxt in
