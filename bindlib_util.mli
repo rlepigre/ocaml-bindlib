@@ -4,7 +4,7 @@ module Env : sig
   type t
   val create : int -> t
   val set : t -> int -> 'a -> unit
-  val get : t -> int -> 'a
+  val get : int -> t -> 'a
   val dup : t -> t
   val next : t -> int
   val set_next : t -> int -> unit
@@ -45,7 +45,5 @@ module SMap : sig
 end
 
 val new_counter : unit -> (unit -> int) * (unit -> unit)
-
-val swap : ('a -> 'b -> 'c) -> 'b -> 'a -> 'c
 
 val filter_map : ('a -> bool) -> ('a -> 'b) -> 'a list -> 'b list

@@ -19,8 +19,8 @@ module Env = struct
     fun env i e -> Array.set env.tab i (Obj.repr e)
 
   (* Gets the value stored at some position in the environment. *)
-  let get : t -> int -> 'a =
-    fun env i -> Obj.obj (Array.get env.tab i)
+  let get : int -> t -> 'a =
+    fun i env -> Obj.obj (Array.get env.tab i)
 
   (* Make a copy of the environment. *)
   let dup : t -> t =
@@ -49,8 +49,6 @@ let new_counter =
     let fresh () = let n = !c in incr c; n in
     let reset () = c := 0 in
     (fresh, reset)
-
-let swap f a b = f b a
 
 let filter_map cond fn l =
   let rec aux acc = function

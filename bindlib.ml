@@ -185,7 +185,7 @@ let build_new_var name mkfree bindbox =
   { key = fresh_key () ; var_name = name ; prefix; suffix; mkfree; bindbox }
 
 let update_var_bindbox : 'a variable -> unit =
-  let mk_var x htbl = (swap Env.get) (fst (IMap.find x.key htbl)) in
+  let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in
   fun x -> x.bindbox <- Open([generalise_var x], 0, mk_var x)
 
 (* Create a new free variable using a wrapping function and a default name. *)
@@ -267,7 +267,7 @@ let fn_select table nsize esize pt v =
   let nv = Env.create esize in
   Env.set_next nv nsize;
   for i = 0 to nsize - 1 do
-    Env.set nv i (Env.get v table.(i))
+    Env.set nv i (Env.get table.(i) v)
   done;
   pt nv
 
@@ -698,7 +698,7 @@ let new_var_in ctxt mkfree name =
     { key = fresh_key () ; var_name ; prefix; suffix = new_suffix
     ; mkfree ; bindbox = dummy_bindbox }
   in
-  let mk_var x htbl = (swap Env.get) (fst (IMap.find x.key htbl)) in
+  let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in
   let result = Open([generalise_var var], 0, mk_var var) in
   var.bindbox <- result;
   (var, ctxt)
