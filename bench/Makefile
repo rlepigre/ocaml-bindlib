@@ -40,7 +40,7 @@ simple4: simple4.ml
 simple4opt: simple4.ml
 	$(CAMLO) $(OPTION) -o simple4opt simple4.ml
 
-bench: term simple1 simple2 simple3
+bench: term simple1 simple2 simple3 simple4
 
 benchopt: termopt simple1opt simple2opt simple3opt simple4opt
 

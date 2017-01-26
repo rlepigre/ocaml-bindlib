@@ -49,25 +49,23 @@ let print_term t =
 
 (* weak head normal form *)
 
-let rec whnf = function
-  App(t1,t2) as t0 -> (
-    match (whnf t1) with
-      Abs f -> whnf (subst f t2)
-    | t1' -> if t1' != t1 then App(t1', t2) else t0)
-| t -> t
-
 (* call by name normalisation *)
-let norm t = let rec fn t =
-  match whnf t with
-    Abs f ->
-      vabs (binder_name f) (fun x -> fn (subst f (FVar x)))
-  | t ->
-      let rec unwind = function
-	  FVar(x) -> box_of_var x
-	| App(t1,t2) -> app (unwind t1) (fn t2)
-	| t -> assert false
-      in unwind t
-in unbox (fn t)
+let norm t =
+  let rec fn t stack =
+  match t with
+  | App(t1,t2) -> fn t1 (t2::stack)
+  | Abs f as t0 -> (
+    match stack with
+    | t::stack -> fn (subst f t) stack
+    | [] ->
+       if binder_closed f then box t0 else
+         vabs (binder_name f) (fun x -> fn (subst f (FVar x)) []))
+  | FVar x ->
+      let rec unwind t1 = function
+	| [] -> t1
+	| t2::stack -> unwind (app t1 (fn t2 [])) stack
+      in unwind (box_of_var x) stack
+in unbox (fn t [])
 
 (* another call by name normalisation *)
 (* this time not using whnf, but using a stack *)
@@ -97,24 +95,6 @@ let tfalse = zero
 
 let ttrue =
   unbox(abs "f" (fun f -> abs "x" (fun x -> f)))
-
-let _ =
-    let print_bool b =
-      print_string (if b then "true" else "false") in
-    let is_binder_closed = function
-      Abs f ->  binder_closed f
-    | _ -> assert false in
-    print_string "check is_binder_closed";
-    print_newline ();
-    print_term idt; print_string " : ";
-    print_bool (is_binder_closed idt); print_newline ();
-    print_term tfalse; print_string " : ";
-    print_bool (is_binder_closed tfalse); print_newline ();
-    print_term ttrue; print_string " : ";
-    print_bool (is_binder_closed ttrue); print_newline ();
-    print_term (whnf (App(ttrue,idt))); print_string " : ";
-    print_bool (is_binder_closed  (whnf (App(ttrue,idt))));
-    print_newline ()
 
 let succ =
   unbox(abs "n" (fun n -> abs "f" (fun f ->
