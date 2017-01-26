@@ -91,10 +91,10 @@ let print_term, print_term' =
     | Dummy ->
       	print_string "!!!"
 
-in fn min_priority empty_context, fn min_priority
+in fn min_priority empty_ctxt, fn min_priority
 
 let print_pattern (lars, pat, res) =
-  let nv = empty_context in
+  let nv = empty_ctxt in
   let rec fn vars n nv =
     if n = 0 then vars, nv
     else

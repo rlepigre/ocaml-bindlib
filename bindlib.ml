@@ -140,15 +140,15 @@ type 'a bindbox =
   efficient substitution, producing a closure waiting for an environment.
   This means that the map of type varpos is used only once for each variable
   even if the term is used many times. *)
-  | Open of any variable list * int * (varpos -> Env.t -> 'a)
+  | Open of any var list * int * (varpos -> Env.t -> 'a)
 
 (* Type of a free variable of type ['a]. *)
-and 'a variable =
+and 'a var =
   { key             : int     (* Unique identifier. *)
-  ; var_name        : string  (* Name as a free variable. *)
+  ; var_name        : string  (* Name as a free var. *)
   ; prefix          : string  (* Prefix, i.e. name with no integer suffix. *)
   ; suffix          : int     (* Suffix, i.e. second part of the name. *)
-  ; mkfree          : 'a variable -> 'a (* Function to build a term. *)
+  ; mkfree          : 'a var -> 'a (* Function to build a term. *)
   ; mutable bindbox : 'a bindbox } (* Bindbox containing the variable. *)
 
 (* A function to apply a function under a bindbox. *)
@@ -158,29 +158,29 @@ let apply_in_box : ('a -> 'b) -> 'a bindbox -> 'b bindbox = fun f b ->
   | Open(vl,i,g) -> Open(vl,i,fun vp env -> f (g vp env))
 
 (* Obtain the name of a the given variable. *)
-let name_of : 'a variable -> string =
+let name_of : 'a var -> string =
   fun x -> x.var_name
 
 (* Safe comparison function for variables. *)
-let compare_variables : 'a variable -> 'b variable -> int =
+let compare_vars : 'a var -> 'b var -> int =
   fun x y -> y.key - x.key
-let eq_variables : 'a variable -> 'b variable -> bool =
+let eq_vars : 'a var -> 'b var -> bool =
   fun x y -> x.key = y.key
 
 (* Hash function for variables. *)
-let hash_var : 'a variable -> int =
+let hash_var : 'a var -> int =
   fun x -> Hashtbl.hash (`HVar, x.key)
 
 (* Build a term with a free variable from a variable. *)
-let free_of : 'a variable -> 'a =
+let free_of : 'a var -> 'a =
   fun x -> x.mkfree x
 
 (* Build a bindbox from a variable. *)
-let box_of_var : 'a variable -> 'a bindbox =
+let box_of_var : 'a var -> 'a bindbox =
   fun x -> x.bindbox
 
 (* Type of multi-variables of type ['a]. *)
-type 'a mvariable = 'a variable array
+type 'a mvar = 'a var array
 
 (* Type of a binder, i.e. an expression of type ['b] with a bound variable of
 type ['a]. *)
@@ -280,7 +280,7 @@ let merge_name : string -> int -> string = fun prefix suffix ->
 let fresh_key, reset_counter = new_counter ()
 
 (* Generalise the type of a variable to fit in a bindbox. *)
-let generalise_var : 'a variable -> any variable = Obj.magic
+let generalise_var : 'a var -> any var = Obj.magic
 
 (* Dummy bindbox to be used prior to initialisation. *)
 let dummy_bindbox : 'a bindbox =
@@ -291,23 +291,23 @@ let build_new_var name mkfree bindbox =
   let (prefix, suffix) = split_name name in
   { key = fresh_key () ; var_name = name ; prefix; suffix; mkfree; bindbox }
 
-let update_var_bindbox : 'a variable -> unit =
+let update_var_bindbox : 'a var -> unit =
   let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in
   fun x -> x.bindbox <- Open([generalise_var x], 0, mk_var x)
 
 (* Create a new free variable using a wrapping function and a default name. *)
-let new_var : ('a variable -> 'a) -> string -> 'a variable =
+let new_var : ('a var -> 'a) -> string -> 'a var =
   fun mkfree name ->
     let x = build_new_var name mkfree dummy_bindbox in
     update_var_bindbox x; x
 
 (* Same function for multi-variables. *)
-let new_mvar : ('a variable -> 'a) -> string array -> 'a mvariable =
+let new_mvar : ('a var -> 'a) -> string array -> 'a mvar =
   fun mkfree names -> Array.map (fun n -> new_var mkfree n) names
 
 (* Make a copy of a variable with a potentially different name and syntactic
 wrapper but with the same key. *)
-let copy_var : 'b variable -> string -> ('a variable -> 'a) -> 'a variable =
+let copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var =
   fun x name mkfree ->
     let y = new_var mkfree name in
     let r = { y with key = x.key } in
@@ -325,7 +325,7 @@ let is_closed = function
   | _        -> false
 
 (* List the name of the variables in a bindbox (for debugging). *)
-let list_variables = function
+let list_vars = function
   | Closed _     -> []
   | Open(vt,_,_) -> List.map (fun x -> x.var_name) vt
 
@@ -782,10 +782,10 @@ let box_opt = function
   | Some b -> box_apply (fun b -> Some b) b
 
 (* Type of a context. *)
-type context = int list SMap.t
+type ctxt = int list SMap.t
 
 (* The empty context. *)
-let empty_context = SMap.empty
+let empty_ctxt = SMap.empty
 
 (* Equivalent of [new_var] in a context. *)
 let new_var_in ctxt mkfree name =

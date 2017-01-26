@@ -38,7 +38,7 @@ module Make(Pts: PtsType) =
       |	Def of def
 
       | Goal of string
-      |	FVar of expr variable  (* used by normalize *)
+      |	FVar of expr var  (* used by normalize *)
 
     and def =
   	{ def_name : string;

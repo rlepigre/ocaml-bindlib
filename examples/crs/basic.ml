@@ -33,7 +33,7 @@ and term =
 
 | UVar of int * term array
 | PVar of string * term array
-| Var of term variable
+| Var of term var
 | Varint of int
 | Dummy
 

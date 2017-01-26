@@ -3,7 +3,7 @@ open Bindlib
 (* Abstract Syntax Tree of the pure λ-calculus using Bindlib variables and
 binders. *)
 type term =
-  | Var of term variable
+  | Var of term var
   | Lam of (term, term) binder
   | App of term * term
 

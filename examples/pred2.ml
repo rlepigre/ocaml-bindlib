@@ -6,7 +6,7 @@ type symbol = { name : string ; arity : int }
 
 (* The type of first order terms. *)
 type term =
-  | Var of term variable
+  | Var of term var
   | Fun of symbol * term array
 
 (* The type of formulas. *)
@@ -18,22 +18,22 @@ type form =
   (* Second-order universal quantification. *)
   | Univ2 of int * (pred, form) binder
   (* Variable. *)
-  | FVari of pred variable * term array
+  | FVari of pred var * term array
 
 (* Predicate (implemented as a binder). *)
 and pred = (term, form) mbinder
 
-let fvar1 : term variable -> term = fun x -> Var x
+let fvar1 : term var -> term = fun x -> Var x
 
-let fvar2 : int -> pred variable -> pred = fun arity x ->
+let fvar2 : int -> pred var -> pred = fun arity x ->
   let vs = Array.init arity (Printf.sprintf "x%i") in
   let f xs = box_apply (fun y -> FVari(x,y)) (box_array xs) in
   unbox (mbind fvar1 vs f)
 
-let unbind1 : (term, form) binder -> term variable * form =
+let unbind1 : (term, form) binder -> term var * form =
   unbind (fun x -> Var x)
 
-let unbind2 : int -> (pred, form) binder -> pred variable * form = fun a b ->
+let unbind2 : int -> (pred, form) binder -> pred var * form = fun a b ->
   unbind (fvar2 a) b
 
 (* Pretty-printers. *)
@@ -73,7 +73,7 @@ let eq_arrays : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool =
 
 let rec equal_term t u =
   match (t, u) with
-  | (Var(x)     , Var(y)     )              -> compare_variables x y = 0
+  | (Var(x)     , Var(y)     )              -> compare_vars x y = 0
   | (Fun(s1,ta1), Fun(s2,ta2)) when s1 = s2 -> eq_arrays equal_term ta1 ta2
   | _                                       -> false
 
@@ -87,7 +87,7 @@ let rec equal_form f g =
       let x = free_of (new_var (fvar2 a1) "") in
       equal_form (subst b1 x) (subst b2 x)
   | (FVari(x,a1), FVari(y,a2)) ->
-      compare_variables x y = 0 && eq_arrays equal_term a1 a2
+      compare_vars x y = 0 && eq_arrays equal_term a1 a2
   | _                          -> false
 
 (* Lifting functions. *)
@@ -115,7 +115,7 @@ type proof =
   | Univ1_e of proof * term
   | Univ2_i of int * (pred, proof) binder
   | Univ2_e of proof * pred
-  | Axiom   of form * proof variable
+  | Axiom   of form * proof var
 
 let imply_i = box_apply2 (fun p q -> Imply_i(p,q))
 let imply_e = box_apply2 (fun p q -> Imply_e(p,q))
@@ -145,7 +145,7 @@ let univ1 = box_apply (fun f -> Univ1 f)
 let univ2 arity = box_apply (fun f -> Univ2(arity,f))
 
 let type_infer p =
-  let ctxt = empty_context in
+  let ctxt = empty_ctxt in
   let rec fn hyps ctxt p =
     let r = match p with
       | Imply_i(f,p) ->

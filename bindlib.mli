@@ -12,10 +12,10 @@
 of the following types for variables and binders. *)
 
 (** Type of a variable of type ['a]. *)
-type 'a variable
+type 'a var
 
 (** Type of a multi-variable of type ['a]. *)
-type 'a mvariable = 'a variable array
+type 'a mvar = 'a var array
 
 (** Type of a binder for a variable of type ['a] in a term of type ['b']. *)
 type (-'a,+'b) binder
@@ -29,8 +29,8 @@ val subst  : ('a,'b) binder -> 'a -> 'b
 val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
 (** Variable creation functions. *)
-val new_var  : ('a variable -> 'a) -> string       -> 'a variable
-val new_mvar : ('a variable -> 'a) -> string array -> 'a mvariable
+val new_var  : ('a var -> 'a) -> string       -> 'a var
+val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
 
 
 
@@ -58,19 +58,19 @@ val mbinder_constant : ('a,'b) mbinder -> bool
 val mbinder_closed   : ('a,'b) mbinder -> bool
 
 (** Utility functions on variables. *)
-val name_of  : 'a variable -> string
-val free_of  : 'a variable -> 'a
-val hash_var : 'a variable -> int
+val name_of  : 'a var -> string
+val free_of  : 'a var -> 'a
+val hash_var : 'a var -> int
 
 (** Safe comparision of variables. *)
-val compare_variables : 'a variable -> 'b variable -> int
-val eq_variables : 'a variable -> 'b variable -> bool
+val compare_vars : 'a var -> 'b var -> int
+val eq_vars : 'a var -> 'b var -> bool
 
 (** Creates a copy of the given variable that is not distinguishable from the
 original when bound. However, when it is free (that is not bound when calling
 unbox), it might be made free in a different way. For instance, its name or
 syntactic wrapper may be different. *)
-val copy_var : 'b variable -> string -> ('a variable -> 'a) -> 'a variable
+val copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var
 
 
 (** To work with term containing free variables (that might be bound at some
@@ -83,8 +83,8 @@ type (+'a) bindbox
 function [unbox] need to be called in order to obtain the built expression. *)
 val unbox : 'a bindbox -> 'a
 
-(** Build a ['a bindbox] from a ['a variable]. *)
-val box_of_var : 'a variable -> 'a bindbox
+(** Build a ['a bindbox] from a ['a var]. *)
+val box_of_var : 'a var -> 'a bindbox
 
 (** Put a term into a bindbox. None of the variables of the given term (if any)
 will be considered free. Hence no variables of the term will be available for
@@ -100,8 +100,8 @@ val apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
 has no free variables, and [false] otherwise. *)
 val is_closed : 'a bindbox -> bool
 
-(** Test if a given ['a variable] occur in a given ['b bindbox]. *)
-val occur : 'a variable -> 'b bindbox -> bool
+(** Test if a given ['a var] occur in a given ['b bindbox]. *)
+val occur : 'a var -> 'b bindbox -> bool
 
 (** Dummy bindbox to be used in uninitialised structures (e.g. array creation).
 If [unbox] is called on a data structure containing a [dummy_bindbox] then the
@@ -109,23 +109,23 @@ exception [Failure "Invalid use of dummy_bindbox"] is raised. *)
 val dummy_bindbox : 'a bindbox
 
 (** Building of binders. *)
-val bind  : ('a variable -> 'a) -> string -> ('a bindbox -> 'b bindbox)
+val bind  : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
   -> ('a,'b) binder bindbox
-val mbind : ('a variable -> 'a) -> string array
+val mbind : ('a var -> 'a) -> string array
   -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
 (** Building of binders. *)
-val vbind  : ('a variable -> 'a) -> string -> ('a variable -> 'b bindbox)
+val vbind  : ('a var -> 'a) -> string -> ('a var -> 'b bindbox)
   -> ('a,'b) binder bindbox
-val mvbind : ('a variable -> 'a) -> string array
-  -> ('a variable array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+val mvbind : ('a var -> 'a) -> string array
+  -> ('a var array -> 'b bindbox) -> ('a,'b) mbinder bindbox
 
 (** Breaking binders. *)
-val unbind : ('a variable -> 'a) -> ('a,'b) binder -> 'a variable * 'b
-val unmbind : ('a variable -> 'a) -> ('a,'b) mbinder -> 'a mvariable * 'b
+val unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b
+val unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b
 
 (** Variable binding. *)
-val bind_var  : 'a variable  -> 'b bindbox -> ('a, 'b) binder bindbox
-val bind_mvar : 'a mvariable -> 'b bindbox -> ('a, 'b) mbinder bindbox
+val bind_var  : 'a var  -> 'b bindbox -> ('a, 'b) binder bindbox
+val bind_mvar : 'a mvar -> 'b bindbox -> ('a, 'b) mbinder bindbox
 
 
 (** The following functions can be written using [box] and [apply_box]. Here,
@@ -210,32 +210,30 @@ a type for contexts together with functions for creating variables and binding
 variables in a context. *)
 
 (** Type of a context. *)
-type context
+type ctxt
 
 (** Empty context. *)
-val empty_context : context
+val empty_ctxt : ctxt
 
 (** Fresh variable creation in a context (corresponds to [new_var]). *)
-val new_var_in : context -> ('a variable -> 'a) -> string
-  -> 'a variable * context
+val new_var_in : ctxt -> ('a var -> 'a) -> string
+  -> 'a var * ctxt
 
 (** Similar function for multi-variables. *)
-val new_mvar_in : context -> ('a variable -> 'a) -> string array
-  -> 'a mvariable * context
+val new_mvar_in : ctxt -> ('a var -> 'a) -> string array
+  -> 'a mvar * ctxt
 
 (** Breaking binders. *)
-val unbind_in : context -> ('a variable -> 'a) -> ('a,'b) binder ->
-                 'a variable * 'b * context
-val unmbind_in : context -> ('a variable -> 'a) -> ('a,'b) mbinder ->
-                 'a mvariable * 'b * context
+val unbind_in  : ctxt -> ('a var -> 'a) -> ('a,'b)  binder -> 'a  var * 'b * ctxt
+val unmbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
 
 (** Binding operation in a context (corresponds to [bind]). *)
-val bind_in : context -> ('a variable -> 'a) -> string
-  -> ('a bindbox -> context -> 'b bindbox) -> ('a,'b) binder bindbox
+val bind_in : ctxt -> ('a var -> 'a) -> string
+  -> ('a bindbox -> ctxt -> 'b bindbox) -> ('a,'b) binder bindbox
 
 (** Similar function for multi-binders. *)
-val mbind_in : context -> ('a variable -> 'a) -> string array
-  -> ('a bindbox array -> context -> 'b bindbox) -> ('a,'b) mbinder bindbox
+val mbind_in : ctxt -> ('a var -> 'a) -> string array
+  -> ('a bindbox array -> ctxt -> 'b bindbox) -> ('a,'b) mbinder bindbox
 
 (** For debugging. *)
-val list_variables : 'a bindbox -> string list
+val list_vars : 'a bindbox -> string list

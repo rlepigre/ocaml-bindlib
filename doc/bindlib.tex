@@ -40,7 +40,7 @@ compilers or proof assistants. However, implementing the necessary primitives
 (mainly capture-avoiding substitution and renaming) is cumbersome. Moreover,
 the simplest implementations often result in poor performance, especially
 when a lot of substitutions are required. Bindlib aims at providing a library
-that enables both simplicity and efficiency. It provides high-level tools for
+that enables both simplicity and efficiency. It provides high-level tools to
 deal with binders, substitutions and free variables.
 
 This documentation is in two parts : an informal presentation
@@ -48,7 +48,7 @@ introducing each concept step by step illustrated with examples. Then,
 a more formal presentation in the appendix which includes the syntax
 and an equational semantics of the library.
 
-For our examples, we assume basic knowledge of the $\lambda$-calculus
+For our first example, we assume basic knowledge of the $\lambda$-calculus
 which is the simplest data structure with bound variables (Wikipedia
 has a good introduction on this topic). For the second example, we
 will give the required mathematical definitions.
@@ -73,12 +73,51 @@ $\lambda$-calculus) are provided in Bindlib's source directory (or in
 
 \section{Basic types}
 
-The main type constructor provided by Bindlib is \verb#('a,'b) binder#. It
-corresponds to a value of type \verb#'b# with one bound variable of type
-\verb#'a#. Intuitively, it is very similar to the type \verb#'a -> 'b# used
-when using higher-order abstract syntax. For free variables, bindlib provides
-a type \verb#'a variable# for free variable of type \verb#'a#. Using these
-types, we can define the type of $\lambda$-terms as follows.
+The main type constructors and function provided by Bindlib are
+\begin{itemize}
+\item \verb#'a variable# represent a variable in the type \verb#'a#.
+\item \verb#('a,'b) binder# corresponds to a value of type \verb#'b# with one bound variable of type
+  \verb#'a#
+\item \verb#subst : ('a, 'b) binder -> 'a -> 'b# performing
+  substitution of bound variables.
+\item \verb#'a bindbox# represent a term with free variables. This is
+  the main concept to understand, because value of type
+  \verb#('a,'b) binder# can not be constructed directly. On must
+  construct them with type \verb#('a,'b) binder bindbox#. Therefore,
+  bindlib provide the following functions to be able to build value of
+  type \verb#'a bindbox#.
+
+\item \verb#new_var :   ('a variable -> 'a) -> string -> 'a variable#
+  creating a new variable from an initial name (that may change if
+  necessary) and a function that we can ignore for now
+    (it can often be \verb#fun _ -> assert false#).
+
+\item \verb#box_of_var : 'a variable -> 'a bindbox# to use a variable
+  inside a value of type \verb#'a#.
+
+\item
+  \verb#vbind : ('a variable -> 'a) -> 'a variable -> 'b bindbox -> ('a, 'b) binder bindbox#.
+  If we ignore as above the first function argument (which can often
+  be \verb#fun _ -> assert false#), \verb#vbind f v t# bind the
+  variable \verb#v# in the term \verb#t#.
+
+\item Bindlib also provides a few function to use predefined OCaml
+  functions under the \verb#bindbox# type constructore like:
+  \begin{itemize}
+  \item
+    \verb#apply_box : ('a -> 'b) bindbox -> 'a bindbox -> `'b bindbox#
+  \item \verb#box : 'a -> 'a bindbox#
+  \item \verb#box_array : 'a bindbox array -> 'a array bindbox#
+  \item …
+  \end{itemize}
+\end{itemize}
+
+\section{How to use a data structure with variables ?}
+
+For now, we will analyse an exemple using a data structure with
+binders. We will therefore not need the \verb#bindbox# type constructor.
+
+We first define the type of $\lambda$-terms as follows.
 \begin{quote}
 \begin{verbatim}
 type term =
@@ -87,8 +126,6 @@ type term =
   | Var of term variable       (* free variable               *)
 \end{verbatim}
 \end{quote}
-
-\section{How to use a data structure with variables ?}
 
 Consider the following function to convert lambda-terms to string:
 
@@ -105,7 +142,11 @@ let rec term_to_string = function
 \end{quote}
 
 The function \verb!fVar! is just a synonymous of the type constructor
-\verb!Var! that can be easily passed in argument to functions.
+\verb!Var! that can be easily passed in argument to functions like
+\verb#new_var# or \verb#vbind# because it as the expected type
+\verb#term variable -> term#. We will see how it is use later ...
+In this example, \verb!fVar! is not used and it is possible to
+replace it by \verb!(fun _ -> assert false)!.
 
 Printing application is immediate, just recursive calls. All cases not
 dealing with bindlib's type constructor should be straightforward. For
@@ -118,14 +159,11 @@ For binder, one may use
 unbind : ('a, 'b) binder -> ('a variable -> 'a) -> 'a variable *'b
 \end{verbatim}
 \end{quote}
-A natural question arises: what is the
-role of the first argument of \verb!unbind!. It is mandatory when
-constructing a value of type \verb!'a variable! to provide a function
-of type \verb!'a variable -> 'a!, which is used when we need to
-consider the variable as an object of type \verb!'a!.
-
-In the above example, \verb!fVar! is not used and it is possible to
-replace it by \verb!(fun _ -> assert false)!.
+% A natural question arises: what is the
+% role of the first argument of \verb!unbind!. It is mandatory when
+% constructing a value of type \verb!'a variable! to provide a function
+% of type \verb!'a variable -> 'a!, which is used when we need to
+% consider the variable as an object of type \verb!'a!.
 
 The function \verb!let (x,t) = unbind fVar b in! could be replaced by the following lines:
 \begin{quote}
@@ -136,47 +174,49 @@ let t = subst f (free_of x) in
 \end{verbatim}
 \end{quote}
 
-These lines use the following functions:
+
+These lines use the following new functions:
 
 \begin{itemize}
 \item \verb#binder_name : ('a, 'b) binder -> string# to get the name
   of the bound variable that is kept and managed by bindlib.
 
-\item \verb#new_var# is a function to create a new variable.
-The name you give is only an indication, it might be changed by
-bindlib if necessary, but will be always kept as prefix.
+%\item \verb#new_var# is a function to create a new variable.
+%The name you give is only an indication, it might be changed by
+%bindlib if necessary, but will be always kept as prefix.
 
 \item \verb#free_of x# is in fact equivalent to \verb#fVar x#.
+We can now reveal one of the use of the first argument of
+\verb#new_var#: \verb#free_of x# is equivalent to \verb#f x# when
+\verb#f# we use as first argument to create the variable.
 
-\item \verb#subst : ('a, 'b) binder -> 'a -> 'b# is finally use to
-  substitute a value in place of the bound variable in \verb#f#.
+%\item \verb#subst : ('a, 'b) binder -> 'a -> 'b# is finally use to
+%  substitute a value in place of the bound variable in \verb#f#.
 \end{itemize}
 
 
 \section{How to construct a data structure with variables ?}
 
-To construct data structure with bound variables, we provide a new type
-\begin{center}
+To construct data structure with bound variables, we now need the
 \verb!'a bindbox!
-\end{center}
+type constructor.
 
-which is the type of a data structure of type \verb#'a# under
+\verb!'a bindbox! is the type of a data structure of type \verb#'a# under
 construction.
-In fact this type contructor defines a monad. If you do not know what
-a monad is just consider this is the notion of morphism associated to
-typed programming language. If you do not know what a morphism is,
-then just ignore this paragraph !
 
 Using a type \verb!'a bindbox! when constructing a data structure with
 bound variables is the main idea behind bindlib. As an approximation,
 you can view a value of type \verb!'a bindbox! as a pair with a set
-of bound variables, and a function that buid a value of type \verb!'a!
+of bound variables, and a function that builds a value of type \verb!'a!
 from the value of all these variabes.
 
 Working with \verb!'a bindbox! requires to lift the constructor to
 this type. Indeed, we need some kind of way to transform the
 \verb!App! constructor into a term of type
-\verb!'a bindbox -> 'a bindbox -> 'a bindbox!. The bindlib library
+\begin{center}
+  \verb!term bindbox -> term bindbox -> term bindbox!.
+\end{center}
+The bindlib library
 provide the necessary function to do that in a few lines:
 
 \begin{quote}
@@ -189,29 +229,21 @@ let lam : string -> (term bindbox -> term bindbox) -> term bindbox =
 \end{verbatim}
 \end{quote}
 
-Those \emph{smart constructors} are build using the following functions:
+Those \emph{smart constructors} are build using the following new functions:
 \begin{quote}
 \begin{verbatim}
-box : 'a -> 'a bindbox
-apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
 bind_var : 'a variable  -> 'b bindbox -> ('a, 'b) binder bindbox
 box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox#
 box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c
 \end{verbatim}
 \end{quote}
 
-Remark: it you are used to monad, \verb#box# and \verb#apply_box# are
-the \verb#return# and \verb#bind# operation of the monad. We did not
-use the name \verb#bind# ... Because this name is not appropriate
-here. This means that \verb#box_apply# and \verb#box_apply2# can
-easily be defined from \verb#box# and \verb#apply_box#.
-
 The key function to bind variables is \verb#bind_var#. Two short cuts
 are provided:
 \begin{quote}
 \begin{verbatim}
 let bind fv name f =
-  let v = new_var fVar name in bind_var v (f (free_of v))
+  let v = new_var fVar name in bind_var v (f (box_of_var v))
 let vbind fv name f =
   let v = new_var fVar name in bind_var v (f v)
 \end{verbatim}
@@ -230,7 +262,7 @@ let vlam : string -> (term variable -> term bindbox) -> term bindbox =
 \end{quote}
 
 Depending what we do when we construct a term, we might prefer
-the bound variable to be directly of type \verb#term bindbox# as in
+the bound variables to be directly of type \verb#term bindbox# as in
 \verb#lam# or of type \verb#term variable# as in the latest definition.
 
 Using these \emph{smart constructors}, we can start to define value of
@@ -316,19 +348,11 @@ digits.
 
 Example: in \verb#"toto0"# the suffix is \verb#"0"#.
 
-To choose the initial name of a variable, you use the \verb#"as"#
-keyword in
+To choose the initial name of a variable, you passe it to
+\verb#new_var#, \verb#bind# or \verb#vbind# as second argument.
 
-\begin{verbatim}
-letvar f x as name in t
-\end{verbatim}
-
-This means that \verb#name_of x# will return \verb#name#. However,
-when binding \verb#x# using \verb#bindvar x in u#, the suffix of
-the name may be changed to avoid name conflict. In
-\verb#letvar f x in t#, the default name for \verb#x# will be
-\verb#"x"# (that is the string build from the name of the identifier).
-
+When binding \verb#x# using \verb#bind_var v t#, the suffix of
+the name may be changed to avoid name conflict.
 To access the name of variables, bindlib provides the following
 functions:
 
@@ -338,10 +362,6 @@ functions:
 
 \item \verb#binder_name : ('a, 'b) variable -> string# to access the
   name of a bound variable.
-
-\item \verb#match t with bind f x in u -> ...#: if
- \verb#t : ('a, 'b) binder#, then we have \verb#x# of type \verb#'a variable# and
- \verb#name_of x# will return the same value as \verb#binder_name t#.
 \end{itemize}
 
 Using bindlib you are sure that bound variables are renamed to avoid
@@ -367,16 +387,14 @@ To solve these problems, bindlib provides an abstract notion of context
  which are ``sets'' of free variables which should have
  distinct names.
 \begin{itemize}
-\item\verb#type context# is  an abstract type.
-\item\verb#empty_context : context# is the initial empty context.
-\item\verb#letvar f x as name for ctxt in ...# The argument of \verb#for# must be an Ocaml
-identifier of type \verb#context#. The name given with \verb#as name#
-may be changed (only the suffix is changed) into a name not already in
-\verb#ctxt#. Then, the identifier  \verb#ctxt# is rebound, under the
-scope of \verb#letvar#, to an extended context containing the new variable name.
-
-This construct can also
-be used with the \verb#bind f x as name for ctxt in ...# camlp4 extension.
+\item\verb#type ctxt# is  an abstract type.
+\item\verb#empty_ctxt : ctxt# is the initial empty context.
+\item\verb#new_var_in : ctxt -> ('a variable -> 'a) -> string -> 'a variable * ctxt#\\
+  which is the same as \verb#new_var#, excep that it receives a
+  context, renames the variable so the its name is not use in the
+  context and returns a new context where this variable was added.
+\item there exists also two variant of \verb#bind# and \verb#vbind#
+  named \verb#bind_in# and \verb#vbind_in#
 \end{itemize}
 
 This fixes point (1). For the two other points, there are two solutions,
@@ -386,28 +404,17 @@ variable, even is the later does not occur in the scope of the
 former).
 
 If you want to follow Barendregt convention, this is easy, your
-printing functions should use a \verb#context# as in:
+printing functions should use a \verb#ctxt# as in:
 
 \begin{verbatim}
-let rec print_term ctxt = function
-  App(t1,t2) ->
-    print_string "(";
-    print_term ctxt t1;
-    print_string " ";
-    print_term ctxt t2;
-    print_string ")"
-| Abs f ->
-    match f with bind fVar x for ctxt in t ->
-      print_string "fun ";
-      print_string (name_of x);
-      print_string " ";
-      print_term ctxt t
-| FVar(v) ->
-    print_string (name_of v)
+let rec term_to_string ctxt = function
+  | Var x    -> name_of x
+  | Lam b    -> let (x,t,ctxt) = unmbind ctxt fVar b in
+                "\\" ^ (name_of x) ^ (term_to_string ctxt t)
+  | App(t,u) -> (term_to_string ctxt t) ^ "(" ^ (term_to_string ctxt u) ^ ")"
 \end{verbatim}
 
-If you prefer minimal renaming (which is required when you really want
-to refer to names of bound variables), you have nothing to do if you are
+If you prefer minimal renaming, you have nothing to do if you are
 certain that no substitution have been performed. Otherwise, you need
 what I call a ``lifting'' function to copy the data structure before
 printing as in the following example:
@@ -718,7 +725,7 @@ Here is the code that we will explain bellow:
 exception Bad_proof of string
 
 let type_infer p =
-  let ctxt = empty_context in
+  let ctxt = empty_ctxt in
   let rec fn hyps ctxt p =
     let r = match p with
       Imply_intro(f,p) ->
@@ -823,9 +830,9 @@ not have type \verb#'a variable# and \verb#'b variable# if
 $\verb#'a# \neq \verb#'b#$. This is enforced because the type
 \verb#'a variable# is abstract.
 
-\item Value of type \verb#context# will be set of strings. We
+\item Value of type \verb#ctxt# will be set of strings. We
   consider that we have a function
-\verb#fresh : string -> context -> string * context# such that
+\verb#fresh : string -> ctxt -> string * ctxt# such that
 $\verb#fresh#\,s\,c = s',c'$ where \verb#s'# is not member of $c$,
 has the same prefix that $s$ (only the numerical suffix of
 $s$ is

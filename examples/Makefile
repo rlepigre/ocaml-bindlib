@@ -28,9 +28,9 @@ translate: translate.ml
 
 ## Clean
 clean:
-	- rm -f *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
+	- rm -f *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a lambda\
+             pred2 unif translate hash_lambda
 	make -C pts clean
 	make -C crs clean
 
 distclean: clean
-	- rm -f lambda pred2 unif translate hash_lambda

@@ -8,7 +8,7 @@ open Bindlib
 *)
 
 type term1 =
-  | Var1 of term1 variable
+  | Var1 of term1 var
   | App1 of term1 * term1
   | Lam1 of (term1, term1) binder
 
@@ -18,7 +18,7 @@ let app1 = box_apply2 (fun t u -> App1(t,u))
 let lam1 name f = box_apply (fun f -> Lam1 f) (vbind safe_mkvar1 name f)
 
 type term2 =
-  | Var2 of term2 variable
+  | Var2 of term2 var
   | App2 of term2 * term2
   | Lam2 of (term2, term2) binder
 
@@ -69,7 +69,7 @@ let is_idt2 t = match t with
   | Lam2 f -> let (x,t) = unbind mkvar2 f in
               let t = subst f (Var2 x) in
               (match t with
-              | Var2 y -> eq_variables x y
+              | Var2 y -> eq_vars x y
               | _ -> false)
   | _ -> false
 

@@ -19,7 +19,7 @@ type term =
 | UCst of int * sort
 | UVar of value ref
 
-| FVar of term variable * sort
+| FVar of term var * sort
 
 and value = Unknown of sort | Known of term
 
