@@ -18,6 +18,5 @@ filter: filter.ml
 	ocamlopt -o $@ -I .. bindlib.cmxa $<
 
 clean:
-	- rm -f *~ *.o *.cmx *.cmi *.cmo *.aux *.log filter
+	- rm -f *~ *.o *.cmx *.cmi *.cmo *.aux *.log *.toc filter
 	- rm -rf .build
-	rubber --pdf --clean bindlib.tex
