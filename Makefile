@@ -35,6 +35,8 @@ install: all uninstall
 clean:
 	- rm -rf *.cmi *.cmx *.cmo *.cma *.cmxa *.o *.a
 	make -C examples clean
+	make -C bench clean
+	make -C doc clean
 
 distclean: clean
 	- rm README.html html/*
@@ -43,13 +45,17 @@ distclean: clean
 URLSSH=lama.univ-savoie.fr:WWW/bindlib
 URL=https://lama.univ-savoie.fr/~raffalli/bindlib
 
-doc: README.html
+doc: all README.html
 	ocamldoc -t "Bindlib" -keep-code -html -d html bindlib.mli
 	mv html/index.html html/main.html
 	cp README.html html/index.html
-	make -C doc
+	make -C doc bindlib.pdf
 
-tar: distclean doc
+tests:
+	make -C examples
+	make -C bench check
+
+tar: doc distclean
 	cd ../bindlib_tar; darcs pull; make all distclean
 	cd ..; tar cvfz bindlib-$(VERSION).tar.gz --exclude=_darcs --transform "s,bindlib_tar,bindlib-$(VERSION),"  bindlib_tar
 

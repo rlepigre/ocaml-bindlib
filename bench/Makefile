@@ -53,4 +53,5 @@ check: benchopt
 
 clean:
 	- rm *.cmx *.cmo *.cmi *.o *.cma *.cmxa *.a *~ term termopt \
-	simple1 simple1opt simple2 simple2opt simple3 simple3opt nvterm nvtermopt \#*\#
+	simple1 simple1opt simple2 simple2opt simple3 \
+        simple3opt simple4 simple4opt nvterm nvtermopt \#*\#
