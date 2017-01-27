@@ -56,7 +56,7 @@ tests:
 	make -C bench check
 
 tar: doc distclean
-	cd ../bindlib_tar; darcs pull; make all distclean
+	cd ../bindlib_tar; darcs pull; make all doc distclean
 	cd ..; tar cvfz bindlib-$(VERSION).tar.gz --exclude=_darcs --transform "s,bindlib_tar,bindlib-$(VERSION),"  bindlib_tar
 
 distrib: distclean tar
