@@ -340,7 +340,7 @@ let box : 'a -> 'a bindbox =
 (* Find a non-colliding suffix given a list of variables keys with name
 collisions, the hashtable containing the corresponding suffixes (and the
 positioning in the environment of the variables), and a prefered suffix. *)
-let get_suffix : type a. any var list -> varpos -> a var -> int =
+let get_suffix : 'a. any var list -> varpos -> 'a var -> int =
   fun vt htbl x ->
   let eq_pref (y:'a var) = x.prefix = y.prefix in
   let cols = filter_map eq_pref (fun (v:'a var) -> v.key) vt in
@@ -477,7 +477,7 @@ let mk_mute_bind vt (x:'a var) pos pt htbl =
   fn_mute_bind pt pos (merge_name x.prefix x.suffix)
 
 (* Binds the given variable in the given bindbox to produce a binder. *)
-let bind_var : type a b. a var -> b bindbox -> (a, b) binder bindbox =
+let bind_var : 'a 'b. 'a var -> 'b bindbox -> ('a, 'b) binder bindbox =
   fun x -> function
   | Closed t ->
      Closed {name = merge_name x.prefix x.suffix;
@@ -486,7 +486,7 @@ let bind_var : type a b. a var -> b bindbox -> (a, b) binder bindbox =
      try
        match vs with
        | [y] -> if x.key <> y.key then raise Not_found;
-                Closed (mk_first_bind (x:a var) (nb + 1) t)
+                Closed (mk_first_bind x (nb + 1) t)
        | _   -> let vt = search x vs in
                 let pos = List.length vt in
                 Open(vt, nb + 1, mk_bind vt x pos t)
