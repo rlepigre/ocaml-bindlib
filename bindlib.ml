@@ -122,9 +122,7 @@ key. Closures are then be formed by mapping free variables in an environment
 represented using an array. The type [varpos] provides hashtables associating
 each variable a couple of its index in the environment and the integer suffix
 of its name (used for renaming in capture-avoiding substitution). *)
-type lstring = string Lazy.t
-type lint = int Lazy.t
-type varpos = (int * lint) IMap.t
+type varpos = (int * int) IMap.t
 
 (* Type of a term of type ['a] containing free variables. *)
 type 'a bindbox =
@@ -148,7 +146,7 @@ type 'a bindbox =
 and 'a var =
   { key             : int     (* Unique identifier. *)
   ; prefix          : string  (* Name as a free var. *)
-  ; suffix          : lint    (* Prefix, with integer suffix. *)
+  ; suffix          : int    (* Prefix, with integer suffix. *)
   ; mkfree          : 'a var -> 'a (* Function to build a term. *)
   ; mutable bindbox : 'a bindbox } (* Bindbox containing the variable. *)
 
@@ -161,14 +159,12 @@ let apply_in_box : ('a -> 'b) -> 'a bindbox -> 'b bindbox = fun f b ->
 (* Merge a prefix and a suffix to form a name. *)
 let merge_name : string -> int -> string = fun prefix suffix ->
   if suffix >= 0 then prefix ^ (string_of_int suffix) else prefix
-let lmerge_name prefix suffix =
-  Lazy.from_fun (fun () -> merge_name prefix (Lazy.force suffix))
 
 (* Obtain the name of a the given variable. *)
 let name_of : 'a var -> string =
-  fun x -> merge_name x.prefix (Lazy.force x.suffix)
-let lname_of : 'a var -> lstring =
-  fun x -> lmerge_name x.prefix x.suffix
+  fun x -> merge_name x.prefix x.suffix
+let prefix_of : 'a var -> string =
+  fun x -> x.prefix
 
 (* Safe comparison function for variables. *)
 let compare_vars : 'a var -> 'b var -> int =
@@ -194,14 +190,14 @@ type 'a mvar = 'a var array
 (* Type of a binder, i.e. an expression of type ['b] with a bound variable of
 type ['a]. *)
 type ('a,'b) binder =
-  { name  : lstring    (* Name of the bound variable. *)
-  ; bind  : bool       (* Does the variable occur? *)
-  ; rank  : int        (* Number of remaining free variables (>= 0). *)
-  ; value : 'a -> 'b } (* Substitution function. *)
+  { name   : string     (* Name of the bound variable. *)
+  ; bind   : bool       (* Does the variable occur? *)
+  ; rank   : int        (* Number of remaining free variables (>= 0). *)
+  ; value  : 'a -> 'b } (* Substitution function. *)
 
 (* Obtain the name of the bound variable. *)
 let binder_name : ('a,'b) binder -> string =
-  fun b -> Lazy.force b.name
+  fun b -> b.name
 
 (* Substitution function (simply an application!). *)
 let subst : ('a,'b) binder -> 'a -> 'b =
@@ -227,17 +223,19 @@ let binder_rank : ('a,'b) binder -> int =
 let binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder =
   fun f b ->
     let v x = b.value (f x) in
-    { name = b.name ; bind = b.bind ; rank = b.rank ; value = v }
+    { name = b.name ;
+      bind = b.bind ; rank = b.rank ; value = v }
 
 let binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder =
   fun b f ->
     let v x = f (b.value x) in
-    { name = b.name ; bind = b.bind ; rank = b.rank ; value = v }
+    { name = b.name ;
+      bind = b.bind ; rank = b.rank ; value = v }
 
 (* Type of a multi-binder (binding n variables at once). It is an expression
 of type ['b] with n bound variables of type ['a]. *)
 type ('a,'b) mbinder =
-  { names  : lstring array    (* Names of the bound variables. *)
+  { names  : string array     (* Names of the bound variables. *)
   ; binds  : bool array       (* Do the variables occur? *)
   ; ranks  : int              (* Number of remaining free variables. *)
   ; values : 'a array -> 'b } (* Substitution function. *)
@@ -246,9 +244,8 @@ type ('a,'b) mbinder =
 let mbinder_arity : ('a,'b) mbinder -> int =
   fun mb -> Array.length mb.names
 
-(* Get the names of the bound variables. *)
 let mbinder_names : ('a,'b) mbinder -> string array =
-  fun mb -> Array.map Lazy.force mb.names
+  fun mb -> mb.names
 
 (* The substitution function (again just an application). *)
 let msubst : ('a,'b) mbinder -> 'a array -> 'b =
@@ -279,7 +276,8 @@ let split_name : string -> string * int = fun name ->
   while !p >= 0 && digit name.[!p] do decr p done;
   let p = !p + 1 in
   if p = n || p = 0 then (name, (-1))
-  else (String.sub name 0 p, int_of_string (String.sub name p (n - p)))
+  else (String.sub name 0 p,
+        int_of_string (String.sub name p (n - p)))
 
 (* We need a counter to have fresh keys for variables. *)
 let fresh_key, reset_counter = new_counter ()
@@ -293,8 +291,8 @@ let dummy_bindbox : 'a bindbox =
 
 (* Function for building a variable structure with a fresh key. *)
 let build_new_var name mkfree bindbox =
-  let prefix, s = split_name name in
-  { key = fresh_key () ; prefix; suffix = Lazy.from_val s ; mkfree; bindbox }
+  let prefix, suffix = split_name name in
+  { key = fresh_key () ; prefix; suffix ; mkfree; bindbox }
 
 let update_var_bindbox : 'a var -> unit =
   let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in
@@ -342,19 +340,18 @@ let box : 'a -> 'a bindbox =
 (* Find a non-colliding suffix given a list of variables keys with name
 collisions, the hashtable containing the corresponding suffixes (and the
 positioning in the environment of the variables), and a prefered suffix. *)
-let get_suffix vt htbl x =
-  Lazy.from_fun (fun () ->
-      let eq_pref y = x.prefix = y.prefix in
-      let cols = filter_map eq_pref (fun v -> v.key) vt in
-      let suffix = Lazy.force x.suffix in
-      let l = List.map (fun key -> Lazy.force (snd (IMap.find key htbl))) cols in
-      let l = List.sort (-) l in
-      let rec search suffix = function
-        | x::l when x < suffix -> search suffix l
-        | x::l when x = suffix -> search (suffix+1) l
-        | _                    -> suffix
-      in
-      search suffix l)
+let get_suffix : type a. any var list -> varpos -> a var -> int =
+  fun vt htbl x ->
+  let eq_pref (y:'a var) = x.prefix = y.prefix in
+  let cols = filter_map eq_pref (fun (v:'a var) -> v.key) vt in
+  let l = List.map (fun key -> snd (IMap.find key htbl)) cols in
+  let l = List.sort (-) l in
+  let rec search suffix = function
+    | x::l when x < suffix -> search suffix l
+    | x::l when x = suffix -> search (suffix+1) l
+    | _                    -> suffix
+  in
+  search x.suffix l
 
 (* Merge two sorted list of variables without repetition into a sorted list
 without repetition. *)
@@ -377,7 +374,7 @@ let search x l =
   in
   fn [] l
 
-(* Transforms a "closure" so that a space is reserved for only for
+(* Transforms a "closure" so that a space is reserved only for
    the occuring variables. *)
 let fn_select table nsize esize pt v =
   let nv = Env.create esize in
@@ -431,7 +428,7 @@ let unbox : 'a bindbox -> 'a = function
       let aux htbl var =
         let i = !cur in incr cur;
         Env.set env i (var.mkfree var);
-        let suffix = Lazy.from_fun (fun () -> snd (split_name (name_of var))) in
+        let suffix = snd (split_name (name_of var)) in
         IMap.add var.key (i, suffix) htbl
       in
       let htbl = List.fold_left aux IMap.empty vt in
@@ -447,7 +444,7 @@ let value_first_bind esize pt arg =
 let mk_first_bind x esize pt =
   let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
   let pt = pt htbl in
-  { name = lmerge_name x.prefix x.suffix; rank = 0; bind = true
+  { name = merge_name x.prefix x.suffix; rank = 0; bind = true
   ; value = value_first_bind esize pt }
 
 (* Build a normal binder (the default case) *)
@@ -465,31 +462,31 @@ let fn_bind pt pos name v =
 
 let mk_bind vt x pos pt htbl =
   let suffix = get_suffix vt htbl x in
-  let name = lmerge_name x.prefix suffix in
   let htbl = IMap.add x.key (pos, suffix) htbl in
   let pt = pt htbl in
-  fn_bind pt pos name
+  fn_bind pt pos (merge_name x.prefix suffix)
 
 (* Build a normal binder for a non occuring variable *)
 let value_mute_bind pt v arg = pt v
 
-let fn_mute_bind name pos pt v =
+let fn_mute_bind pt pos name v =
   { name; rank = pos; bind = false; value = value_mute_bind pt v }
 
-let mk_mute_bind vt x pos pt htbl =
+let mk_mute_bind vt (x:'a var) pos pt htbl =
   let pt = pt htbl in
-  let name = lmerge_name x.prefix (get_suffix vt htbl x) in
-  fn_mute_bind name pos pt
+  fn_mute_bind pt pos (merge_name x.prefix x.suffix)
 
 (* Binds the given variable in the given bindbox to produce a binder. *)
-let bind_var x = function
+let bind_var : type a b. a var -> b bindbox -> (a, b) binder bindbox =
+  fun x -> function
   | Closed t ->
-     Closed {name = lname_of x; rank = 0; bind = false; value = fun _ -> t}
+     Closed {name = merge_name x.prefix x.suffix;
+             rank = 0; bind = false; value = fun _ -> t}
   | Open(vs,nb,t) ->
      try
        match vs with
        | [y] -> if x.key <> y.key then raise Not_found;
-                Closed (mk_first_bind x (nb + 1) t)
+                Closed (mk_first_bind (x:a var) (nb + 1) t)
        | _   -> let vt = search x vs in
                 let pos = List.length vt in
                 Open(vt, nb + 1, mk_bind vt x pos t)
@@ -541,45 +538,47 @@ let value_mbind arity binds pos pt v args =
     pt v
   end
 
-let fn_mbind names arity binds pos pt v =
-  { names; ranks = pos; binds; values = value_mbind arity binds pos pt v }
+let fn_mbind names binds pos pt v =
+  let arity = Array.length names in
+  { names; ranks = pos; binds;
+    values = value_mbind arity binds pos pt v }
 
 (* Auxiliary functions *)
-let mk_mbind vt vs keys pos pt htbl =
+let mk_mbind vt vs keys pt htbl =
+  let pos = List.length vt in
   let cur_pos = ref pos in
   let htbl = ref htbl in
-  let names = Array.make (Array.length vs) (Lazy.from_val "") in
+  let arity = Array.length vs in
+  let names = Array.make arity "" in
   let f i key =
     let suffix = get_suffix vt !htbl vs.(i) in
-    names.(i) <- lmerge_name vs.(i).prefix suffix;
+    names.(i) <- merge_name vs.(i).prefix suffix;
     if key >= 0 then
       (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
     else false
   in
   let binds = Array.mapi f keys in
-  let arity = Array.length names in
   let pt = pt !htbl in
-  fn_mbind names arity binds pos pt
+  fn_mbind names binds pos pt
 
 let value_mute_mbind arity pt v args =
   if arity <> Array.length args then
     raise (Invalid_argument "bad arity in msubst");
   pt v
 
-let fn_mute_mbind arity names binds pos pt v =
+let fn_mute_mbind names binds pos pt v =
+  let arity = Array.length names in
   {names; ranks = pos; binds; values = value_mute_mbind arity pt v}
 
-let mk_mute_mbind pos vt vs pt htbl =
-  let new_names = Array.make (Array.length vs) (Lazy.from_val "") in
-  let f i c =
-    let suffix = get_suffix vt htbl vs.(i) in
-    new_names.(i) <- lmerge_name vs.(i).prefix suffix
+let mk_mute_mbind vt vs pt htbl =
+  let pos = List.length vt in
+  let names = Array.map (fun v ->
+    let suffix = get_suffix vt htbl v in
+    merge_name v.prefix suffix) vs
   in
-  Array.iteri f vs;
-  let arity = Array.length new_names in
   let pt = pt htbl in
-  let binds = Array.map (fun _ -> false) new_names in
-  fn_mute_mbind arity new_names binds pos pt
+  let binds = Array.map (fun _ -> false) vs in
+  fn_mute_mbind names binds pos pt
 
 let value_first_mbind arity binds esize pt args =
   let v = Env.create esize in
@@ -598,29 +597,31 @@ let value_first_mbind arity binds esize pt args =
 let mk_first_mbind vt vs keys esize pt =
   let cur_pos = ref 0 in
   let htbl = ref IMap.empty in
-  let names = Array.make (Array.length vs) (Lazy.from_val "") in
+  let arity = Array.length vs in
+  let names = Array.make arity "" in
   let f i key =
     let suffix = get_suffix vt !htbl vs.(i) in
-    names.(i) <- lmerge_name vs.(i).prefix suffix;
+    names.(i) <- merge_name vs.(i).prefix suffix;
     if key >= 0 then
       (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
     else false
   in
   let binds = Array.mapi f keys in
-  let arity = Array.length names in
   let pt = pt !htbl in
-  {names; binds; ranks = 0; values = value_first_mbind arity binds esize pt}
+  {names; binds; ranks = 0;
+   values = value_first_mbind arity binds esize pt}
 
 (* Bind a multi-variable in a bindbox to produce a multi-binder. *)
 let bind_mvar vs = function
   | Closed t ->
-      let names = Array.map lname_of vs in
       let values args =
-        if Array.length names <> Array.length args then
+        if Array.length vs <> Array.length args then
           raise (Invalid_argument "bad arity in msubst");
         t
       in
-      let binds = Array.map (fun _ -> false) names in
+      let binds = Array.map (fun _ -> false) vs in
+      let names = Array.map (fun x ->
+                      merge_name x.prefix x.suffix) vs in
       Closed {names; ranks = 0; binds ; values}
   | Open(vt,nbt,t) ->
       let vt = ref vt in
@@ -637,15 +638,13 @@ let bind_mvar vs = function
         with Not_found ->
           keys.(i) <- -1
       done;
-      if !vt = [] then
+      let vt = !vt in
+      if vt = [] then
         Closed(mk_first_mbind [] vs keys !nnbt t)
       else if !nnbt = nbt then
-        let vt = !vt in
-        Open(vt,nbt,mk_mute_mbind (List.length vt) vt vs t)
+        Open(vt,nbt,mk_mute_mbind vt vs t)
       else
-        let vt = !vt in
-        let pos = List.length vt in
-        Open(vt,!nnbt,mk_mbind vt vs keys pos t)
+        Open(vt,!nnbt,mk_mbind vt vs keys t)
 
 (* Take a function of type ['a bindbox array -> 'b bindbox] and builds the
 corresponing multi-binder. *)
@@ -802,7 +801,7 @@ let new_var_in ctxt mkfree name =
   let (prefix, suffix) = split_name name in
   let (new_suffix, ctxt) = get_suffix prefix suffix ctxt in
   let var =
-    { key = fresh_key () ; prefix; suffix = Lazy.from_val new_suffix
+    { key = fresh_key () ; prefix; suffix = new_suffix
     ; mkfree ; bindbox = dummy_bindbox }
   in
   let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in

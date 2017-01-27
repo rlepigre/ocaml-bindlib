@@ -58,6 +58,7 @@ val mbinder_closed   : ('a,'b) mbinder -> bool
 
 (** Utility functions on variables. *)
 val name_of  : 'a var -> string
+val prefix_of  : 'a var -> string
 val free_of  : 'a var -> 'a
 val hash_var : 'a var -> int
 

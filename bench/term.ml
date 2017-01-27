@@ -61,24 +61,8 @@ let norm t =
        if binder_closed f then box t0 else
          vabs (binder_name f) (fun x -> fn (subst f (FVar x)) []))
   | FVar x ->
-      let rec unwind t1 = function
-	| [] -> t1
-	| t2::stack -> unwind (app t1 (fn t2 [])) stack
-      in unwind (box_of_var x) stack
+     List.fold_left (fun t u -> app t (fn u [])) (box_of_var x) stack
 in unbox (fn t [])
-
-(* another call by name normalisation *)
-(* this time not using whnf, but using a stack *)
-let norm' t =
-  let rec fn stack = function
-      App(t1,t2) -> fn (t2::stack) t1
-    | Abs f -> (match stack with
-	[] ->
-	  vabs (binder_name f) (fun x -> fn [] (subst f (FVar x)))
-	| t::stack -> fn stack (subst f t))
-    | FVar(x) ->
-	List.fold_left (fun t u -> app t u) (box_of_var x) (List.map (fn []) stack)
-  in unbox (fn [] t)
 
 (* examples of terms *)
 let idt = unbox(abs "x" (fun x -> x))
