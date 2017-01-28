@@ -138,7 +138,7 @@ For now, we will analyse an exemple using a data structure with
 binders. We will therefore not need the \verb#bindbox# type constructor.
 
 We first define the type of $\lambda$-terms as follows.
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 open Bindlib
 
@@ -150,7 +150,7 @@ type term =
 
 Consider the following function to convert lambda-terms to string:
 
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let fVar x = Var(x)
 
@@ -229,7 +229,7 @@ the \verb!App! constructor into a term
 The bindlib library
 provide the necessary function to do that in a few lines:
 
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let app : term bindbox -> term bindbox -> term bindbox =
   fun x y -> box_apply2 (fun x y -> App(x,y)) x y
@@ -257,7 +257,7 @@ let vbind fv name f =
 Using these short cuts, we could give a shorter definition and an
 alternative version of \verb#lam#:
 
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let lam : string -> (term bindbox -> term bindbox) -> term bindbox =
   fun name f -> box_apply (fun x -> Lam(x)) (bind fVar name f)
@@ -272,7 +272,7 @@ the bound variables to be directly of type \verb#term bindbox# as in
 Using these \emph{smart constructors}, we can start to define value of
 type term. We also need the function \verb#unbox : 'a bindbox -> 'a#
 to finalise the construction.
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let idt = unbox (lam "x" (fun x -> x))
 let delta = unbox (lam "x" (fun x -> app x x))
@@ -296,7 +296,7 @@ $$
 Here is the corresponding code, which illustrates the different use
 of \verb#lam# and \verb#vlam#:
 
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let mark t =
   let rec phi x = function
@@ -314,7 +314,7 @@ The use of \verb#binder_name f# allows to use the original name
 Here is another example: the computation of the normal form of a term
 in call-by-name:
 
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let rec whnf = function
   App(t1,t2) as t0 -> (
@@ -421,7 +421,7 @@ former).
 If you want to follow Barendregt convention, this is easy, your
 printing functions should use a \verb#ctxt# as in:
 
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let rec term_to_string2 ctxt = function
   | Var x    -> name_of x
@@ -435,7 +435,7 @@ certain that no substitution have been performed. Otherwise, you need
 what we call a ``lifting'' or ``boxing'' function to copy the data structure before
 printing as in the following example:
 
-\begin{lstlisting}%.build/lambda.ml
+\begin{lstlisting}%lambda.ml
 
 let rec lift_term = function
   | Var(y) -> box_of_var y
@@ -490,7 +490,7 @@ and $X$ is a second-order variable.
 \end{definition}
 
 We now give the type for terms and formulas and their smart constructor.
-\begin{lstlisting}%.build/pred2.ml
+\begin{lstlisting}%pred2.ml
 
 open Bindlib
 
@@ -588,7 +588,7 @@ a first order variable we will use \verb#new_var fvar1#.
 
 Now, we write the printing function for terms and formulas:
 
-\begin{lstlisting}%.build/pred2.ml
+\begin{lstlisting}%pred2.ml
 
 let print_array print_elt sep och a =
   let f i e =
@@ -615,7 +615,7 @@ let rec print_form : out_channel -> form -> unit = fun och f ->
 \end{lstlisting}
 
 We also write the equality test which is similar:
-\begin{lstlisting}%.build/pred2.ml
+\begin{lstlisting}%pred2.ml
 
 let eq_arrays : ('a -> 'a -> bool) -> 'a array -> 'a array -> bool =
   fun eq_elt a1 a2 ->
@@ -667,7 +667,7 @@ type  \verb#t bindbox# to continue the construction of an object of
 type \verb#t# with some bound variables. For this, we need this kind
 of copying functions:
 
-\begin{lstlisting}%.build/pred2.ml
+\begin{lstlisting}%pred2.ml
 
 let rec box_term : term -> term bindbox = function
   | Var(x)    -> box_of_var x
@@ -694,7 +694,7 @@ used to apply to its arguments a variable representing a binder.
 
 Now we define proofs (for natural deduction) and their smart
 constructors :
-\begin{lstlisting}%.build/pred2.ml
+\begin{lstlisting}%pred2.ml
 
 type proof =
   | Imply_i of form * (proof, proof) binder
@@ -729,7 +729,7 @@ list of named hypotheses, represented by proof variables, and a
 conclusion. We need to copy the hypotheses because they result from a
 substitution. This is not the case for the conclusion of the sequent
 which is passed to \verb#print_goal# just after the call to \verb#unbox#.
-\begin{lstlisting}%.build/pred2.ml
+\begin{lstlisting}%pred2.ml
 
 let print_goal och hyps concl =
   let print_hyp och = function
@@ -752,7 +752,7 @@ goal which is obtained after each rule and use a context to rename the
 variables and respect Barendregt convention.
 
 Here is the code that we will explain below:
-\begin{lstlisting}%.build/pred2.ml
+\begin{lstlisting}%pred2.ml
 
 exception Bad_proof of string
 

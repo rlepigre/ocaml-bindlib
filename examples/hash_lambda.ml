@@ -276,7 +276,11 @@ let rec eval t =
   | Con(str,t) ->
      let t = eval t in mkCon2(str, t)
   | Case(t,cases,any) ->
-     let Con(str,t') = (eval t).data in
+     let (str,t') =
+       match (eval t).data with
+       | Con(str,t') -> (str,t')
+       | _           -> assert false
+     in
      (try eval (subst (List.assoc str cases) t') with Not_found ->
         match any with Some f -> eval (subst f t) | _ -> assert false)
   | VStruct(cases) -> t
@@ -284,7 +288,11 @@ let rec eval t =
      (let tbl:(string, term) Hashtbl.t =
        match any with
        | None   -> Hashtbl.create 13
-       | Some v -> let VStruct t = (eval v).data in Hashtbl.copy t
+       | Some v -> let t =
+                     match (eval v).data with
+                     | VStruct t -> t
+                     | _         -> assert false
+                   in Hashtbl.copy t
       in
       (* can not hashcons before the VStruct is fully computed *)
       (* this is not correct if self is preserved under closure *)
@@ -294,7 +302,15 @@ let rec eval t =
       List.iter (fun (str,t) -> Hashtbl.add tbl str (eval (subst t self))) cases;
       reHashCons self)
   | Proj(t,str) ->
-     (let VStruct t = (eval t).data in try Hashtbl.find t str with Not_found -> Printf.eprintf "Not found: %S\n%!" str; exit 1)
+      let t =
+        match (eval t).data with
+        | VStruct t -> t
+        | _         -> assert false
+      in
+      begin
+        try Hashtbl.find t str with Not_found ->
+          Printf.eprintf "Not found: %S\n%!" str; exit 1
+      end
 
   | Var _ -> failwith "open term"
   | HVar _ -> failwith "open term (H)"

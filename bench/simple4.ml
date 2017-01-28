@@ -29,7 +29,7 @@ let msubst lt nb t0 =
       if t' != t then Abs(n-1,b,t') else t0
   | App(_,t1,t2) ->
       let t1' = fn d t1 and t2' = fn d t2 in
-      if t1' != t1 or t2' != t2 then App(n-1,t1',t2') else t0
+      if t1' != t1 || t2' != t2 then App(n-1,t1',t2') else t0
   | BVar n -> if n - d < nb then nth (n-d) lt else t0
   | FVar _ -> t0
   in if nb = 0 then t0 else fn 0 t0
@@ -78,10 +78,10 @@ let norm t0 = let rec fn stack depth = function
     Abs _ as t ->
       let rec gn lt nb b depth stack u = match stack, u with
         (t::stack'), (Abs(_,b',u')) ->
-          gn (t::lt) (nb+1) (b or b') depth stack' u'
+          gn (t::lt) (nb+1) (b || b') depth stack' u'
       | [], (Abs(_,b',u')) ->
           let depth' = depth + 1 in
-          bAbs (gn (FVar depth'::lt) (nb+1) (b or b') depth' [] u')
+          bAbs (gn (FVar depth'::lt) (nb+1) (b || b') depth' [] u')
       | _ ->
           fn stack depth (if b then msubst lt nb u else u)
       in gn [] 0 false depth stack t
