@@ -22,7 +22,7 @@ install: all uninstall
 		_build/bindlib.cmo META
 
 ## Cleaning
-clean: html #because ocamlbuid erase html doc too
+clean:
 	ocamlbuild -clean
 	rm -f doc/lambda.ml doc/pred2.ml
 	cd doc; rubber --clean bindlib.tex
@@ -76,7 +76,7 @@ html/index.html: README.tmpl
 html: all doc
 	mkdir -p html
 	sed -e s/__VERSION__/$(VERSION)/g README.tmpl > html/index.html
-	cp -r bindlib.docdir html/doc
+	cp -r _build/bindlib.docdir html/doc
 	cp doc/bindlib.pdf html/bindlib.pdf
 
 .PHONY: tests
