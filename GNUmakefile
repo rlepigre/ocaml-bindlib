@@ -22,7 +22,7 @@ install: all uninstall
 		_build/bindlib.cmo META
 
 ## Cleaning
-clean:
+clean: html #because ocamlbuid erase html doc too
 	ocamlbuild -clean
 	rm -f doc/lambda.ml doc/pred2.ml
 	cd doc; rubber --clean bindlib.tex
@@ -82,11 +82,11 @@ html: all doc
 .PHONY: tests
 tests: bench examples
 
-tar: doc distclean
-	cd ../bindlib_tar; darcs pull; make all doc distclean
+tar:
+	cd ../bindlib_tar; darcs pull; make all html clean
 	cd ..; tar cvfz bindlib-$(VERSION).tar.gz --exclude=_darcs --transform "s,bindlib_tar,bindlib-$(VERSION),"  bindlib_tar
 
-distrib: distclean tar
+distrib: html clean tar
 	scp -r html/* $(URLSSH)/
 	darcs push lama.univ-savoie.fr:WWW/repos/bindlib/
 	scp ../bindlib-$(VERSION).tar.gz $(URLSSH)/
