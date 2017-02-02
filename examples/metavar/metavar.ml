@@ -4,7 +4,8 @@ open Command
 open Bindlib
 
 (* a micro parser with decap *)
-(* TODO put position in the AST and recover from errors *)
+(* TODO put position in the AST *)
+
 let parser lident = id:{#[a-z0-9][_a-zA-Z0-9]*[']*#}[group.(0)]
 
 let parser atom =
@@ -34,6 +35,16 @@ let parser main =
   | EMPTY
   | _:main {c:command -> run env c} ';'
 
+let rec run () =
+  try
+    handle_exception (parse_buffer main Blank.blank)
+                     (Input.from_channel stdin)
+  with
+  | Failure _ | Sys.Break ->
+     Printf.eprintf "Recovering ...\n%!";
+     run ()
+  | End_of_file -> Printf.printf "bye\n%!"
+
 let _ =
-  handle_exception (parse_buffer main Blank.blank)
-                   (Input.from_channel stdin)
+  Sys.catch_break true;
+  run ()

@@ -26,6 +26,9 @@ Command syntax:
 - $u;     Undo the last $s command
 
 - $g;     Print the unset meta variable (the goals)
+
+- feature : a meta variable can use itself creating recursive terms
+
 *)
 
 $s id = λx.x;
