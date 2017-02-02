@@ -1,13 +1,13 @@
 WARNING: THIS EXAMPLE IS NOT YET PORTED TO bindlib 3.X series
 
-Here is an implementation of 
+Here is an implementation of
 
 ***************************************************
 *                                                 *
 *        Combinatorics Reduction System           *
 *                                                 *
 *           Christophe Raffalli 98                *
-*                                                 * 
+*                                                 *
 ***************************************************
 
 It is given as an example of use of the bindlib library.
@@ -15,7 +15,7 @@ It is given as an example of use of the bindlib library.
 Here is how to use it:
 
 I) Syntax of terms:
-	
+
         x.t                   binder
         C t1 ... tn           application of a prefix constant of arity n
         t1 C                  application of an infix constant of arity 1
@@ -37,7 +37,7 @@ Moreover, infix constant can be left associative, right associative or
 non associative.
 
    "x.t" behaves as a prefix constant of priority 0
-   "application" is an invisible infix constant of priority 10 and 
+   "application" is an invisible infix constant of priority 10 and
                  left associative.
 
 
@@ -47,7 +47,7 @@ There is two kind of identifiers:
 
   alpha-numerical: [A-Za-Z][A-Za-Z0-9_']*
   other: [!%&$#+-/:<=>?@\~^|*]+
-  
+
 constant can use both kinds, bound variables can only use the
 alpha-numerical ones.
 
@@ -55,22 +55,22 @@ Be careful "$#" is not the same as "$ #" !
 
   (* .... *) delimits comments.
 
-III) Commands 
+III) Commands
 
 cst {name} {arity} {syntax} {priority};
 
   Defines a new constant:
     name: an identifier, the name of the new constant
     arity: an integer (number of argument of this constant)
-    syntax: 
-        Prefix        a prefix constant 
+    syntax:
+        Prefix        a prefix constant
       | Infix         a non associative infix constant
       | LInfix        a left associative infix constant
       | RInfix        a right associative infix constant
     priority: a floating point number
 
 let {name} = {term};
-      
+
   Adds a define term
     name: the name of the new term
     term: the term !
@@ -78,9 +78,9 @@ let {name} = {term};
 red {term1} >> {term2};
 
   Adds a new rewrite rule: the term {term1} is rewritten in {term2}.
-  {term1} can used meta variables with bound variables as argument and 
-  each meta variable can only be used once. {term2} can use any variable 
-  define used in {term1} with no restriction. Moreover, {term1} must start 
+  {term1} can used meta variables with bound variables as argument and
+  each meta variable can only be used once. {term2} can use any variable
+  define used in {term1} with no restriction. Moreover, {term1} must start
   by the application of a constant.
 
 {term};
@@ -122,7 +122,7 @@ IV)
     let n5 = S n4;
     let add = \n. \m. \f. \x.n f (m f x);
     let mul = \n. \m. \f.n (m f);
-    let pred = \n.n 
+    let pred = \n.n
 	  (\p. \x. \y.p (S x) x)
 	  (\x. \y.y) n0 n0;
 
@@ -135,7 +135,7 @@ IV)
     cst @ 2 RInfix 5.0;  (* a constant for append *)
 
     (* the rewriting defining append *)
-    red $ @ U[] >> U[];	
+    red $ @ U[] >> U[];
     red (X[]::L[]) @ L'[] >> X[]::(L[] @ L'[]);
 
     (* let's try it *)
@@ -153,9 +153,7 @@ V)
 
   Organisation of the file:
 
-    bindlib.ml: the bindlib library
-    genlex.ml:  the lexical analyser
-    file.ml:    the tool used to load files
+    parser.ml:  the grammar
     basic.ml:   definition of the type of terms
     print.ml:   printing of terms
     globals.ml: some code about the global environment
@@ -164,7 +162,3 @@ V)
     crs.ml:     the "main" file
 
 ---
-
-
-
-
