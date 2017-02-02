@@ -49,7 +49,7 @@ bindlib.docdir/index.html: bindlib.ml bindlib.mli
 examples: examples/lambda.byte examples/unif.byte examples/pred2.byte \
 	examples/translate.byte examples/hash_lambda.byte examples/crs/crs.byte \
 	examples/pts/F.byte examples/pts/CoC.byte examples/pts/CoCu.byte \
-	examples/pts/lntt.byte
+	examples/pts/lntt.byte examples/metavar/metavar.byte
 
 %.byte:
 	$(OCAMLBUILD) $@

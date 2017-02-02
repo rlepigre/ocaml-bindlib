@@ -1,7 +1,11 @@
 "examples/hash_lambda.ml" : pp(pa_ocaml), package(earley,earley.str)
 "examples/hash_lambda.byte" : package(earley,earley.str)
+
 <examples/crs/*.ml> : pp(pa_ocaml), package(earley,earley.str)
+<examples/crs/crs.byte> : package(earley,earley.str)
+
 <examples/pts/*.ml> : pp(pa_ocaml), package(earley,earley.str)
-"examples/crs/crs.byte" : package(earley,earley.str)
 <examples/pts/*.byte> : pp(pa_ocaml), package(earley,earley.str)
 
+<examples/metavar/*.ml> : pp(pa_ocaml), package(earley,earley.str)
+<examples/metavar/*.byte> : pp(pa_ocaml), package(earley)
