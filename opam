@@ -12,4 +12,5 @@ install: [make "install"]
 remove: ["ocamlfind" "remove" "bindlib"]
 depends: [
   "ocamlfind" {build}
+  "ocamlbuild" {build}
 ]

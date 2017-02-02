@@ -14,6 +14,7 @@ let lam x f = box_apply (fun b -> Lam b) (bind (fun x -> Var x) x f)
 let vlam x f = box_apply (fun b -> Lam b) (vbind (fun x -> Var x) x f)
 let app t u = box_apply2 (fun t u -> App(t,u)) t u
 
+
 (* Function to destruct a binder, fixing the first argument. *)
 let unbind f = unbind (fun x -> Var x) f
 
@@ -23,9 +24,11 @@ let y     = var "y"
 let id    = lam "x" (fun x -> x)
 let fst   = lam "x" (fun x -> lam "y" (fun y -> x))
 let delta = lam "x" (fun x -> app x x)
+let swap  = lam "x" (fun x -> lam "y" (fun y -> app y x))
 let omega = app delta delta
 let fsty  = app fst y
 let fstyx = app fsty x
+let swapy = app swap y
 
 (* Translation to string. *)
 let rec term_to_string = function
@@ -110,4 +113,28 @@ let _ =
   print_term (unbox fsty);
   print_term (eval (unbox fsty));
   print_term (unbox fstyx);
-  print_term (eval (unbox fstyx))
+  print_term (eval (unbox fstyx));
+  print_term (unbox swapy);
+  print_term (eval (unbox swapy))
+
+(* Parsing *)
+type pterm =
+  | PVar of string
+  | PLam of string * pterm
+  | PApp of pterm * pterm
+
+let unparse : pterm -> term =
+  let rec unparse_aux : (string * term bindbox) list -> pterm -> term bindbox =
+    fun env -> function
+            | PVar s -> List.assoc s env
+            | PApp(t1,t2) -> app (unparse_aux env t1) (unparse_aux env t2)
+            | PLam(s,t) -> lam s (fun v -> unparse_aux ((s,v)::env) t)
+  in fun t -> unbox (unparse_aux [] t)
+
+let unparse2 : pterm -> term =
+  let rec unparse_aux : (string * term var) list -> pterm -> term bindbox =
+    fun env -> function
+            | PVar s -> box_of_var (List.assoc s env)
+            | PApp(t1,t2) -> app (unparse_aux env t1) (unparse_aux env t2)
+            | PLam(s,t) -> vlam s (fun v -> unparse_aux ((s,v)::env) t)
+  in fun t -> unbox (unparse_aux [] t)

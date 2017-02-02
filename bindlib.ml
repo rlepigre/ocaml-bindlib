@@ -473,8 +473,9 @@ let fn_mute_bind pt pos name v =
   { name; rank = pos; bind = false; value = value_mute_bind pt v }
 
 let mk_mute_bind vt (x:'a var) pos pt htbl =
+  let suffix = get_suffix vt htbl x in
   let pt = pt htbl in
-  fn_mute_bind pt pos (merge_name x.prefix x.suffix)
+  fn_mute_bind pt pos (merge_name x.prefix suffix)
 
 (* Binds the given variable in the given bindbox to produce a binder. *)
 let bind_var : 'a 'b. 'a var -> 'b bindbox -> ('a, 'b) binder bindbox =
