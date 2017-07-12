@@ -50,6 +50,7 @@ val binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
     Ex: to transform (lam x lam y.t(x,y)) into (lam x.t(x,x))
 *)
 val binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder
+val mbinder_from_fun : string array -> ('a array -> 'b) -> ('a,'b) mbinder
 
 val mbinder_arity    : ('a,'b) mbinder -> int
 val mbinder_names    : ('a,'b) mbinder -> string array

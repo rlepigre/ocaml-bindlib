@@ -778,6 +778,11 @@ let box_opt = function
   | None   -> box None
   | Some b -> box_apply (fun b -> Some b) b
 
+let mbinder_from_fun names f = unbox (mbind (fun _ -> assert false) names
+                                            (fun xs ->
+                                              let xs = box_array xs in
+                                              box_apply f xs))
+
 (* Type of a context. *)
 type ctxt = int list SMap.t
 
