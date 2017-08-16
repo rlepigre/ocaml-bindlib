@@ -17,11 +17,19 @@ type 'a var
 type 'a mvar = 'a var array
 
 (** Type of a binder for a variable of type ['a] in a term of type ['b']. *)
-type (-'a,+'b) binder
+type (-'a,+'b) binder = private
+  { name   : string     (* Name of the bound variable. *)
+  ; bind   : bool       (* Does the variable occur? *)
+  ; rank   : int        (* Number of remaining free variables (>= 0). *)
+  ; value  : 'a -> 'b } (* Substitution function. *)
 
 (** Type of a multi-binder for a multi-variable of type ['a] in a term of type
 ['b]. *)
-type ('a,'b) mbinder
+type ('a,'b) mbinder = private
+  { names  : string array     (* Names of the bound variables. *)
+  ; binds  : bool array       (* Do the variables occur? *)
+  ; ranks  : int              (* Number of remaining free variables. *)
+  ; values : 'a array -> 'b } (* Substitution function. *)
 
 (** Substitution functions. *)
 val subst  : ('a,'b) binder -> 'a -> 'b
