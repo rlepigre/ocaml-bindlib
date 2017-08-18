@@ -17,19 +17,11 @@ type 'a var
 type 'a mvar = 'a var array
 
 (** Type of a binder for a variable of type ['a] in a term of type ['b']. *)
-type (-'a,+'b) binder = private
-  { name   : string     (* Name of the bound variable. *)
-  ; bind   : bool       (* Does the variable occur? *)
-  ; rank   : int        (* Number of remaining free variables (>= 0). *)
-  ; value  : 'a -> 'b } (* Substitution function. *)
+type (-'a,+'b) binder
 
 (** Type of a multi-binder for a multi-variable of type ['a] in a term of type
 ['b]. *)
-type ('a,'b) mbinder = private
-  { names  : string array     (* Names of the bound variables. *)
-  ; binds  : bool array       (* Do the variables occur? *)
-  ; ranks  : int              (* Number of remaining free variables. *)
-  ; values : 'a array -> 'b } (* Substitution function. *)
+type ('a,'b) mbinder
 
 (** Substitution functions. *)
 val subst  : ('a,'b) binder -> 'a -> 'b
@@ -164,12 +156,6 @@ val box_opt : 'a bindbox option -> 'a option bindbox
 
 (** Advanced features on the ['a bindbox] type. *)
 
-(** A function to apply a function under a bindbox, the function is
-    applied immediately ... the list of free variables is not
-    updated, so it may be too large *)
-val apply_in_box : ('a -> 'b) -> 'a bindbox -> 'b bindbox
-
-
 (** Useful function to work with "higher order variables", that is variables
 representing a binder themselves (that can hence be applied to arguments. *)
 val bind_apply  : ('a, 'b) binder bindbox  -> 'a bindbox       -> 'b bindbox
@@ -198,11 +184,11 @@ module type Map2 = sig
 end
 
 module Lift(M: Map) : sig
-  val f : 'a bindbox M.t -> 'a M.t bindbox
+  val lift_box : 'a bindbox M.t -> 'a M.t bindbox
 end
 
 module Lift2(M: Map2) : sig
-  val f : ('a bindbox, 'b bindbox) M.t -> ('a, 'b) M.t bindbox
+  val lift_box : ('a bindbox, 'b bindbox) M.t -> ('a, 'b) M.t bindbox
 end
 
 (** Here are some functions defined using the functorial interface. They lift
