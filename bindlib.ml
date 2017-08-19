@@ -710,48 +710,69 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
             in {names; ranks; binds; values}
         in Env(vs, m, cl)
 
-(* FIXME FIXME FIXME chantier FIXME FIXME FIXME *)
-
-
-let unbind mkfree b =
-  let x = new_var mkfree (binder_name b) in
-  (x, subst b (free_of x))
-
-let unmbind mkfree b =
-  let x = new_mvar mkfree (mbinder_names b) in
-  (x, msubst b (Array.map free_of x))
-
-(* Take a function of type ['a bindbox array -> 'b bindbox] and builds the
-corresponing multi-binder. *)
-let mbind mkfree names f =
+(** [mbind mkfree names f] builds a [mbinder] from the function [f]. It relies
+    on [bind_mvar] to do so, and thus it require [mkfree] and [names]. *)
+let mbind : ('a var -> 'a) -> string array -> ('a bindbox array -> 'b bindbox)
+    -> ('a,'b) mbinder bindbox = fun mkfree names f ->
   let vs = new_mvar mkfree names in
-  let args = Array.map box_of_var vs in
-  bind_mvar vs (f args)
+  bind_mvar vs (f (Array.map box_of_var vs))
 
-let mvbind mkfree names f =
+(** [mvbind mkfree names f] builds a [mbinder] from the function [f], like the
+    [mbind] function do (up to the type of the function [f]). *)
+let mvbind : ('a var -> 'a) -> string array -> ('a mvar -> 'b bindbox)
+    -> ('a,'b) mbinder bindbox = fun mkfree names f ->
   let vs = new_mvar mkfree names in
   bind_mvar vs (f vs)
 
-let bind_apply f = box_apply2 (fun f -> f.value) f
+(** [unbind mkfree b] breaks the [binder] [b] into a variable and a body.  The
+    [mkfree] function is required since it is necessary to create a  variable.
+    The name of this variable is based on that of the binder. *)
+let unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b =
+  fun mkfree b ->
+    let x = new_var mkfree (binder_name b) in
+    (x, subst b (free_of x))
 
-let mbind_apply f = box_apply2 (fun f -> f.values) f
+(** [unmbind mkfree b] breaks the [mbinder] [b] into an array of variables and
+    a body. It is required to provide a [mkfree] function since [unmbind]  has
+    to create new variables. Their names are besed on the bound variables. *)
+let unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b =
+  fun mkfree b ->
+    let x = new_mvar mkfree (mbinder_names b) in
+    (x, msubst b (Array.map free_of x))
 
-let binder_from_fun name f =
-  unbox (bind (fun _ -> assert false) name (fun x -> box_apply f x))
+(** [fixpoint b] builds a binder fixpoint (advance feature). *)
+let fixpoint : (('a,'b) binder, ('a,'b) binder) binder bindbox
+    -> ('a, 'b) binder bindbox = fun b ->
+  match b with
+  | Box(t)      -> let rec fix t = t (fix t) in Box(fix t.value)
+  | Env(vs,n,t) ->
+     let cl vp =
+       let t = t vp in
+       let rec fix env = (t env).value (fix env) in fix
+     in Env(vs, n, cl)
 
-let fixpoint = function
-  | Box t      -> let rec fix t =
-                       t (fix t)
-                     in Box(fix t.value)
-  | Env(vs,nb,t) ->
-     let fix t htbl =
-       let t = t htbl in
-       let rec fix' env = (t env).value (fix' env) in fix'
-     in Env(vs, nb, fix t)
+(** [bind_apply b arg] substitute a [binder] in the [bindbox] type. *)
+let bind_apply : ('a,'b) binder bindbox -> 'a bindbox -> 'b bindbox =
+  fun b arg -> box_apply2 subst b arg
 
-let mbinder_from_fun names f =
-  unbox (mbind (fun _ -> assert false) names
-    (fun xs -> box_apply f (box_array xs)))
+(** [mbind_apply b args] substitute a [mbinder] in the [bindbox] type. *)
+let mbind_apply : ('a,'b) mbinder bindbox -> 'a array bindbox -> 'b bindbox =
+  fun b args -> box_apply2 msubst b args
+
+(** [binder_from_fun name f] builds a [binder] from the function [f] using the
+    variable name [name]. This function is very unsafe. Use farefully. *)
+let binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder =
+  fun name f ->
+    unbox (bind (fun _ -> assert false) name (box_apply f))
+
+(** [mbinder_from_fun names f] builds a [mbinder] from the function [f]  using
+    the variable names [names]. This function is also very unsafe. *)
+let mbinder_from_fun : string array -> ('a array -> 'b) -> ('a,'b) mbinder =
+  fun names f ->
+    let fn xs = box_apply f (box_array xs) in
+    unbox (mbind (fun _ -> assert false) names fn)
+
+(* FIXME FIXME FIXME chantier FIXME FIXME FIXME *)
 
 (* Type of a context. *)
 type ctxt = int list SMap.t
