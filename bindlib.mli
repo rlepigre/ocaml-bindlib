@@ -1,31 +1,98 @@
-(** The Bindlib Library provides datatypes to represent binders in
-    arbitrary languages. The implementation is efficient and manages
-    name in the expected way (variables have a prefered name to which
-    an integer suffix can be added to avoid capture during
-    substitution.
+(****************************************************************************
+ * The Bindlib Library provides an efficient representation for binders (or *
+ * structures with bound variables). Names are managed in the expected way, *
+ * by performing minimal renaming (an integer suffix is increased in case a *
+ * change of name is required).                                             *
+ *                                                                          *
+ * Authors:                                                                 *
+ *   - Christophe Raffalli <christophe.raffalli@univ-smb.fr>                *
+ *   - Rodolphe Lepigre <rodolphe.lepigre@univ-smb.fr>                      *
+ ****************************************************************************)
 
-    Author: Christophe Raffalli and Rodolphe Lepigre
-*)
+(** The [Bindlib] library provides support for free and bound variables in the
+    OCaml language. The main application is the construction of abstract types
+    containing a binding structure (e.g., abstract syntax trees).
 
-(** To build an abstract syntax tree using bindlib, one will need to make use
-of the following types for variables and binders. *)
+    @author Christophe Raffalli
+    @author Rodolphe Lepigre *)
 
-(** Type of a variable of type ['a]. *)
+
+(** {2 Variables, binders and substitution} *)
+
+
+(** The [Bindlib] library provides two type constructors for building abstract
+    syntax trees: ['a var] and [('a,'b) binder]. Intuitively, ['a var] will be
+    a representation for a free variable of type ['a],  and [('a,'b) binder] a
+    represention for a term of type ['b] depdening on a variable (or value) of
+    type ['a] (the type [('a,'b) binder] can be seen as ['a -> 'b]). Note that
+    types ['a mvar] and [('a,'b) mbinder] are provided for handling arrays  of
+    variables. *)
+
+(** Type of a free variable of type ['a]. *)
 type 'a var
 
-(** Type of a multi-variable of type ['a]. *)
+(** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
 
-(** Type of a binder for a variable of type ['a] in a term of type ['b']. *)
+(** Type of a binder for an element of type ['a] into an element of type ['b].
+    In terms of higher-order abstract syntax, it can be seen as ['a -> 'b]. *)
 type (-'a,+'b) binder
 
-(** Type of a multi-binder for a multi-variable of type ['a] in a term of type
-['b]. *)
+(** Type of a binder for an array of elements of type ['a] into an element  of
+    type ['b]. *)
 type ('a,'b) mbinder
 
-(** Substitution functions. *)
+(** As an example, we give bellow the definition of a simple representation of
+    the terms of the lambda-calculus. {[
+    type term =
+      | Var of term var
+      | Abs of (term, term) binder
+      | App of term * term ]} *)
+
+(** [subst b v] substitutes (using application) the variable bound by [b] with
+    the value [b]. This is a very efficient operations. *)
 val subst  : ('a,'b) binder -> 'a -> 'b
+
+(** [msubst b vs] substitutes (using application) the array of variables bound
+    by [b] with the values [vs]. This is a very efficient operations. However,
+    the length of the [vs] array should match the arity of the binder (see the
+    function [mbinder_arity]). *)
 val msubst : ('a,'b) mbinder -> 'a array -> 'b
+
+(** Comming back to our lambda-calculus example,  we can define the evaluation
+    of a lambda-term as a simple recursive function using [subst]. {[
+    let rec eval : term -> term = fun t ->
+      match t with
+      | App(f,a) ->
+          begin
+            match eval f with
+            | Abs(b) -> eval (subst b a)
+            | _      -> t
+          end
+      | _        -> t ]} *)
+
+
+(** {2 Constructing terms in the bindbox} *)
+
+
+(** One of the main design priciple of the [Bindlib] library is efficiency. To
+    obtain very fast substitutions, a price is paid at the construction of the
+    terms. Indeed,  binders (i.e., element of type [('a,'b) binder]) cannot be
+    defined directly. Instead, they are put together in the type ['a bindbox].
+    It correspond to a term of type ['a] with free variables that may still be
+    bound in the future. *)
+
+(** Type of a term of type ['a] under construction. Using this representation,
+    free variables can be bound easily. *)
+type +'a bindbox
+
+(** [unbox e] can be called when the construction of a term is finished (e.g.,
+    when the desired variables have all been bound). *)
+val unbox : 'a bindbox -> 'a
+
+
+(** {2 ... (work in progress)} *)
+
 
 (** Variable creation functions. *)
 val new_var  : ('a var -> 'a) -> string       -> 'a var
@@ -76,15 +143,6 @@ syntactic wrapper may be different. *)
 val copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var
 
 
-(** To work with term containing free variables (that might be bound at some
-point), Bindlib provides the following datatype. This type of "terms under
-construction" will provide an efficient way of binding variables in a term
-of type ['a]. *)
-type (+'a) bindbox
-
-(** Once the construction of an expression of type ['a] is finished, the
-function [unbox] need to be called in order to obtain the built expression. *)
-val unbox : 'a bindbox -> 'a
 
 (** Build a ['a bindbox] from a ['a var]. *)
 val box_of_var : 'a var -> 'a bindbox
@@ -197,6 +255,9 @@ val box_list     : 'a bindbox list  -> 'a list  bindbox
 val box_rev_list : 'a bindbox list  -> 'a list  bindbox
 val box_array    : 'a bindbox array -> 'a array bindbox
 
+
+
+(** {2 Working in a context} *)
 
 
 (** It is sometimes convenient to work in a context for variables. This is
