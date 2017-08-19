@@ -1,13 +1,23 @@
 (****************************************************************************
- * The Bindlib Library provides datatypes to represent binders in arbitrary *
- * languages. The implementation is efficient and manages name in the expe- *
- * ted way (variables have a prefered name to which an integer  suffix  can *
- * be added to avoid capture during substitution.                           *
+ * The Bindlib Library provides an efficient representation for binders (or *
+ * structures with bound variables). Names are managed in the expected way, *
+ * by performing minimal renaming (an integer suffix is increased in case a *
+ * change of name is required).                                             *
  *                                                                          *
  * Authors:                                                                 *
  *   - Christophe Raffalli <christophe.raffalli@univ-smb.fr>                *
  *   - Rodolphe Lepigre <rodolphe.lepigre@univ-smb.fr>                      *
  ****************************************************************************)
+
+(** [filter_map pred f l] is equivalent to  [List.map f (List.filter pred m)],
+    but it is more efficient. *)
+let filter_map : ('a -> bool) -> ('a -> 'b) -> 'a list -> 'b list =
+  fun pred f l ->
+    let rec aux acc l =
+      match l with
+      | []   -> List.rev acc
+      | x::l -> if pred x then aux (f x::acc) l else aux acc l
+    in aux [] l
 
 (** Counter for fresh symbol generation. *)
 let counter : int ref = ref (-1)
@@ -39,7 +49,7 @@ module Env :
     type t
 
     (** Creates an empty environment of a given size. *)
-    val create : int -> t
+    val create : ?next_free:int -> int -> t
 
     (** Sets the value stored at some position in the environment. *)
     val set : t -> int -> 'a -> unit
@@ -57,13 +67,14 @@ module Env :
     val set_next_free : t -> int -> unit
   end =
   struct
-    type t = {tab : any array; mutable next : int}
-    let create size = {tab = Array.make size (Obj.repr ()); next = 0}
+    type t = {tab : any array; mutable next_free : int}
+    let create ?(next_free=0) size =
+      {tab = Array.make size (Obj.repr ()); next_free}
     let set env i e = Array.set env.tab i (Obj.repr e)
     let get i env = Obj.obj (Array.get env.tab i)
-    let copy env = {tab = Array.copy env.tab; next = env.next}
-    let get_next_free env = env.next
-    let set_next_free env n = env.next <- n
+    let copy env = {tab = Array.copy env.tab; next_free = env.next_free}
+    let get_next_free env = env.next_free
+    let set_next_free env n = env.next_free <- n
   end
 
 (** In the internals, variables are identified by a unique [int] key. Closures
@@ -216,8 +227,7 @@ let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
     in
     let (new_vp,_) = List.fold_left f (IMap.empty,0) vs in
     fun env ->
-      let new_env = Env.create (size + n) in
-      Env.set_next_free new_env size;
+      let new_env = Env.create ~next_free:size (size + n) in
       for i = 0 to size - 1 do
         Env.set new_env i (Env.get tab.(i) env)
       done;
@@ -372,6 +382,25 @@ module Lift_array = Lift(
   end)
 let box_array = Lift_array.lift_box
 
+(** [unbox b] takes out the element that is in the [bindbox] b. In particular,
+    if some variable have not been bound, they their [mkfree] filed is used to
+    make them into elements of the expected type.  The [unbox] function should 
+    not be called until the construction of a term is finished (i.e., until no
+    more variables need to be bound). *)
+let unbox : 'a bindbox -> 'a = fun b ->
+  match b with
+  | Box(t)       -> t
+  | Env(vs,nb,t) ->
+      let nbvs = List.length vs in
+      let env = Env.create ~next_free:nbvs (nbvs + nb) in
+      let cur = ref 0 in
+      let fn vp x =
+        let i = !cur in incr cur;
+        Env.set env i (x.mkfree x);
+        IMap.add x.key (i, x.suffix) vp
+      in
+      t (List.fold_left fn IMap.empty vs) env
+
 (** The representation of a [binder],  which is an element of type ['b] with a
     bound variable of type ['a]. *)
 type ('a,'b) binder =
@@ -445,154 +474,244 @@ let mbinder_closed : ('a,'b) mbinder -> bool = fun mb -> mb.ranks = 0
 (* [mbinder_rank b] gives the number of free variables contained in [b]. *)
 let mbinder_rank : ('a,'b) mbinder -> int = fun mb -> mb.ranks
 
-
-(* FIXME FIXME FIXME chantier FIXME FIXME FIXME *)
-
-
-(* Dummy bindbox to be used prior to initialisation. *)
+(** [dummy_bindbox] can be used in uninitialised structures (e.g., arrays). If
+    [unbox] is called on a data structure containing [dummy_bindbox], then the
+    exception [Failure "Invalid use of dummy_bindbox"] is raised. *)
 let dummy_bindbox : 'a bindbox =
-  Env([], 0, fun _ -> failwith "Invalid use of dummy_bindbox")
+  let fail _ = failwith "Invalid use of dummy_bindbox" in
+  Env([], 0, fail)
 
-(* Function for building a variable structure with a fresh key. *)
-let build_new_var name mkfree bindbox =
-  let (prefix, suffix) = split_name name in
-  let key = incr counter; !counter in
-  {key; prefix; suffix; mkfree; bindbox}
+(** [build_new_var key prefix suffix mkfree] initialises a new [var] structure
+    with the given data, and updates the [bindbox] field accordingly. *)
+let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
+  fun key prefix suffix mkfree ->
+    let bindbox = Env([], 0, fun _ -> assert false) in
+    let x = {key; prefix; suffix; mkfree; bindbox} in
+    let mk_var htbl = Env.get (fst (IMap.find key htbl)) in
+    x.bindbox <- Env([Obj.magic x], 0, mk_var); x
 
-let update_var_bindbox : 'a var -> unit =
-  let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in
-  fun x -> x.bindbox <- Env([Obj.magic x], 0, mk_var x)
-
-(* Create a new free variable using a wrapping function and a default name. *)
+(** [new_var mkfree name] create a new free variable using a wrapping function
+    [mkfree] and a default [name]. *)
 let new_var : ('a var -> 'a) -> string -> 'a var =
   fun mkfree name ->
-    let x = build_new_var name mkfree dummy_bindbox in
-    update_var_bindbox x; x
+    let (prefix, suffix) = split_name name in
+    let key = incr counter; !counter in
+    build_new_var key prefix suffix mkfree
 
-(* Same function for multi-variables. *)
+(** [new_mvar mkfree names] creates an array of new free variables in the same
+    way as [new_var] does. *)
 let new_mvar : ('a var -> 'a) -> string array -> 'a mvar =
   fun mkfree names -> Array.map (fun n -> new_var mkfree n) names
 
-(* Make a copy of a variable with a potentially different name and syntactic
-wrapper but with the same key. *)
+(** [copy_var x name mkfree] makes a copy of variable [x],  with a potentially
+    different name and syntactic wrapper. However, the copy is treated exactly
+    as the original in terms of binding and substitution. *)
 let copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var =
   fun x name mkfree ->
-    let y = new_var mkfree name in
-    let r = { y with key = x.key } in
-    update_var_bindbox r; r
+    let (prefix, suffix) = split_name name in
+    build_new_var x.key prefix suffix mkfree
 
-(* Find a non-colliding suffix given a list of variables keys with name
-collisions, the hashtable containing the corresponding suffixes (and the
-positioning in the environment of the variables), and a prefered suffix. *)
-let get_suffix : 'a. any var list -> varpos -> 'a var -> int =
-  let filter_map cond fn l =
-    let rec aux acc = function
-      | []   -> List.rev acc
-      | x::l -> if cond x then aux (fn x::acc) l else aux acc l
-    in aux [] l
+(** [get_suffix vs vp x] finds a non-colliding suffix for variable [x],  given
+    a list of variables with name collisions,  the [varpos] with corresponding
+    suffixes (and the positioning in the environment of the variables). *)
+let get_suffix : any var list -> varpos -> 'a var -> int = fun vs vp x ->
+  let pred y = x.prefix = y.prefix in
+  let vs = filter_map pred (fun x -> snd (IMap.find x.key vp)) vs in
+  let rec search suffix vs =
+    match vs with
+    | x::vs when x < suffix -> search suffix vs
+    | x::vs when x = suffix -> search (suffix+1) vs
+    | _                     -> suffix
   in
-  fun vt htbl x ->
-  let eq_pref (y:'a var) = x.prefix = y.prefix in
-  let cols = filter_map eq_pref (fun (v:'a var) -> v.key) vt in
-  let l = List.map (fun key -> snd (IMap.find key htbl)) cols in
-  let l = List.sort (-) l in
-  let rec search suffix = function
-    | x::l when x < suffix -> search suffix l
-    | x::l when x = suffix -> search (suffix+1) l
-    | _                    -> suffix
-  in
-  search x.suffix l
+  search x.suffix (List.sort (-) vs)
 
+(** [build_binder x rank bind value] constructs a binder with the given values
+    (the variable [x] is used to obtain the name of the bound variable). *)
+let build_binder : 'a var -> int -> bool -> ('b -> 'c) -> ('b,'c) binder =
+  fun x rank bind value ->
+    let name = merge_name x.prefix x.suffix in
+    {name; rank; bind; value}
 
-(* Get out of the [bindbox] structure and construct an actual term. When the
-term is closed, it is straight-forward, but when it is open, free variables
-need to be made free in the syntax using the [mkfree] field. *)
-let unbox : 'a bindbox -> 'a = function
-  | Box(t) -> t
-  | Env(vt,nbt,t) ->
-      let next = List.length vt in
-      let esize = next + nbt in
-      let env = Env.create esize in
-      Env.set_next_free env next;
-      let cur = ref 0 in
-      let aux htbl var =
-        let i = !cur in incr cur;
-        Env.set env i (var.mkfree var);
-        let suffix = snd (split_name (name_of var)) in
-        IMap.add var.key (i, suffix) htbl
-      in
-      let htbl = List.fold_left aux IMap.empty vt in
-      t htbl env
+(** [bind_var x b] produces a [binder] (in a [bindbox]) by binding [x] in [b].
+    This is one of the main [Bindlib] functions. *)
+let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
+  match b with
+  | Box(t)      -> Box(build_binder x 0 false (fun _ -> t))
+  | Env(vs,n,t) ->
+      try
+        match vs with
+        | [y] ->
+            if x.key <> y.key then raise Not_found;
+            (* The variable to bind is the last one. *)
+            let t = t (IMap.singleton x.key (0, x.suffix)) in
+            let value arg = 
+              let v = Env.create ~next_free:1 (n+1) in
+              Env.set v 0 arg; t v
+            in
+            Box(build_binder x 0 true value)
+        | _   ->
+            let vs = remove x vs in
+            (* General case. *)
+            let cl vp =
+              let x = {x with suffix = get_suffix vs vp x} in
+              let rank = List.length vs in
+              let t = t (IMap.add x.key (rank, x.suffix) vp) in
+              fun v ->
+                let value arg =
+                  let next = Env.get_next_free v in
+                  if next = rank then
+                    begin
+                      Env.set_next_free v (next + 1);
+                      Env.set v next arg; t v
+                    end
+                  else
+                    begin
+                      let v = Env.copy v in
+                      Env.set_next_free v (rank+1);
+                      for i = rank+1 to next-1 do Env.set v i 0 done;
+                      Env.set v rank arg; t v
+                    end
+                in build_binder x rank true value
+            in
+            Env(vs, n+1, cl)
+      with Not_found ->
+        (* The variable does not occur. *)
+        let value vp =
+          let x = {x with suffix = get_suffix vs vp x} in
+          let t = t vp in
+          let rank = List.length vs in
+          fun v -> build_binder x rank false (fun _ -> t v)
+        in Env(vs, n, value)
 
-(* Build a binder in the case it is the first binder in a closed term (i.e.
-(the binder that binds the last free variable in a term and thus close it). *)
-let value_first_bind esize pt arg =
-  let v = Env.create esize in Env.set_next_free v 1;
-  Env.set v 0 arg;
-  pt v
-
-let mk_first_bind x esize pt =
-  let htbl = IMap.add x.key (0,x.suffix) IMap.empty in
-  let pt = pt htbl in
-  { name = merge_name x.prefix x.suffix; rank = 0; bind = true
-  ; value = value_first_bind esize pt }
-
-(* Build a normal binder (the default case) *)
-let value_bind pt pos v arg =
-  let next = Env.get_next_free v in
-  if next = pos then
-    (Env.set v next arg; Env.set_next_free v (next + 1); pt v)
-  else
-    (let v = Env.copy v in
-     Env.set_next_free v (pos + 1); Env.set v pos arg;
-     for i = pos + 1 to next - 1 do Env.set v i 0 done; pt v)
-
-let fn_bind pt pos name v =
-  { name; rank = pos; bind = true; value = value_bind pt pos v }
-
-let mk_bind vt x pos pt htbl =
-  let suffix = get_suffix vt htbl x in
-  let htbl = IMap.add x.key (pos, suffix) htbl in
-  let pt = pt htbl in
-  fn_bind pt pos (merge_name x.prefix suffix)
-
-(* Build a normal binder for a non occuring variable *)
-let value_mute_bind pt v arg = pt v
-
-let fn_mute_bind pt pos name v =
-  { name; rank = pos; bind = false; value = value_mute_bind pt v }
-
-let mk_mute_bind vt (x:'a var) pos pt htbl =
-  let suffix = get_suffix vt htbl x in
-  let pt = pt htbl in
-  fn_mute_bind pt pos (merge_name x.prefix suffix)
-
-(* Binds the given variable in the given bindbox to produce a binder. *)
-let bind_var : 'a 'b. 'a var -> 'b bindbox -> ('a, 'b) binder bindbox =
-  fun x -> function
-  | Box t ->
-     Box {name = merge_name x.prefix x.suffix;
-             rank = 0; bind = false; value = fun _ -> t}
-  | Env(vs,nb,t) ->
-     try
-       match vs with
-       | [y] -> if x.key <> y.key then raise Not_found;
-                Box (mk_first_bind x (nb + 1) t)
-       | _   -> let vt = remove x vs in
-                let pos = List.length vt in
-                Env(vt, nb + 1, mk_bind vt x pos t)
-    with Not_found ->
-      let rank = List.length vs in
-      Env(vs, nb, mk_mute_bind vs x rank t)
-
-(* Transforms a function of type ['a bindbox -> 'b bindbox] into a binder. *)
-let bind mkfree name f =
+(** [bind mkfree name f] transforms the function [f] into a binder. Everything
+    happens in a bindbox, and [mkfree] and [name] are required to create a new
+    variable to call [bind_var]. *)
+let bind : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
+    -> ('a,'b) binder bindbox = fun mkfree name f ->
   let x = new_var mkfree name in
   bind_var x (f x.bindbox)
 
-let vbind mkfree name f =
+(** [vbind mkfree name f] is similar to [bind], but the domain of the function
+    taken as input has type ['a var]. It also relies on [bind_var]. *)
+let vbind : ('a var -> 'a) -> string -> ('a var -> 'b bindbox)
+    -> ('a,'b) binder bindbox = fun mkfree name f ->
   let x = new_var mkfree name in
   bind_var x (f x)
+
+(** [check_arity xs args] matches the size of [xs] and [args],  and raises the
+    [Invalid_argument "Bad arity in msubst"] exception in case of failure. The
+    error can only be triggered at runtime (in [msubst]). *)
+let check_arity : 'a mvar -> 'a array -> unit = fun xs args ->
+  if Array.(length xs <> length args) then invalid_arg "Bad arity in msubst"
+
+(** [bind_mvar xs b] produces a [mbinder] (in a [bindbox]) by binding [xs]  in
+    [b], in a similar way as [bind_var] does for single variables. *)
+let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
+  match b with
+  | Box(t)      ->
+      let values args = check_arity xs args; t in
+      let binds = Array.map (fun _ -> false) xs in
+      let names = Array.map name_of xs in
+      Box({names; ranks = 0; binds; values})
+  | Env(vs,n,t) ->
+      let keys = Array.map (fun _ -> 0) xs in
+      let (vs, m) =
+        let vs = ref vs in let m = ref n in
+        for i = Array.length xs - 1 downto 0 do
+          let v = xs.(i) in
+          try vs := remove v !vs; incr m; keys.(i) <- v.key
+          with Not_found -> keys.(i) <- -1
+        done; (!vs, !m)
+      in
+      if vs = [] then (* All the free variables become bound. *)
+        let names = Array.map (fun _ -> "") xs in
+        let pos = ref 0 in
+        let htbl = ref IMap.empty in
+        let f i key =
+          names.(i) <- name_of xs.(i);
+          if key >= 0 then
+            begin
+              htbl := IMap.add key (!pos, xs.(i).suffix) !htbl;
+              incr pos; true
+            end
+          else false
+        in
+        let binds = Array.mapi f keys in
+        let t = t !htbl in
+        let values args =
+          check_arity xs args;
+          let v = Env.create m in
+          let pos = ref 0 in
+          for i = 0 to Array.length xs - 1 do
+            if binds.(i) then begin
+              Env.set v !pos args.(i);
+              incr pos;
+            end
+          done;
+          Env.set_next_free v !pos;
+          t v
+        in
+        Box({names; binds; ranks = 0; values})
+      else if m = n then (* None of the variables occur. *)
+        let cl vp =
+          let ranks = List.length vs in
+          let binds = Array.map (fun _ -> false) xs in
+          let fn x = merge_name x.prefix (get_suffix vs vp x) in
+          let names = Array.map fn xs in
+          let t = t vp in
+          fun v ->
+            let values args = check_arity xs args; t v in
+            {names; ranks; binds; values}
+        in Env(vs, n, cl)
+      else (* General case. *)
+        let cl vp =
+          let names = Array.map (fun _ -> "") xs in
+          let ranks = List.length vs in
+          let cur_pos = ref ranks in
+          let vp = ref vp in
+          let f i key =
+            let suffix = get_suffix vs !vp xs.(i) in
+            names.(i) <- merge_name xs.(i).prefix suffix;
+            if key >= 0 then
+              (vp := IMap.add key (!cur_pos,suffix) !vp; incr cur_pos; true)
+            else false
+          in
+          let binds = Array.mapi f keys in
+          let t = t !vp in
+          fun v ->
+            let values args =
+              check_arity xs args;
+              let next = Env.get_next_free v in
+              let cur_pos = ref ranks in
+              if next = ranks then
+                begin
+                  for i = 0 to Array.length xs - 1 do
+                    if binds.(i) then begin
+                      Env.set v !cur_pos args.(i);
+                      incr cur_pos;
+                    end
+                  done;
+                  Env.set_next_free v !cur_pos;
+                  t v
+                end
+              else
+                begin
+                  let v = Env.copy v in
+                  for i = 0 to Array.length xs - 1 do
+                    if binds.(i) then begin
+                      Env.set v !cur_pos args.(i);
+                      incr cur_pos;
+                    end
+                  done;
+                  Env.set_next_free v !cur_pos;
+                  for i = !cur_pos to next - 1 do Env.set v i 0 done;
+                  t v
+                end
+            in {names; ranks; binds; values}
+        in Env(vs, m, cl)
+
+(* FIXME FIXME FIXME chantier FIXME FIXME FIXME *)
+
 
 let unbind mkfree b =
   let x = new_var mkfree (binder_name b) in
@@ -601,141 +720,6 @@ let unbind mkfree b =
 let unmbind mkfree b =
   let x = new_mvar mkfree (mbinder_names b) in
   (x, msubst b (Array.map free_of x))
-
-let value_mbind arity binds pos pt v args =
-  let size = Array.length args in
-  if size <> arity then raise (Invalid_argument "bad arity in msubst");
-  let next = Env.get_next_free v in
-  let cur_pos = ref pos in
-  if next = pos then begin
-    for i = 0 to arity - 1 do
-      if binds.(i) then begin
-        Env.set v !cur_pos args.(i);
-        incr cur_pos;
-      end
-    done;
-    Env.set_next_free v !cur_pos;
-    pt v
-  end else begin
-    let v = Env.copy v in
-    for i = 0 to arity - 1 do
-      if binds.(i) then begin
-        Env.set v !cur_pos args.(i);
-        incr cur_pos;
-      end
-    done;
-    Env.set_next_free v !cur_pos;
-    for i = !cur_pos to next - 1 do Env.set v i 0 done;
-    pt v
-  end
-
-let fn_mbind names binds pos pt v =
-  let arity = Array.length names in
-  { names; ranks = pos; binds;
-    values = value_mbind arity binds pos pt v }
-
-(* Auxiliary functions *)
-let mk_mbind vt vs keys pt htbl =
-  let pos = List.length vt in
-  let cur_pos = ref pos in
-  let htbl = ref htbl in
-  let arity = Array.length vs in
-  let names = Array.make arity "" in
-  let f i key =
-    let suffix = get_suffix vt !htbl vs.(i) in
-    names.(i) <- merge_name vs.(i).prefix suffix;
-    if key >= 0 then
-      (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
-    else false
-  in
-  let binds = Array.mapi f keys in
-  let pt = pt !htbl in
-  fn_mbind names binds pos pt
-
-let value_mute_mbind arity pt v args =
-  if arity <> Array.length args then
-    raise (Invalid_argument "bad arity in msubst");
-  pt v
-
-let fn_mute_mbind names binds pos pt v =
-  let arity = Array.length names in
-  {names; ranks = pos; binds; values = value_mute_mbind arity pt v}
-
-let mk_mute_mbind vt vs pt htbl =
-  let pos = List.length vt in
-  let names = Array.map (fun v ->
-    let suffix = get_suffix vt htbl v in
-    merge_name v.prefix suffix) vs
-  in
-  let pt = pt htbl in
-  let binds = Array.map (fun _ -> false) vs in
-  fn_mute_mbind names binds pos pt
-
-let value_first_mbind arity binds esize pt args =
-  let v = Env.create esize in
-  if Array.length args <> arity then
-    raise (Invalid_argument "bad arity in msubst");
-  let cur_pos = ref 0 in
-  for i = 0 to arity - 1 do
-    if binds.(i) then begin
-      Env.set v !cur_pos args.(i);
-      incr cur_pos;
-    end
-  done;
-  Env.set_next_free v !cur_pos;
-  pt v
-
-let mk_first_mbind vt vs keys esize pt =
-  let cur_pos = ref 0 in
-  let htbl = ref IMap.empty in
-  let arity = Array.length vs in
-  let names = Array.make arity "" in
-  let f i key =
-    let suffix = get_suffix vt !htbl vs.(i) in
-    names.(i) <- merge_name vs.(i).prefix suffix;
-    if key >= 0 then
-      (htbl := IMap.add key (!cur_pos,suffix) !htbl; incr cur_pos; true)
-    else false
-  in
-  let binds = Array.mapi f keys in
-  let pt = pt !htbl in
-  {names; binds; ranks = 0;
-   values = value_first_mbind arity binds esize pt}
-
-(* Bind a multi-variable in a bindbox to produce a multi-binder. *)
-let bind_mvar vs = function
-  | Box t ->
-      let values args =
-        if Array.length vs <> Array.length args then
-          raise (Invalid_argument "bad arity in msubst");
-        t
-      in
-      let binds = Array.map (fun _ -> false) vs in
-      let names = Array.map (fun x ->
-                      merge_name x.prefix x.suffix) vs in
-      Box {names; ranks = 0; binds ; values}
-  | Env(vt,nbt,t) ->
-      let vt = ref vt in
-      let nnbt = ref nbt in
-      let len = Array.length vs in
-      let keys = Array.make len 0 in
-      for i = len - 1 downto 0 do
-        let v = vs.(i) in
-        try
-          let ng = remove v !vt in
-          incr nnbt;
-          vt := ng;
-          keys.(i) <- v.key
-        with Not_found ->
-          keys.(i) <- -1
-      done;
-      let vt = !vt in
-      if vt = [] then
-        Box(mk_first_mbind [] vs keys !nnbt t)
-      else if !nnbt = nbt then
-        Env(vt,nbt,mk_mute_mbind vt vs t)
-      else
-        Env(vt,!nnbt,mk_mbind vt vs keys t)
 
 (* Take a function of type ['a bindbox array -> 'b bindbox] and builds the
 corresponing multi-binder. *)
@@ -752,7 +736,8 @@ let bind_apply f = box_apply2 (fun f -> f.value) f
 
 let mbind_apply f = box_apply2 (fun f -> f.values) f
 
-let binder_from_fun name f = unbox (bind (fun _ -> assert false) name (fun x -> box_apply f x))
+let binder_from_fun name f =
+  unbox (bind (fun _ -> assert false) name (fun x -> box_apply f x))
 
 let fixpoint = function
   | Box t      -> let rec fix t =
@@ -764,14 +749,9 @@ let fixpoint = function
        let rec fix' env = (t env).value (fix' env) in fix'
      in Env(vs, nb, fix t)
 
-
-
-let mbinder_from_fun names f = unbox (mbind (fun _ -> assert false) names
-                                            (fun xs ->
-                                              let xs = box_array xs in
-                                              box_apply f xs))
-
-
+let mbinder_from_fun names f =
+  unbox (mbind (fun _ -> assert false) names
+    (fun xs -> box_apply f (box_array xs)))
 
 (* Type of a context. *)
 type ctxt = int list SMap.t
