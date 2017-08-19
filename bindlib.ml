@@ -196,6 +196,106 @@ let box_opt o =
   | None    -> box None
   | Some(e) -> box_apply (fun e -> Some(e)) e
 
+(** Type of the data collected by the [gather_data] utility function. *)
+type data = bool * any var list * int
+
+(** [gather_data acc b] collects some data about a [bindbox] [b]. The gathered
+    information contains a boolean indicating whether the considered [bindbox]
+    is a [Box], the list of all the variables and the number of slots reserved
+    in the environment. This data is accumulated into [acc]. *)
+let gather_data (only_box, vs_acc, n_acc) b =
+  match b with
+  | Box(e)      -> (only_box, vs_acc              , n_acc      )
+  | Env(vs,n,_) -> (false   , merge_uniq vs_acc vs, max n_acc n)
+
+(** [no_data] is in some sense the neutral element of [gather_data]. *)
+let no_data : data = (true, [], 0)
+
+(** [bindbox_to_closure b] extracts a [closure] from a [bindbox]. Note that in
+    the process, the variables and the reserved slots are lost. It is intended
+    to be used in conjunction with [gather_data]. *)
+let bindbox_to_closure : 'a bindbox -> 'a closure = fun b ->
+  match b with
+  | Box(t)      -> fun _ _ -> t
+  | Env(vs,n,t) -> minimize vs n t
+
+(** Type of a module equipped with a [map] function. *)
+module type Map =
+  sig
+    type 'a t
+    val map : ('a -> 'b) -> 'a t -> 'b t
+  end
+
+(** Functorial interface used to build lifting functions (i.e., functions that
+    permute the [bindbox] type with another type constructor). *)
+module Lift(M : Map) =
+  struct
+    let lift_box : 'a bindbox M.t -> 'a M.t bindbox =
+      fun m ->
+        let data = ref no_data in
+        let fn b = data := gather_data !data b; bindbox_to_closure b in
+        let m = M.map fn m in
+        let aux vp =
+          let m = M.map (fun o -> o vp) m in
+          fun env -> M.map (fun o -> o env) m
+        in
+        match !data with
+        | (true, _ , _) -> Box(aux IMap.empty (Env.create 0))
+        | (_   , vs, n) -> Env(vs, n, minimize vs n aux)
+  end
+
+(** Type of a module equipped with a "binary" [map] function. *)
+module type Map2 =
+  sig
+    type ('a, 'b) t
+    val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
+  end
+
+(** Similar to the [Lift] functor, but handles "binary" [map] functions. *)
+module Lift2(M : Map2) =
+  struct
+    let lift_box : ('a bindbox, 'b bindbox) M.t -> ('a,'b) M.t bindbox =
+      fun m ->
+        let data = ref no_data in
+        let fn b = data := gather_data !data b; bindbox_to_closure b in
+        let m = M.map fn fn m in
+        let aux vp =
+          let m = M.map (fun o -> o vp) (fun o -> o vp) m in
+          fun env -> M.map (fun o -> o env) (fun o -> o env) m
+        in
+        match !data with
+        | (true, _ , _) -> Box(aux IMap.empty (Env.create 0))
+        | (_   , vs, n) -> Env(vs, n, minimize vs n aux)
+  end
+
+(** Lifting function for the [list] type. *)
+module Lift_list = Lift(
+  struct
+    type 'a t = 'a list
+    let map = List.map
+  end)
+let box_list = Lift_list.lift_box
+
+(** Alternative lifting function for the [list] type. Note that the input list
+    is reversed in the process, which makes [box_rev_list] more efficient that
+    [box_list]. *)
+module Lift_rev_list = Lift(
+  struct
+    type 'a t = 'a list
+    let map = List.rev_map
+  end)
+let box_rev_list = Lift_rev_list.lift_box
+
+(** Lifting function for the [array] type. *)
+module Lift_array = Lift(
+  struct
+    type 'a t = 'a array
+    let map = Array.map
+  end)
+let box_array = Lift_array.lift_box
+
+
+
 
 
 
@@ -669,85 +769,6 @@ let fixpoint = function
        let rec fix' env = (t env).value (fix' env) in fix'
      in Env(vs, nb, fix t)
 
-
-(* Functorial interface to generate lifting functions for [bindbox]. *)
-let special_apply : unit bindbox -> 'a bindbox -> unit bindbox * 'a closure =
-  let dumm a _ _ = a in
-  fun tf ta ->
-    match (tf, ta) with
-    | (_           , Box(a)      ) -> (tf, dumm a)
-    | (Box(())     , Env(va,na,a)) -> (Env(va, na, dumm ()), minimize va na a)
-    | (Env(vf,nf,_), Env(va,na,a)) -> (Env(merge_uniq vf va, 0, dumm ()), minimize va na a)
-
-module type Map =
-  sig
-    type 'a t
-    val map : ('a -> 'b) -> 'a t -> 'b t
-  end
-
-module type Map2 =
-  sig
-    type ('a, 'b) t
-    val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
-  end
-
-module Lift(M : Map) =
-  struct
-    let lift_box t =
-      let acc = ref (Box ()) in
-      let fn o =
-        let (nacc, o) = special_apply !acc o in
-        acc := nacc; o
-      in
-      let t = M.map fn t in
-      let aux vp =
-        let t = M.map (fun o -> o vp) t in
-        fun env -> M.map (fun o -> o env) t
-      in
-      match !acc with
-      | Box(_)     -> Box(aux IMap.empty (Env.create 0))
-      | Env(v,b,_) -> Env(v, b, aux)
-  end
-
-module Lift2(M : Map2) =
-  struct
-    let lift_box t =
-      let acc = ref (Box ()) in
-      let fn o =
-        let nacc, o = special_apply !acc o in
-        acc := nacc; o
-      in
-      let t = M.map fn fn t in
-      let aux htbl =
-        let l = M.map (fun o -> o htbl) (fun o -> o htbl) t in
-        (fun env -> M.map (fun o -> o env) (fun o -> o env) l)
-      in
-      match !acc with
-      | Box _    -> Box(aux IMap.empty (Env.create 0))
-      | Env(v,b,_) -> Env(v,b,aux)
-  end
-
-(* Some standard lifting functions. *)
-module Lift_list = Lift(
-  struct
-    type 'a t = 'a list
-    let map = List.map
-  end)
-let box_list = Lift_list.lift_box
-
-module Lift_rev_list = Lift(
-  struct
-    type 'a t = 'a list
-    let map = List.rev_map
-  end)
-let box_rev_list = Lift_rev_list.lift_box
-
-module Lift_array = Lift(
-  struct
-    type 'a t = 'a array
-    let map = Array.map
-  end)
-let box_array = Lift_array.lift_box
 
 
 let mbinder_from_fun names f = unbox (mbind (fun _ -> assert false) names
