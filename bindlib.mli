@@ -85,7 +85,7 @@ val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
     let mkfree : term var -> term = fun x -> Var(x) ]} *)
 
 
-(** {2 Constructing terms in the bindbox} *)
+(** {2 Constructing terms and binders in the bindbox} *)
 
 
 (** One of the main design priciple of the [Bindlib] library is efficiency. To
@@ -107,11 +107,41 @@ val unbox : 'a bindbox -> 'a
 val box_of_var : 'a var -> 'a bindbox
 
 
-
 (* FIXME FIXME FIXME chantier en cours FIXME FIXME FIXME *)
 
+(** Put a term into a bindbox. None of the variables of the given term (if any)
+will be considered free. Hence no variables of the term will be available for
+binding. *)
+val box : 'a -> 'a bindbox
 
-(** {2 ... (work in progress)} *)
+(** Application operator in the [_ bindbox] data structure. This allows the
+construction of expressions by applying a function with free variables to an
+argument with free variables. *)
+val apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
+
+(** [box_apply f a = apply_box (box f) a] *)
+val box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
+
+(** [box_apply2 f a b = apply_box (apply_box (box f) a) b] *)
+val box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
+
+(** Building of binders. *)
+val bind  : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
+  -> ('a,'b) binder bindbox
+val mbind : ('a var -> 'a) -> string array
+  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+(** Building of binders. *)
+val vbind  : ('a var -> 'a) -> string -> ('a var -> 'b bindbox)
+  -> ('a,'b) binder bindbox
+val mvbind : ('a var -> 'a) -> string array
+  -> ('a var array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+
+(** Variable binding. *)
+val bind_var  : 'a var  -> 'b bindbox -> ('a, 'b) binder bindbox
+val bind_mvar : 'a mvar -> 'b bindbox -> ('a, 'b) mbinder bindbox
+
+
+(** {2 Attributes of variables, binders and bindboxes} *)
 
 
 (** Utility functions on binders. *)
@@ -122,16 +152,6 @@ val binder_constant : ('a,'b) binder -> bool
 val binder_closed   : ('a,'b) binder -> bool
 val binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder
 val binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
-
-(** binder from fun, transform a function into a binder,
-    but the function will only be called when the
-    binder is substituted. This is not the normal way to build
-    binder. Still it may be a good way, for instance to contract
-    two binders into one without copying the whole structure.
-    Ex: to transform (lam x lam y.t(x,y)) into (lam x.t(x,x))
-*)
-val binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder
-val mbinder_from_fun : string array -> ('a array -> 'b) -> ('a,'b) mbinder
 
 val mbinder_arity    : ('a,'b) mbinder -> int
 val mbinder_names    : ('a,'b) mbinder -> string array
@@ -156,17 +176,6 @@ unbox), it might be made free in a different way. For instance, its name or
 syntactic wrapper may be different. *)
 val copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var
 
-
-(** Put a term into a bindbox. None of the variables of the given term (if any)
-will be considered free. Hence no variables of the term will be available for
-binding. *)
-val box : 'a -> 'a bindbox
-
-(** Application operator in the [_ bindbox] data structure. This allows the
-construction of expressions by applying a function with free variables to an
-argument with free variables. *)
-val apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
-
 (** Is a ['a bindbox] closed? The function returns [true] if the ['a bindbox]
 has no free variables, and [false] otherwise. *)
 val is_closed : 'a bindbox -> bool
@@ -174,40 +183,17 @@ val is_closed : 'a bindbox -> bool
 (** Test if a given ['a var] occur in a given ['b bindbox]. *)
 val occur : 'a var -> 'b bindbox -> bool
 
-(** Dummy bindbox to be used in uninitialised structures (e.g. array creation).
-If [unbox] is called on a data structure containing a [dummy_bindbox] then the
-exception [Failure "Invalid use of dummy_bindbox"] is raised. *)
-val dummy_bindbox : 'a bindbox
-
-(** Building of binders. *)
-val bind  : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
-  -> ('a,'b) binder bindbox
-val mbind : ('a var -> 'a) -> string array
-  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
-(** Building of binders. *)
-val vbind  : ('a var -> 'a) -> string -> ('a var -> 'b bindbox)
-  -> ('a,'b) binder bindbox
-val mvbind : ('a var -> 'a) -> string array
-  -> ('a var array -> 'b bindbox) -> ('a,'b) mbinder bindbox
-
 (** Breaking binders. *)
 val unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b
 val unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b
 
-(** Variable binding. *)
-val bind_var  : 'a var  -> 'b bindbox -> ('a, 'b) binder bindbox
-val bind_mvar : 'a mvar -> 'b bindbox -> ('a, 'b) mbinder bindbox
+
+(** {2 More bindbox manipulation functions} *)
 
 
 (** The following functions can be written using [box] and [apply_box]. Here,
 they are implemented differently for optimisation purposes. We give the
 equivalent function using [box] and [apply_box] in comments. *)
-
-(** [box_apply f a = apply_box (box f) a] *)
-val box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
-
-(** [box_apply2 f a b = apply_box (apply_box (box f) a) b] *)
-val box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
 
 (** [box_apply3 f a b c = apply_box (apply_box (apply_box (box f) a) b) c] *)
 val box_apply3 : ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 'b bindbox
@@ -224,19 +210,6 @@ val box_triple : 'a bindbox -> 'b bindbox -> 'c bindbox
 
 val box_opt : 'a bindbox option -> 'a option bindbox
 
-(** Advanced features on the ['a bindbox] type. *)
-
-(** Useful function to work with "higher order variables", that is variables
-representing a binder themselves (that can hence be applied to arguments. *)
-val bind_apply  : ('a, 'b) binder bindbox  -> 'a bindbox       -> 'b bindbox
-val mbind_apply : ('a, 'b) mbinder bindbox -> 'a array bindbox -> 'b bindbox
-
-(** Very advanced feature: binder fixpoint. *)
-val fixpoint : (('a, 'b) binder, ('a, 'b) binder) binder bindbox
-  -> ('a, 'b) binder bindbox
-
-(** Reset the counter that provides fresh keys for variables. *)
-val reset_counter : unit -> unit
 
 (** To work with the [bindbox] type more conveniently in conjunction with data
 with a map structire, the following functors are provided. *)
@@ -300,3 +273,35 @@ val bind_in : ctxt -> ('a var -> 'a) -> string
 (** Similar function for multi-binders. *)
 val mbind_in : ctxt -> ('a var -> 'a) -> string array
   -> ('a bindbox array -> ctxt -> 'b bindbox) -> ('a,'b) mbinder bindbox
+
+
+(** {2 Advanced features} *)
+
+(** Useful function to work with "higher order variables", that is variables
+representing a binder themselves (that can hence be applied to arguments. *)
+val bind_apply  : ('a, 'b) binder bindbox  -> 'a bindbox       -> 'b bindbox
+val mbind_apply : ('a, 'b) mbinder bindbox -> 'a array bindbox -> 'b bindbox
+
+(** Very advanced feature: binder fixpoint. *)
+val fixpoint : (('a, 'b) binder, ('a, 'b) binder) binder bindbox
+  -> ('a, 'b) binder bindbox
+
+(** Reset the counter that provides fresh keys for variables. *)
+val reset_counter : unit -> unit
+
+(** binder from fun, transform a function into a binder,
+    but the function will only be called when the
+    binder is substituted. This is not the normal way to build
+    binder. Still it may be a good way, for instance to contract
+    two binders into one without copying the whole structure.
+    Ex: to transform (lam x lam y.t(x,y)) into (lam x.t(x,x))
+*)
+val binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder
+val mbinder_from_fun : string array -> ('a array -> 'b) -> ('a,'b) mbinder
+
+(** Dummy bindbox to be used in uninitialised structures (e.g. array creation).
+If [unbox] is called on a data structure containing a [dummy_bindbox] then the
+exception [Failure "Invalid use of dummy_bindbox"] is raised. *)
+val dummy_bindbox : 'a bindbox
+
+
