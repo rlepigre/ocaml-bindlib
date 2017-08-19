@@ -71,6 +71,19 @@ val msubst : ('a,'b) mbinder -> 'a array -> 'b
           end
       | _        -> t ]} *)
 
+(** [new_var mkfree name] creates a new variable using a function [mkfree] and
+    a [name]. The [mkfree] function is used to inject variables in the type of
+    the corresponding elements. *)
+val new_var  : ('a var -> 'a) -> string       -> 'a var
+
+(** [new_mvar mkfree names] creates a new array of variables using a  function
+    [mkfree] (see [new_var]) and  a [name]. *)
+val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
+
+(** Following on our example of the lambda-calculus, the [mkfree] function for
+    variables of type [term var] could be defined as follows. {[
+    let mkfree : term var -> term = fun x -> Var(x) ]} *)
+
 
 (** {2 Constructing terms in the bindbox} *)
 
@@ -90,14 +103,15 @@ type +'a bindbox
     when the desired variables have all been bound). *)
 val unbox : 'a bindbox -> 'a
 
+(** [box_of_var x] builds a ['a bindbox] from the ['a var] [x]. *)
+val box_of_var : 'a var -> 'a bindbox
+
+
+
+(* FIXME FIXME FIXME chantier en cours FIXME FIXME FIXME *)
+
 
 (** {2 ... (work in progress)} *)
-
-
-(** Variable creation functions. *)
-val new_var  : ('a var -> 'a) -> string       -> 'a var
-val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
-
 
 
 (** Utility functions on binders. *)
@@ -142,10 +156,6 @@ unbox), it might be made free in a different way. For instance, its name or
 syntactic wrapper may be different. *)
 val copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var
 
-
-
-(** Build a ['a bindbox] from a ['a var]. *)
-val box_of_var : 'a var -> 'a bindbox
 
 (** Put a term into a bindbox. None of the variables of the given term (if any)
 will be considered free. Hence no variables of the term will be available for
