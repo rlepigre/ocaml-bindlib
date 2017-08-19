@@ -56,12 +56,14 @@ val mbinder_arity    : ('a,'b) mbinder -> int
 val mbinder_names    : ('a,'b) mbinder -> string array
 val mbinder_constant : ('a,'b) mbinder -> bool
 val mbinder_closed   : ('a,'b) mbinder -> bool
+val mbinder_rank     : ('a,'b) mbinder -> int
 
 (** Utility functions on variables. *)
-val name_of  : 'a var -> string
-val prefix_of  : 'a var -> string
-val free_of  : 'a var -> 'a
-val hash_var : 'a var -> int
+val name_of   : 'a var -> string
+val prefix_of : 'a var -> string
+val suffix_of : 'a var -> int
+val free_of   : 'a var -> 'a
+val hash_var  : 'a var -> int
 
 (** Safe comparision of variables. *)
 val compare_vars : 'a var -> 'b var -> int
@@ -165,10 +167,8 @@ val mbind_apply : ('a, 'b) mbinder bindbox -> 'a array bindbox -> 'b bindbox
 val fixpoint : (('a, 'b) binder, ('a, 'b) binder) binder bindbox
   -> ('a, 'b) binder bindbox
 
-(** Reset the counter that provides fresh keys for variables. To be used with
-care. *)
+(** Reset the counter that provides fresh keys for variables. *)
 val reset_counter : unit -> unit
-
 
 (** To work with the [bindbox] type more conveniently in conjunction with data
 with a map structire, the following functors are provided. *)
@@ -229,6 +229,3 @@ val bind_in : ctxt -> ('a var -> 'a) -> string
 (** Similar function for multi-binders. *)
 val mbind_in : ctxt -> ('a var -> 'a) -> string array
   -> ('a bindbox array -> ctxt -> 'b bindbox) -> ('a,'b) mbinder bindbox
-
-(** For debugging. *)
-val list_vars : 'a bindbox -> string list

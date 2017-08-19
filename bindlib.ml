@@ -9,6 +9,14 @@
  *   - Rodolphe Lepigre <rodolphe.lepigre@univ-smb.fr>                      *
  ****************************************************************************)
 
+(** Counter for fresh symbol generation. *)
+let counter : int ref = ref (-1)
+
+(** [reset_counter ()] resets the counter. This function should only be called
+    when previously generated [Bindlib] data structures cannot be accessed any
+    more. *)
+let reset_counter : unit -> unit = fun () -> counter := (-1)
+
 (** Maps with [int] keys. *)
 module IMap = Map.Make(
   struct
@@ -105,13 +113,73 @@ type 'a bindbox =
     waiting for an environment.  This means that the [varpos] map is used only
     once for each variable, even if the variable appears many times. *)
 
-(* Type of a free variable of type ['a]. *)
+(** Type of a free variable of type ['a]. *)
 and 'a var =
-  { key             : int          (* Unique identifier.               *)
-  ; prefix          : string       (* Name as a free var (prefix).     *)
-  ; suffix          : int          (* Integer suffix.                  *)
-  ; mkfree          : 'a var -> 'a (* Function to build a term.        *)
-  ; mutable bindbox : 'a bindbox   (* Bindbox containing the variable. *) }
+  { key             : int          (* Unique identifier.                *)
+  ; prefix          : string       (* Name as a free variable (prefix). *)
+  ; suffix          : int          (* Integer suffix.                   *)
+  ; mkfree          : 'a var -> 'a (* Function to build a term.         *)
+  ; mutable bindbox : 'a bindbox   (* Bindbox containing the variable.  *) }
+
+(** Type of an array of variables of type ['a]. *)
+type 'a mvar = 'a var array
+
+(** [merge_name prefux suffux] builds a variable name using a [string]  prefix
+    and an [int] suffix. *)
+let merge_name : string -> int -> string =
+  fun pr sf -> if sf >= 0 then pr ^ (string_of_int sf) else pr
+
+(** [split_name s] splits [s] into a [string] prefix and an [int] suffix. Note
+    that we have [split "xyz" = ("xyz", (-1))], [split "xyz12" = ("xyz", 12)], 
+    or [split "12" = ("", 12)]. In other words, we take the longest suffix. *)
+let split_name : string -> string * int = fun name ->
+  let is_digit c = '0' <= c && c <= '9' in
+  let len = String.length name in
+  let last_digit = ref len in
+  while !last_digit > 0 && is_digit name.[!last_digit - 1] do
+    decr last_digit
+  done;
+  if !last_digit = len then (name, (-1)) else
+    let pref = String.sub name 0 !last_digit in
+    let suff = String.sub name !last_digit (len - !last_digit) in
+    (pref, int_of_string suff)
+
+(** [name_of x] computes the full name of the given variable. *)
+let name_of : 'a var -> string =
+  fun x -> merge_name x.prefix x.suffix
+
+(** [prefix_of x] returns the [string] prefix of the given variable. *)
+let prefix_of : 'a var -> string =
+  fun x -> x.prefix
+
+(** [suffix_of x] returns the [int] suffix of the given variable. *)
+let suffix_of : 'a var -> int =
+  fun x -> x.suffix
+
+(** [compare_vars x y] safely compare [x] and [y]. Note that it is not safe to
+    compare variables with [Pervasive.compare]. *)
+let compare_vars : 'a var -> 'b var -> int =
+  fun x y -> y.key - x.key
+
+(** [eq_vars x y] safely compute the equality of [x] and [y]. Again, it is not
+    save to compare variables with the polymorphic equality function. *)
+let eq_vars : 'a var -> 'b var -> bool =
+  fun x y -> x.key = y.key
+
+(** [hash_var x] computes a hash for variable [x]. Note that this function can
+    be used with the [Hashtbl] module. *)
+let hash_var : 'a var -> int =
+  fun x -> Hashtbl.hash (`HVar, x.key)
+
+(** [free_of x] wraps variable [x] into an element of its type. Note that this
+    function relies on a function of type ['a var -> 'a], provided by the user
+    at the creation of a variable. *)
+let free_of : 'a var -> 'a =
+  fun x -> x.mkfree x
+
+(** [box_of_var x] builds a [bindbox] from variable [x]. *)
+let box_of_var : 'a var -> 'a bindbox =
+  fun x -> x.bindbox
 
 (** [merge_uniq l1 l2] merges two sorted lists of variables that must not have
     any repetitions. The produced list does not have repetition eigher. *)
@@ -173,6 +241,16 @@ let apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox = fun f a ->
   | (Env(vf,nf,tf), Box(a)       ) -> Env(vf, nf, app_closure tf a)
   | (Env(vf,nf,tf), Env(va,na,ta)) ->
       Env(merge_uniq vf va, 0, minimize vf nf tf <*> minimize va na ta)
+
+(** [occur v] tells whether variable [v] occurs in the [bindbox] [b]. *)
+let occur : 'a var -> 'b bindbox -> bool = fun v b ->
+  match b with
+  | Box(_)      -> false
+  | Env(vs,_,_) -> List.exists (eq_vars v) vs
+
+(** [is_closed b] checks whether the [bindbox] [b] is closed. *)
+let is_closed : 'a bindbox -> bool = fun b ->
+  match b with Box(_) -> true | _ -> false
 
 (** [box_apply f a] maps the function [f] into the [bindbox] [a]. Note that it
     is equivalent to [apply_box (box f) a], but it is more efficient. *)
@@ -294,150 +372,82 @@ module Lift_array = Lift(
   end)
 let box_array = Lift_array.lift_box
 
-
-
-
-
-
-
-
-
-
-
-
-
-(* Merge a prefix and a suffix to form a name. *)
-let merge_name : string -> int -> string = fun prefix suffix ->
-  if suffix >= 0 then prefix ^ (string_of_int suffix) else prefix
-
-(* Obtain the name of a the given variable. *)
-let name_of : 'a var -> string =
-  fun x -> merge_name x.prefix x.suffix
-let prefix_of : 'a var -> string =
-  fun x -> x.prefix
-
-(* Safe comparison function for variables. *)
-let compare_vars : 'a var -> 'b var -> int =
-  fun x y -> y.key - x.key
-let eq_vars : 'a var -> 'b var -> bool =
-  fun x y -> x.key = y.key
-
-(* Hash function for variables. *)
-let hash_var : 'a var -> int =
-  fun x -> Hashtbl.hash (`HVar, x.key)
-
-(* Build a term with a free variable from a variable. *)
-let free_of : 'a var -> 'a =
-  fun x -> x.mkfree x
-
-(* Build a bindbox from a variable. *)
-let box_of_var : 'a var -> 'a bindbox =
-  fun x -> x.bindbox
-
-(* Type of multi-variables of type ['a]. *)
-type 'a mvar = 'a var array
-
-(* Type of a binder, i.e. an expression of type ['b] with a bound variable of
-type ['a]. *)
+(** The representation of a [binder],  which is an element of type ['b] with a
+    bound variable of type ['a]. *)
 type ('a,'b) binder =
-  { name   : string     (* Name of the bound variable. *)
-  ; bind   : bool       (* Does the variable occur? *)
-  ; rank   : int        (* Number of remaining free variables (>= 0). *)
-  ; value  : 'a -> 'b } (* Substitution function. *)
+  { name  : string   (** Name of the bound variable.                *)
+  ; bind  : bool     (** Indicates whether the variable occurs.     *)
+  ; rank  : int      (** Number of remaining free variables (>= 0). *)
+  ; value : 'a -> 'b (** Substitution function.                     *) }
 
-(* Obtain the name of the bound variable. *)
-let binder_name : ('a,'b) binder -> string =
-  fun b -> b.name
+(** [binder_name] returns the name of the variable bound by the [binder]. *)
+let binder_name : ('a,'b) binder -> string = fun b -> b.name
 
-(* Substitution function (simply an application!). *)
-let subst : ('a,'b) binder -> 'a -> 'b =
-  fun b x -> b.value x
+(** [subst b v] substitutes the variable bound by [b], using [v]. *)
+let subst : ('a,'b) binder -> 'a -> 'b = fun b x -> b.value x
 
-(* Does the bound variable occur in the binder? *)
-let binder_occur : ('a,'b) binder -> bool =
-  fun b -> b.bind
+(** [binder_occur b] tests whether the bound variable occurs in [b]. *)
+let binder_occur : ('a,'b) binder -> bool = fun b -> b.bind
 
-(* Is the binder constant? *)
-let binder_constant : ('a,'b) binder -> bool =
-  fun b -> not b.bind
+(** [binder_constant b] tests whether the [binder] [b] is constant (i.e.,  its
+    bound variable does not occur). *)
+let binder_constant : ('a,'b) binder -> bool = fun b -> not b.bind
 
-(* Is the binder a closed term? *)
-let binder_closed : ('a,'b) binder -> bool =
-  fun b -> b.rank = 0
+(** [binder_closed b] test whether the [binder] [b] is closed (i.e.,  does not
+    contain any free variable). *)
+let binder_closed : ('a,'b) binder -> bool = fun b -> b.rank = 0
 
-(* How many free variables does the binder contain? *)
-let binder_rank : ('a,'b) binder -> int =
-  fun b -> b.rank
+(** [binder_rank b] gives the number of free variables contained in [b]. *)
+let binder_rank : ('a,'b) binder -> int = fun b -> b.rank
 
-(* Compose a binder with a function. *)
+(** [binder_compose_left f b] precomposes the binder [b] with the function [f]
+    without changing anything at the binding structure. *)
 let binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder =
-  fun f b ->
-    let v x = b.value (f x) in
-    { name = b.name ;
-      bind = b.bind ; rank = b.rank ; value = v }
+  fun f b -> { b with value = fun x -> b.value (f x) }
 
+(** [binder_compose_rigth b f] postcomposes the binder [b] with  the  function
+    [f] without changing anything at the binding structure. *)
 let binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder =
-  fun b f ->
-    let v x = f (b.value x) in
-    { name = b.name ;
-      bind = b.bind ; rank = b.rank ; value = v }
+  fun b f -> { b with value = fun x -> f (b.value x) }
 
-(* Type of a multi-binder (binding n variables at once). It is an expression
-of type ['b] with n bound variables of type ['a]. *)
+(** The representation of a multiple binder,  which binds several variables at
+    once. It corresponds to an expression of type ['b] with bound variables of
+    type ['a]. *)
 type ('a,'b) mbinder =
-  { names  : string array     (* Names of the bound variables. *)
-  ; binds  : bool array       (* Do the variables occur? *)
-  ; ranks  : int              (* Number of remaining free variables. *)
-  ; values : 'a array -> 'b } (* Substitution function. *)
+  { names  : string array   (** Names of the bound variables.          *)
+  ; binds  : bool array     (** Indicates whether the variables occur. *)
+  ; ranks  : int            (** Number of remaining free variables.    *)
+  ; values : 'a array -> 'b (** Substitution function.                 *) }
 
-(* Obtain the arity of a multi-binder. *)
-let mbinder_arity : ('a,'b) mbinder -> int =
-  fun mb -> Array.length mb.names
+(** [mbinder_arity b] gives the arity of the [mbinder]. *)
+let mbinder_arity : ('a,'b) mbinder -> int = fun mb -> Array.length mb.names
 
-let mbinder_names : ('a,'b) mbinder -> string array =
-  fun mb -> mb.names
+(** [mbinder_names b] return the array of the names of the variables bound  by
+    the [mbinder] [b]. *)
+let mbinder_names : ('a,'b) mbinder -> string array = fun mb -> mb.names
 
-(* The substitution function (again just an application). *)
-let msubst : ('a,'b) mbinder -> 'a array -> 'b =
-  fun mb xs -> mb.values xs
+(** [msubst b vs] substitutes the variables bound by [b], using the array [vs]
+    (which size should correspond to [mbinder_arity b]). *)
+let msubst : ('a,'b) mbinder -> 'a array -> 'b = fun mb xs -> mb.values xs
 
-(* Do the varibles occur? *)
-let mbinder_occurs : ('a,'b) mbinder -> bool array =
-  fun mb -> mb.binds
+(** [mbinder_occurs b] returns an array of [bool] indicating if the  variables
+    that are bound occur (i.e., are used). *)
+let mbinder_occurs : ('a,'b) mbinder -> bool array = fun mb -> mb.binds
 
-(* Is the multi-binder constant? *)
+(** [mbinder_constant b] indicates whether the [mbinder] [b] is constant. This
+    means that none of its variables are used. *)
 let mbinder_constant : ('a,'b) mbinder -> bool =
-  fun mb -> Array.fold_left (&&) true mb.binds
+  fun mb -> Array.fold_left (||) false mb.binds
 
-(* Is the multi-binder closed? *)
-let mbinder_closed : ('a,'b) mbinder -> bool =
-  fun mb -> mb.ranks = 0
+(** [mbinder_closed b] indicates whether [b] is closed. *)
+let mbinder_closed : ('a,'b) mbinder -> bool = fun mb -> mb.ranks = 0
 
-(* How many free variables does the binder contain? *)
-let mbinder_ranks : ('a,'b) mbinder -> int =
-  fun mb -> mb.ranks
+(* [mbinder_rank b] gives the number of free variables contained in [b]. *)
+let mbinder_rank : ('a,'b) mbinder -> int = fun mb -> mb.ranks
 
-(* Split a variable name into a string and in integer suffix. If there is no
-integer suffix, then -1 is given as the suffix integer. *)
-let split_name : string -> string * int = fun name ->
-  let n = String.length name in
-  let p = ref (n-1) in
-  let digit c = '0' <= c && c <= '9' in
-  while !p >= 0 && digit name.[!p] do decr p done;
-  let p = !p + 1 in
-  if p = n || p = 0 then (name, (-1))
-  else (String.sub name 0 p,
-        int_of_string (String.sub name p (n - p)))
 
-(* We need a counter to have fresh keys for variables. *)
-let fresh_key, reset_counter =
-  let c = ref 0 in
-  let fresh () = let n = !c in incr c; n in
-  let reset () = c := 0 in
-  (fresh, reset)
+(* FIXME FIXME FIXME chantier FIXME FIXME FIXME *)
 
-(* Generalise the type of a variable to fit in a bindbox. *)
-let generalise_var : 'a var -> any var = Obj.magic
 
 (* Dummy bindbox to be used prior to initialisation. *)
 let dummy_bindbox : 'a bindbox =
@@ -445,12 +455,13 @@ let dummy_bindbox : 'a bindbox =
 
 (* Function for building a variable structure with a fresh key. *)
 let build_new_var name mkfree bindbox =
-  let prefix, suffix = split_name name in
-  { key = fresh_key () ; prefix; suffix ; mkfree; bindbox }
+  let (prefix, suffix) = split_name name in
+  let key = incr counter; !counter in
+  {key; prefix; suffix; mkfree; bindbox}
 
 let update_var_bindbox : 'a var -> unit =
   let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in
-  fun x -> x.bindbox <- Env([generalise_var x], 0, mk_var x)
+  fun x -> x.bindbox <- Env([Obj.magic x], 0, mk_var x)
 
 (* Create a new free variable using a wrapping function and a default name. *)
 let new_var : ('a var -> 'a) -> string -> 'a var =
@@ -468,23 +479,7 @@ let copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var =
   fun x name mkfree ->
     let y = new_var mkfree name in
     let r = { y with key = x.key } in
-    update_var_bindbox r;
-    r
-
-(* Test if a variable occurs in a bindbox. *)
-let occur v = function
-  | Box _     -> false
-  | Env(vt,_,_) -> List.exists (fun v' -> v'.key = v.key) vt
-
-(* Test if a bindbox is closed. *)
-let is_closed = function
-  | Box _ -> true
-  | _        -> false
-
-(* List the name of the variables in a bindbox (for debugging). *)
-let list_vars = function
-  | Box _     -> []
-  | Env(vt,_,_) -> List.map (fun x -> name_of x) vt
+    update_var_bindbox r; r
 
 (* Find a non-colliding suffix given a list of variables keys with name
 collisions, the hashtable containing the corresponding suffixes (and the
@@ -799,16 +794,9 @@ let new_var_in ctxt mkfree name =
       (suffix, SMap.add name l ctxt)
     with Not_found -> (suffix, SMap.add name [suffix] ctxt)
   in
-  let (prefix, suffix) = split_name name in
-  let (new_suffix, ctxt) = get_suffix prefix suffix ctxt in
-  let var =
-    { key = fresh_key () ; prefix; suffix = new_suffix
-    ; mkfree ; bindbox = dummy_bindbox }
-  in
-  let mk_var x htbl = Env.get (fst (IMap.find x.key htbl)) in
-  let result = Env([generalise_var var], 0, mk_var var) in
-  var.bindbox <- result;
-  (var, ctxt)
+  let x = new_var mkfree name in
+  let (new_suffix, ctxt) = get_suffix x.prefix x.suffix ctxt in
+  ({x with suffix = new_suffix}, ctxt)
 
 (* Equivalent of [bind] in a context. *)
 let bind_in ctxt mkfree name f =
