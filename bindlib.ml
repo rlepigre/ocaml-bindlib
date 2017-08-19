@@ -772,58 +772,73 @@ let mbinder_from_fun : string array -> ('a array -> 'b) -> ('a,'b) mbinder =
     let fn xs = box_apply f (box_array xs) in
     unbox (mbind (fun _ -> assert false) names fn)
 
-(* FIXME FIXME FIXME chantier FIXME FIXME FIXME *)
-
-(* Type of a context. *)
+(** Representation of a context, or a list of reserved names. *)
 type ctxt = int list SMap.t
 
-(* The empty context. *)
+(** [empty_ctxt] is the empty context. *)
 let empty_ctxt = SMap.empty
 
-(* Equivalent of [new_var] in a context. *)
-let new_var_in ctxt mkfree name =
+(** [new_var_in ctxt mkfree name] is similar to [new_var mkfree name], but the
+    variable names is chosen not to collide with the context [ctxt]. Note that
+    the context that is returned contains the new variable name. *)
+let new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt =
   let get_suffix name suffix ctxt =
+    let rec search acc suf l =
+      match l with
+      | []                -> (suf, List.rev_append acc [suf])
+      | x::_ when x > suf -> (suf, List.rev_append acc (suf::l))
+      | x::l when x = suf -> search (x::acc) (suf+1) l
+      | x::l (*x < suf*)  -> search (x::acc) suf l
+    in
     try
-      let l = SMap.find name ctxt in
-      let rec search acc suf = function
-        | []                     -> (suf, List.rev_append acc [suf])
-        | x::_ as l when x > suf -> (suf, List.rev_append acc (suf::l))
-        | x::l when x = suf      -> search (x::acc) (suf+1) l
-        | x::l (*x < suf *)      -> search (x::acc) suf l
-      in
-      let (suffix, l) = search [] suffix l in
+      let (suffix, l) = search [] suffix (SMap.find name ctxt) in
       (suffix, SMap.add name l ctxt)
     with Not_found -> (suffix, SMap.add name [suffix] ctxt)
   in
-  let x = new_var mkfree name in
-  let (new_suffix, ctxt) = get_suffix x.prefix x.suffix ctxt in
-  ({x with suffix = new_suffix}, ctxt)
+  fun ctxt mkfree name ->
+    let x = new_var mkfree name in
+    let (suffix, ctxt) = get_suffix x.prefix x.suffix ctxt in
+    ({x with suffix}, ctxt)
 
-(* Equivalent of [bind] in a context. *)
-let bind_in ctxt mkfree name f =
-  let (v, ctxt) = new_var_in ctxt mkfree name in
-  bind_var v (f v.bindbox ctxt)
+(** [new_mvar_in ctxt mkfree names] is similar to [new_mvar mkfree names], but
+    it handles the context (see [new_var_in]). *)
+let new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt =
+  fun ctxt mkfree names ->
+    let ctxt = ref ctxt in
+    let f name =
+      let (v, new_ctxt) = new_var_in !ctxt mkfree name in
+      ctxt := new_ctxt; v
+    in
+    let vs = Array.map f names in
+    (vs, !ctxt)
 
-(* Equivalent of [new_mvar] in a context. *)
-let new_mvar_in ctxt mkfree names =
-  let ctxt = ref ctxt in
-  let f name =
-    let (v, new_ctxt) = new_var_in !ctxt mkfree name in
-    ctxt := new_ctxt; v
-  in
-  let vs = Array.map f names in
-  (vs, !ctxt)
+(** [bind_in ctxt mkfree name f] is like [bind mkfree name f],  but it handles
+    the context. *)
+let bind_in : ctxt -> ('a var -> 'a) -> string
+    -> ('a bindbox -> ctxt -> 'b bindbox) -> ('a,'b) binder bindbox =
+  fun ctxt mkfree name f ->
+    let (v, ctxt) = new_var_in ctxt mkfree name in
+    bind_var v (f v.bindbox ctxt)
 
-(* Equivalent of [mbind] in a context. *)
-let mbind_in ctxt mkfree names fpt =
-  let (vs, ctxt) = new_mvar_in ctxt mkfree names in
-  let args = Array.map box_of_var vs in
-  bind_mvar vs (fpt args ctxt)
+(** [mbind_in ctxt mkfree names f] is similar to  [mbind mkfree names f],  but
+    it handles the context. *)
+let mbind_in : ctxt -> ('a var -> 'a) -> string array
+    -> ('a bindbox array -> ctxt -> 'b bindbox) -> ('a,'b) mbinder bindbox =
+  fun ctxt mkfree names fpt ->
+    let (vs, ctxt) = new_mvar_in ctxt mkfree names in
+    let args = Array.map box_of_var vs in
+    bind_mvar vs (fpt args ctxt)
 
-let unbind_in ctxt mkfree b =
+(** [unbind_in ctxt mkfree b] is similar to [unbind mkfree b],  but it handles
+    the context (see [new_mvar_in]). *)
+let unbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) binder
+    -> 'a var * 'b * ctxt = fun ctxt mkfree b ->
   let (x, ctxt) = new_var_in ctxt mkfree (binder_name b) in
   (x, subst b (free_of x), ctxt)
 
-let unmbind_in ctxt mkfree b =
+(** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
+    context (see [new_mvar_in]). *)
+let unmbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) mbinder
+    -> 'a mvar * 'b * ctxt = fun ctxt mkfree b ->
   let (x, ctxt) = new_mvar_in ctxt mkfree (mbinder_names b) in
   (x, msubst b (Array.map free_of x), ctxt)
