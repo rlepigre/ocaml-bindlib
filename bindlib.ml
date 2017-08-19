@@ -107,7 +107,7 @@ let (<*>) : ('a -> 'b) closure -> 'a closure -> 'b closure =
     ['a bindbox]. A free variable can only be bound under this constructor. In
     other words, and element of type ['a bindbox] corresponds to an element of
     type ['a] which free variables may be bound later. *)
-type 'a bindbox =
+type (+'a) bindbox =
   | Box of 'a
   (* Element of type ['a] with no free variable. *)
   | Env of any var list * int * 'a closure
