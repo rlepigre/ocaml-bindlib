@@ -13,9 +13,12 @@ bindlib.cmxa: bindlib.mli bindlib.ml
 
 ## Examples
 .PHONY: examples
-examples: examples/lambda.native
+examples: examples/lambda.native examples/translate.native
 
 examples/lambda.native: examples/lambda.ml
+	$(OCAMLBUILD) $@
+
+examples/translate.native: examples/translate.ml
 	$(OCAMLBUILD) $@
 
 ## Installation
