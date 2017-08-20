@@ -43,7 +43,7 @@ clean:
 	$(OCAMLBUILD) -clean
 
 distclean: clean
-	rm -f *~ examples/*~
+	rm -f *~ examples/*~ docs/*~ docs/ocamldoc/*~
 
 ## Documentation
 .PHONY: doc
