@@ -133,38 +133,3 @@ let _ =
   Printf.printf "  %a\n\t→ %a\n%!" print fst_y  print (update (eval fst_y));
   Printf.printf "  %a\n\t→ %a\n%!" print fst_yx print (update (eval fst_yx));
   Printf.printf "  %a\n\t→ %a\n%!" print swap_y print (update (eval swap_y))
-
-(* Example of parsing time AST for our language. *)
-type pterm =
-  | PVar of string
-  | PLam of string * pterm
-  | PApp of pterm * pterm
-
-(* Translation function to our AST using bindlib. *)
-let trans : pterm -> term =
-  let rec trans : (string * term bindbox) list -> pterm -> term bindbox =
-    fun env t ->
-      match t with
-      | PVar(x)   -> List.assoc x env (* unbound variable if not found *)
-      | PLam(x,t) -> abs x (fun v -> trans ((x,v)::env) t)
-      | PApp(t,u) -> app (trans env t) (trans env u)
-  in
-  fun t -> unbox (trans [] t)
-
-(* Alternative translation function. *)
-let trans' : pterm -> term =
-  let rec trans : (string * term var) list -> pterm -> term bindbox =
-    fun env t ->
-      match t with
-      | PVar(x)   -> box_of_var (List.assoc x env)
-      | PLam(x,t) -> let v = var x in
-                     abs_var v (trans ((x,v)::env) t)
-      | PApp(t,u) -> app (trans env t) (trans env u)
-  in
-  fun t -> unbox (trans [] t)
-
-(* Translation test. *)
-let _ =
-  let fst = PLam("x",PLam("y",PVar("x"))) in
-  Printf.printf "Translated to %a and %a\n%!"
-    print (trans fst) print (trans' fst)
