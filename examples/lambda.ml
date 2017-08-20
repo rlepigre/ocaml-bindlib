@@ -156,7 +156,7 @@ let _ =
   Printf.printf "  %a\n  → %a\n%!" print swapy (rprint ctxt) (eval swapy)
 
 let _ =
-  Printf.printf "remark: with context we ensure DeBruijn convention\n%!";
+  Printf.printf "remark: with context we ensure Barendregt convention\n%!";
   Printf.printf "  %a versus %a\n%!" print id (rprint ctxt) id
 
 (* Example of parsing time AST for our language. *)
