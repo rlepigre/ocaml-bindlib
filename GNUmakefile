@@ -11,6 +11,13 @@ bindlib.cma: bindlib.mli bindlib.ml
 bindlib.cmxa: bindlib.mli bindlib.ml
 	$(OCAMLBUILD) $@
 
+## Examples
+.PHONY: examples
+examples: examples/lambda.native
+
+examples/lambda.native: examples/lambda.ml
+	$(OCAMLBUILD) $@
+
 ## Installation
 uninstall:
 	$(OCAMLFIND) remove bindlib
@@ -26,7 +33,7 @@ clean:
 	$(OCAMLBUILD) -clean
 
 distclean: clean
-	rm -f *~ **/*~
+	rm -f *~ examples/*~
 
 ## Documentation
 .PHONY: doc
