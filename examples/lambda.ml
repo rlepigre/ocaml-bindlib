@@ -25,6 +25,10 @@ let vabs : term var -> term bindbox -> term bindbox =
    [var "x"] creates two distinct variables *)
 let var : string -> term var = fun x -> new_var mkfree x
 
+(* A version to create a variable in a context, see below *)
+let var_in : ctxt -> string -> term var * ctxt =
+  fun ctxt x -> new_var_in ctxt mkfree x
+
 (* A short cut for box_of_var, to use a variable *)
 let use : term var -> term bindbox = box_of_var
 
@@ -38,7 +42,7 @@ let omega : term bindbox = app delta delta
 (* An examples using var and vabs *)
 let x     : term var     = var "x"
 let y     : term var     = var "y"
-let delta2: term bindbox = vabs x (app (use x) (use x))
+let delt2 : term bindbox = vabs x (app (use x) (use x))
 let fsty  : term bindbox = app fst (use y)
 let fstyx : term bindbox = app fsty (use x)
 let swapy : term bindbox = app swap (use y)
@@ -49,7 +53,7 @@ let y     : term = free_of y
 let id    : term = unbox id
 let fst   : term = unbox fst
 let delta : term = unbox delta
-let delta2: term = unbox delta2
+let delt2 : term = unbox delt2
 let swap  : term = unbox swap
 let omega : term = unbox omega
 let fsty  : term = unbox fsty
@@ -73,6 +77,14 @@ let rec print : out_channel -> term -> unit = fun ch t ->
   | Abs(b)   -> let (x,t) = unbind mkfree b in
                 Printf.fprintf ch "λ%s.%a" (name_of x) print t
   | App(t,u) -> Printf.fprintf ch "(%a) %a" print t print u
+
+(* Printing function with context, handle renaming. *)
+let rec rprint : ctxt -> out_channel -> term -> unit = fun ctxt ch t ->
+  match t with
+  | Var(x)   -> Printf.fprintf ch "%s" (name_of x)
+  | Abs(b)   -> let (x,t,ctxt) = unbind_in ctxt mkfree b in
+                Printf.fprintf ch "λ%s.%a" (name_of x) (rprint ctxt) t
+  | App(t,u) -> Printf.fprintf ch "(%a) %a" (rprint ctxt) t (rprint ctxt) u
 
 (* Lifting to the [bindboc]. *)
 let rec lift : term -> term bindbox = fun t ->
@@ -124,10 +136,25 @@ let _ =
   Printf.printf "  %a\n  → %a\n%!" print swapy print (eval swapy)
 
 let _ =
-  Printf.printf "For printing, it is better to update names first:\n%!";
+  Printf.printf "For printing, we can update names first:\n%!";
   Printf.printf "  %a\n  → %a\n%!" print fsty  print (update (eval fsty));
   Printf.printf "  %a\n  → %a\n%!" print fstyx print (update (eval fstyx));
   Printf.printf "  %a\n  → %a\n%!" print swapy print (update (eval swapy))
+
+(* to use context we recreate [x] and [y] in a context *)
+let ctxt     : ctxt            = empty_ctxt
+let (_,ctxt) : term var * ctxt = var_in ctxt "x"
+let (_,ctxt) : term var * ctxt = var_in ctxt "y"
+
+let _ =
+  Printf.printf "or use context in printing";
+  Printf.printf "  %a\n  → %a\n%!" print fsty  (rprint ctxt) (eval fsty);
+  Printf.printf "  %a\n  → %a\n%!" print fstyx (rprint ctxt) (eval fstyx);
+  Printf.printf "  %a\n  → %a\n%!" print swapy (rprint ctxt) (eval swapy)
+
+let _ =
+  Printf.printf "remark: with context we ensure DeBruijn convention\n%!";
+  Printf.printf "  %a versus %a\n%!" print id (rprint ctxt) id
 
 (* Example of parsing time AST for our language. *)
 type pterm =
