@@ -42,7 +42,7 @@ doc/bindlib.pdf: doc/bindlib.tex
 	cd doc; rubber -W all --pdf bindlib.tex
 
 bindlib.docdir/index.html: bindlib.ml bindlib.mli
-	$(OCAMLBUILD) $@
+	$(OCAMLBUILD) -docflag -short-functors $@
 
 ## Examples
 .PHONY: examples

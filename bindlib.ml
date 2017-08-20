@@ -167,13 +167,13 @@ let prefix_of : 'a var -> string =
 let suffix_of : 'a var -> int =
   fun x -> x.suffix
 
-(** [compare_vars x y] safely compare [x] and [y]. Note that it is not safe to
+(** [compare_vars x y] safely compares [x] and [y].  Note that it is unsafe to
     compare variables with [Pervasive.compare]. *)
 let compare_vars : 'a var -> 'b var -> int =
   fun x y -> y.key - x.key
 
-(** [eq_vars x y] safely compute the equality of [x] and [y]. Again, it is not
-    save to compare variables with the polymorphic equality function. *)
+(** [eq_vars x y] safely computes the equality of [x] and [y]. Note that it is
+    unsafe to compare variables with the polymorphic equality function. *)
 let eq_vars : 'a var -> 'b var -> bool =
   fun x y -> x.key = y.key
 
@@ -252,7 +252,7 @@ let apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox = fun f a ->
   | (Env(vf,nf,tf), Env(va,na,ta)) ->
       Env(merge_uniq vf va, 0, minimize vf nf tf <*> minimize va na ta)
 
-(** [occur v] tells whether variable [v] occurs in the [bindbox] [b]. *)
+(** [occur x b] tells whether variable [x] occurs in the [bindbox] [b]. *)
 let occur : 'a var -> 'b bindbox -> bool = fun v b ->
   match b with
   | Box(_)      -> false
