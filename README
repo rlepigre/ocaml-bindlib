@@ -1,0 +1,19 @@
+### Description ###
+
+Bindlib is a library allowing the manipulation of data structures
+with bound variables. It is particularly useful when writing ASTs
+for programming languages, but also for manipulating terms of the
+λ-calculus or quantified formulas.
+
+### Dependencies ###
+
+List of dependencies:
+ - OCaml
+ - Findlib (build)
+ - OCamlbuild (build)
+ - GNU Make (build)
+
+### Installation ###
+
+ > make
+ > make install
