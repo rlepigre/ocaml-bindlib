@@ -17,3 +17,11 @@ List of dependencies:
 
  > make
  > make install
+
+### Other things ###
+
+To generate the documentation (ocamldoc):
+ > make doc
+
+To build the examples:
+ > make examples

@@ -1,3 +1,6 @@
+(* This example illustrates the use of [Bindlib] to represent and manipulate a
+   simple abstract syntax tree corresponding to the pure λ-calculus. *)
+
 open Bindlib
 
 (* AST of the pure λ-calculus using free variables and binders. *)
