@@ -51,6 +51,10 @@ doc: bindlib.docdir/index.html
 bindlib.docdir/index.html: bindlib.ml bindlib.mli
 	$(OCAMLBUILD) -docflag -short-functors $@
 
+.PHONY: updatedoc
+updatedoc: doc
+	cp bindlib.docdir/*.* docs/ocamldoc/
+
 ## Release
 
 .PHONY: release
