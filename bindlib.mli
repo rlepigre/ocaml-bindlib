@@ -84,6 +84,31 @@ val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
     variables of type [term var] could be defined as follows. {[
     let mkfree : term var -> term = fun x -> Var(x) ]} *)
 
+(** [name_of x] returns a printable name for variable [x]. *)
+val name_of   : 'a var -> string
+
+(** [unbind mkfree b] breaks down the binder [b] into a variable, and the term
+    in which this variable is now free.  Note that the usual [mkfree] function
+    is required,  since [unbind] needs to create a new variable (its name will
+    be that of the previously bound variable). *)
+val unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b
+
+(** [unmbind mkfree b] breaks down the binder [b] into variables, and the term
+    in which these variables are now free. Again,  the usual [mkfree] function
+    is required, and the name of the new variables is based on that of all the
+    variables that were previously bound. *)
+val unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b
+
+(** An usual use of [unbind] is the wrinting of pretty-printing functions. The
+    function given bellow transforms a lambda-term into a [string].  Note that
+    the [name_of] function is used for variables. {[
+    let rec to_string : term -> string = fun t ->
+      match t with
+      | Var(x)   -> name_of x
+      | Abs(b)   -> let (x,t) = unbind mkfree b in
+                    "\\" ^ name_of x ^ "." ^ to_string t
+      | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u ]} *)
+
 
 (** {2 Constructing terms and binders in the bindbox} *)
 
@@ -99,45 +124,79 @@ val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
     free variables can be bound easily. *)
 type +'a bindbox
 
+(** [box_of_var x] builds a ['a bindbox] from the ['a var] [x]. *)
+val box_of_var : 'a var -> 'a bindbox
+
+(** [box e] puts the value [e] into the ['a bindbox] type, assuming that it is
+    closed. Thus, if [e] contains variables,  then they will not be considered
+    free. This means that no variable of [e] will be available for binding. *)
+val box : 'a -> 'a bindbox
+
+(** [apply_box bf ba] applies the boxed function [bf] to a boxed argument [ba]
+    inside the ['a bindbox] type. This function is useful for constructing new
+    expressions by applying a function with free variables to an argument with
+    free variables. Note that the ['a bindbox] type is an applicative functor.
+    Its application operator (sometimes written "<*>") is [apply_box], and its
+    unit (sometimes called "pure") is [box]. *)
+val apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
+
+(** [box_apply f ba] applies the function [f] to a boxed argument [ba].  It is
+    equivalent to [apply_box (box f) ba], but is more efficient. *)
+val box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
+
+(** [box_apply2 f ba bb] applies the function [f] to two boxed arguments  [ba]
+    and [bb]. It is equivalent to [apply_box (apply_box (box f) ba) bb] but it
+    is more efficient. *)
+val box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
+
+(** [bind mkfree name f] constructs a boxed binder from the function [f]. Note
+    that [name] and [mkfree] are required to build the bound variable. *)
+val bind  : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
+  -> ('a,'b) binder bindbox
+
+(** [mbind mkfree names f] constructs a boxed binder from function [f],  using
+    [mkfree] and [names] to build the bound variables. *)
+val mbind : ('a var -> 'a) -> string array
+  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+
+(** As mentioned earlier,  terms with bound variables can only be build in the
+    ['a bindbox] type. To ease the writing of terms,  it is a good practice to 
+    define "smart constructors" at the ['a bindbox] level.  Coming back to our
+    lambda-calculus example, we can give the following smart constructors. {[
+    let var : string -> term bindbox =
+      fun x -> box_of_var (new_var mkfree x)
+
+    let lam : string -> (term bindbox -> term bindbox) -> term bindbox =
+      fun x f -> box_apply (fun b -> Lam(b)) (bind mkfree x f)
+
+    let app : term bindbox -> term bindbox -> term bindbox =
+      fun t u -> box_apply2 (fun t u -> App(t,u)) t u ]} *)
+
 (** [unbox e] can be called when the construction of a term is finished (e.g.,
     when the desired variables have all been bound). *)
 val unbox : 'a bindbox -> 'a
 
-(** [box_of_var x] builds a ['a bindbox] from the ['a var] [x]. *)
-val box_of_var : 'a var -> 'a bindbox
+(** We can then easily define terms of the lambda-calculus as follows. {[
+    let id    : term = (* \x.x *)
+      unbox (lam "x" (fun x -> x))
 
+    let fst   : term = (* \x.\y.x *)
+      unbox (lam "x" (fun x -> lam "y" (fun _ -> x)))
+
+    let omega : term = (* (\x.(x) x) \x.(x) x *)
+      let delta = lam "x" (fun x -> app x x) in
+      unbox (app delta delta) ]} *)
 
 (* FIXME FIXME FIXME chantier en cours FIXME FIXME FIXME *)
 
-(** Put a term into a bindbox. None of the variables of the given term (if any)
-will be considered free. Hence no variables of the term will be available for
-binding. *)
-val box : 'a -> 'a bindbox
-
-(** Application operator in the [_ bindbox] data structure. This allows the
-construction of expressions by applying a function with free variables to an
-argument with free variables. *)
-val apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
-
-(** [box_apply f a = apply_box (box f) a] *)
-val box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
-
-(** [box_apply2 f a b = apply_box (apply_box (box f) a) b] *)
-val box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
-
-(** Building of binders. *)
-val bind  : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
-  -> ('a,'b) binder bindbox
-val mbind : ('a var -> 'a) -> string array
-  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
-(** Building of binders. *)
 val vbind  : ('a var -> 'a) -> string -> ('a var -> 'b bindbox)
   -> ('a,'b) binder bindbox
+
 val mvbind : ('a var -> 'a) -> string array
   -> ('a var array -> 'b bindbox) -> ('a,'b) mbinder bindbox
 
-(** Variable binding. *)
 val bind_var  : 'a var  -> 'b bindbox -> ('a, 'b) binder bindbox
+
 val bind_mvar : 'a mvar -> 'b bindbox -> ('a, 'b) mbinder bindbox
 
 
@@ -160,7 +219,6 @@ val mbinder_closed   : ('a,'b) mbinder -> bool
 val mbinder_rank     : ('a,'b) mbinder -> int
 
 (** Utility functions on variables. *)
-val name_of   : 'a var -> string
 val prefix_of : 'a var -> string
 val suffix_of : 'a var -> int
 val free_of   : 'a var -> 'a
@@ -182,10 +240,6 @@ val is_closed : 'a bindbox -> bool
 
 (** Test if a given ['a var] occur in a given ['b bindbox]. *)
 val occur : 'a var -> 'b bindbox -> bool
-
-(** Breaking binders. *)
-val unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b
-val unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b
 
 
 (** {2 More bindbox manipulation functions} *)
