@@ -11,42 +11,52 @@ let mkfree : term var -> term =
   fun x -> Var(x)
 
 (* Smart constructors to build terms in the [bindbox]. *)
-let var : string -> term bindbox =
-  fun x -> box_of_var (new_var mkfree x)
-
 let abs : string -> (term bindbox -> term bindbox) -> term bindbox =
   fun x f -> box_apply (fun b -> Abs(b)) (bind mkfree x f)
 
 let app : term bindbox -> term bindbox -> term bindbox =
   fun t u -> box_apply2 (fun t u -> App(t,u)) t u
 
-(* Alternative smart constructor for [Abs], using [vbind]. *)
-let vabs : string -> (term var -> term bindbox) -> term bindbox =
-  fun x f -> box_apply (fun b -> Abs(b)) (vbind mkfree x f)
+(* Alternative smart constructor for [Abs], using [bind_var]. *)
+let vabs : term var -> term bindbox -> term bindbox =
+  fun v t -> box_apply (fun b -> Abs(b)) (bind_var v t)
+
+(* A way to create a variable. Beware that using twice
+   [var "x"] creates two distinct variables *)
+let var : string -> term var = fun x -> new_var mkfree x
+
+(* A short cut for box_of_var, to use a variable *)
+let use : term var -> term bindbox = box_of_var
 
 (* Some examples of terms (not unboxed). *)
-let x     : term bindbox = var "x"
-let y     : term bindbox = var "y"
 let id    : term bindbox = abs "x" (fun x -> x)
 let fst   : term bindbox = abs "x" (fun x -> abs "y" (fun y -> x))
 let delta : term bindbox = abs "x" (fun x -> app x x)
 let swap  : term bindbox = abs "x" (fun x -> abs "y" (fun y -> app y x))
 let omega : term bindbox = app delta delta
-let fsty  : term bindbox = app fst y
-let fstyx : term bindbox = app fsty x
-let swapy : term bindbox = app swap y
+
+(* An examples using var and vabs *)
+let x     : term var     = var "x"
+let y     : term var     = var "y"
+let delta2: term bindbox = vabs x (app (use x) (use x))
+let fsty  : term bindbox = app fst (use y)
+let fstyx : term bindbox = app fsty (use x)
+let swapy : term bindbox = app swap (use y)
 
 (* Unboxed versions. *)
-let x     : term = unbox x
-let y     : term = unbox y
+let x     : term = free_of x (* same as [unbox (use x)] *)
+let y     : term = free_of y
 let id    : term = unbox id
 let fst   : term = unbox fst
 let delta : term = unbox delta
+let delta2: term = unbox delta2
 let swap  : term = unbox swap
 let omega : term = unbox omega
 let fsty  : term = unbox fsty
 let fstyx : term = unbox fstyx
 let swapy : term = unbox swapy
+
+
 
 (* Translation to string. *)
 let rec to_string : term -> string = fun t ->
@@ -68,7 +78,8 @@ let rec print : out_channel -> term -> unit = fun ch t ->
 let rec lift : term -> term bindbox = fun t ->
   match t with
   | Var(x)   -> box_of_var x
-  | Abs(b)   -> vabs (binder_name b) (fun x -> lift (subst b (Var(x))))
+  | Abs(b)   -> let (x,t) = unbind mkfree b in
+                vabs x (lift (subst b (Var(x))))
   | App(u,v) -> app (lift u) (lift v)
 
 (* Update function to recompute names (required after substitution). *)
@@ -141,7 +152,8 @@ let trans' : pterm -> term =
     fun env t ->
       match t with
       | PVar(x)   -> box_of_var (List.assoc x env)
-      | PLam(x,t) -> vabs x (fun v -> trans ((x,v)::env) t)
+      | PLam(x,t) -> let v = var x in
+                     vabs v (trans ((x,v)::env) t)
       | PApp(t,u) -> app (trans env t) (trans env u)
   in
   fun t -> unbox (trans [] t)
