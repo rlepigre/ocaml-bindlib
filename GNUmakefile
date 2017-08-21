@@ -60,5 +60,5 @@ updatedoc: doc
 .PHONY: release
 release: distclean
 	git push origin
-	git tag -a ocaml-imagelib_$(VERSION)
-	git push origin ocaml-imagelib_$(VERSION)
+	git tag -a ocaml-bindlib_$(VERSION)
+	git push origin ocaml-bindlib_$(VERSION)
