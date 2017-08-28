@@ -21,49 +21,46 @@ let app : term bindbox -> term bindbox -> term bindbox =
   fun t u -> box_apply2 (fun t u -> App(t,u)) t u
 
 (* Alternative smart constructor for [Abs], using [bind_var]. *)
-let vabs : term var -> term bindbox -> term bindbox =
+let abs_var : term var -> term bindbox -> term bindbox =
   fun v t -> box_apply (fun b -> Abs(b)) (bind_var v t)
 
-(* A way to create a variable. Beware that using twice
-   [var "x"] creates two distinct variables *)
-let var : string -> term var = fun x -> new_var mkfree x
+(* A function to create a fresh variable. *)
+let var : string -> term var =
+  fun x -> new_var mkfree x
 
-(* A version to create a variable in a context, see below *)
-let var_in : ctxt -> string -> term var * ctxt =
-  fun ctxt x -> new_var_in ctxt mkfree x
-
-(* A short cut for box_of_var, to use a variable *)
-let use : term var -> term bindbox = box_of_var
+(* NOTE two calls to [var] will produce two distinct variables. *)
 
 (* Some examples of terms (not unboxed). *)
+let x     : term bindbox = box_of_var (var "x")
+let y     : term bindbox = box_of_var (var "y")
 let id    : term bindbox = abs "x" (fun x -> x)
 let fst   : term bindbox = abs "x" (fun x -> abs "y" (fun y -> x))
 let delta : term bindbox = abs "x" (fun x -> app x x)
-let swap  : term bindbox = abs "x" (fun x -> abs "y" (fun y -> app y x))
 let omega : term bindbox = app delta delta
 
-(* An examples using var and vabs *)
-let x     : term var     = var "x"
-let y     : term var     = var "y"
-let delt2 : term bindbox = vabs x (app (use x) (use x))
-let fsty  : term bindbox = app fst (use y)
-let fstyx : term bindbox = app fsty (use x)
-let swapy : term bindbox = app swap (use y)
+(* An example of term constructed using [var] and [abs_var]. *)
+let swap : term bindbox =
+  let x = var "x" in
+  let y = var "y" in
+  let t = app (box_of_var y) (box_of_var x) in
+  abs_var x (abs_var y t)
 
-(* Unboxed versions. *)
-let x     : term = free_of x (* same as [unbox (use x)] *)
-let y     : term = free_of y
-let id    : term = unbox id
-let fst   : term = unbox fst
-let delta : term = unbox delta
-let delt2 : term = unbox delt2
-let swap  : term = unbox swap
-let omega : term = unbox omega
-let fsty  : term = unbox fsty
-let fstyx : term = unbox fstyx
-let swapy : term = unbox swapy
+(* Examples producing capture during evaluation. *)
+let fst_y  : term bindbox = app fst y
+let fst_yx : term bindbox = app fst_y x
+let swap_y : term bindbox = app swap y
 
-
+(* Unboxed terms. *)
+let x      : term = unbox x
+let y      : term = unbox y
+let id     : term = unbox id
+let fst    : term = unbox fst
+let delta  : term = unbox delta
+let omega  : term = unbox omega
+let swap   : term = unbox swap
+let fst_y  : term = unbox fst_y
+let fst_yx : term = unbox fst_yx
+let swap_y : term = unbox swap_y
 
 (* Translation to string. *)
 let rec to_string : term -> string = fun t ->
@@ -81,20 +78,12 @@ let rec print : out_channel -> term -> unit = fun ch t ->
                 Printf.fprintf ch "λ%s.%a" (name_of x) print t
   | App(t,u) -> Printf.fprintf ch "(%a) %a" print t print u
 
-(* Printing function with context, handle renaming. *)
-let rec rprint : ctxt -> out_channel -> term -> unit = fun ctxt ch t ->
-  match t with
-  | Var(x)   -> Printf.fprintf ch "%s" (name_of x)
-  | Abs(b)   -> let (x,t,ctxt) = unbind_in ctxt mkfree b in
-                Printf.fprintf ch "λ%s.%a" (name_of x) (rprint ctxt) t
-  | App(t,u) -> Printf.fprintf ch "(%a) %a" (rprint ctxt) t (rprint ctxt) u
-
-(* Lifting to the [bindboc]. *)
+(* Lifting to the [bindbox]. *)
 let rec lift : term -> term bindbox = fun t ->
   match t with
   | Var(x)   -> box_of_var x
   | Abs(b)   -> let (x,t) = unbind mkfree b in
-                vabs x (lift (subst b (Var(x))))
+                abs_var x (lift (subst b (Var(x))))
   | App(u,v) -> app (lift u) (lift v)
 
 (* Update function to recompute names (required after substitution). *)
@@ -128,68 +117,19 @@ let _ =
   Printf.printf "  %a\n%!" print fst;
   Printf.printf "  %a\n%!" print delta;
   Printf.printf "  %a\n%!" print omega;
-  Printf.printf "  %a\n%!" print fsty;
-  Printf.printf "  %a\n%!" print fstyx;
-  Printf.printf "  %a\n%!" print swapy
+  Printf.printf "  %a\n%!" print swap;
+  Printf.printf "  %a\n%!" print fst_y;
+  Printf.printf "  %a\n%!" print fst_yx;
+  Printf.printf "  %a\n%!" print swap_y
 
 let _ =
   Printf.printf "Substitution is fast, but does not handle renaming:\n%!";
-  Printf.printf "  %a\n  → %a\n%!" print fsty  print (eval fsty);
-  Printf.printf "  %a\n  → %a\n%!" print fstyx print (eval fstyx);
-  Printf.printf "  %a\n  → %a\n%!" print swapy print (eval swapy)
+  Printf.printf "  %a\n\t→ %a\n%!" print fst_y  print (eval fst_y);
+  Printf.printf "  %a\n\t→ %a\n%!" print fst_yx print (eval fst_yx);
+  Printf.printf "  %a\n\t→ %a\n%!" print swap_y print (eval swap_y)
 
 let _ =
-  Printf.printf "For printing, we can update names first:\n%!";
-  Printf.printf "  %a\n  → %a\n%!" print fsty  print (update (eval fsty));
-  Printf.printf "  %a\n  → %a\n%!" print fstyx print (update (eval fstyx));
-  Printf.printf "  %a\n  → %a\n%!" print swapy print (update (eval swapy))
-
-(* to use context we recreate [x] and [y] in a context *)
-let ctxt     : ctxt            = empty_ctxt
-let (_,ctxt) : term var * ctxt = var_in ctxt "x"
-let (_,ctxt) : term var * ctxt = var_in ctxt "y"
-
-let _ =
-  Printf.printf "or use context in printing";
-  Printf.printf "  %a\n  → %a\n%!" print fsty  (rprint ctxt) (eval fsty);
-  Printf.printf "  %a\n  → %a\n%!" print fstyx (rprint ctxt) (eval fstyx);
-  Printf.printf "  %a\n  → %a\n%!" print swapy (rprint ctxt) (eval swapy)
-
-let _ =
-  Printf.printf "remark: with context we ensure Barendregt convention\n%!";
-  Printf.printf "  %a versus %a\n%!" print id (rprint ctxt) id
-
-(* Example of parsing time AST for our language. *)
-type pterm =
-  | PVar of string
-  | PLam of string * pterm
-  | PApp of pterm * pterm
-
-(* Translation function to our AST using bindlib. *)
-let trans : pterm -> term =
-  let rec trans : (string * term bindbox) list -> pterm -> term bindbox =
-    fun env t ->
-      match t with
-      | PVar(x)   -> List.assoc x env (* unbound variable if not found *)
-      | PLam(x,t) -> abs x (fun v -> trans ((x,v)::env) t)
-      | PApp(t,u) -> app (trans env t) (trans env u)
-  in
-  fun t -> unbox (trans [] t)
-
-(* Alternative translation function. *)
-let trans' : pterm -> term =
-  let rec trans : (string * term var) list -> pterm -> term bindbox =
-    fun env t ->
-      match t with
-      | PVar(x)   -> box_of_var (List.assoc x env)
-      | PLam(x,t) -> let v = var x in
-                     vabs v (trans ((x,v)::env) t)
-      | PApp(t,u) -> app (trans env t) (trans env u)
-  in
-  fun t -> unbox (trans [] t)
-
-(* Translation test. *)
-let _ =
-  let fst = PLam("x",PLam("y",PVar("x"))) in
-  Printf.printf "Translated to %a and %a\n%!"
-    print (trans fst) print (trans' fst)
+  Printf.printf "For printing, it is better to update names first:\n%!";
+  Printf.printf "  %a\n\t→ %a\n%!" print fst_y  print (update (eval fst_y));
+  Printf.printf "  %a\n\t→ %a\n%!" print fst_yx print (update (eval fst_yx));
+  Printf.printf "  %a\n\t→ %a\n%!" print swap_y print (update (eval swap_y))

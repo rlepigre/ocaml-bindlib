@@ -163,8 +163,8 @@ val mbind : ('a var -> 'a) -> string array
     ['a bindbox] type. To ease the writing of terms,  it is a good practice to
     define "smart constructors" at the ['a bindbox] level.  Coming back to our
     lambda-calculus example, we can give the following smart constructors. {[
-    let var : string -> term bindbox =
-      fun x -> box_of_var (new_var mkfree x)
+    let var : term var -> term bindbox =
+      fun x -> box_of_var x
 
     let abs : string -> (term bindbox -> term bindbox) -> term bindbox =
       fun x f -> box_apply (fun b -> Abs(b)) (bind mkfree x f)
@@ -202,11 +202,11 @@ val mvbind : ('a var -> 'a) -> string array
 (** Using the [vbind] function instead of the [bind] function,  we can give an
     alternative smart constructor for lambda-abstraction. Note that we need to
     use the [box_of_var] to use a variable when defining a term. {[
-    let vabs : string -> (term var -> term bindbox) -> term bindbox =
+    let abs_var : string -> (term var -> term bindbox) -> term bindbox =
       fun x f -> box_apply (fun b -> Abs(b)) (vbind mkfree x f)
 
     let delta : term = (* \x.(x) x *)
-      unbox (vabs "x" (fun x -> app (box_of_var x) (box_of_bar x))) ]} *)
+      unbox (abs_var "x" (fun x -> app (var x) (var x))) ]} *)
 
 (** [bind_var x b] binds the variable [x] in [b] to produce a boxed binder. In
     fact, is used to implement [bind] and [vbind]. *)

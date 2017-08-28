@@ -13,12 +13,19 @@ bindlib.cmxa: bindlib.mli bindlib.ml
 
 ## Examples
 .PHONY: examples
-examples: examples/lambda.native examples/translate.native
+examples: examples/lambda.native examples/translate.native \
+	examples/basic.native examples/parsed.native
 
 examples/lambda.native: examples/lambda.ml
 	$(OCAMLBUILD) $@
 
 examples/translate.native: examples/translate.ml
+	$(OCAMLBUILD) $@
+
+examples/basic.native: examples/basic.ml
+	$(OCAMLBUILD) $@
+
+examples/parsed.native: examples/parsed.ml
 	$(OCAMLBUILD) $@
 
 ## Installation
@@ -36,7 +43,7 @@ clean:
 	$(OCAMLBUILD) -clean
 
 distclean: clean
-	rm -f *~ examples/*~
+	rm -f *~ examples/*~ docs/*~ docs/ocamldoc/*~
 
 ## Documentation
 .PHONY: doc
@@ -44,10 +51,14 @@ doc: bindlib.docdir/index.html
 bindlib.docdir/index.html: bindlib.ml bindlib.mli
 	$(OCAMLBUILD) -docflag -short-functors $@
 
+.PHONY: updatedoc
+updatedoc: doc
+	cp bindlib.docdir/*.* docs/ocamldoc/
+
 ## Release
 
 .PHONY: release
 release: distclean
 	git push origin
-	git tag -a ocaml-imagelib_$(VERSION)
-	git push origin ocaml-imagelib_$(VERSION)
+	git tag -a ocaml-bindlib_$(VERSION)
+	git push origin ocaml-bindlib_$(VERSION)
