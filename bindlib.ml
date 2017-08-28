@@ -141,7 +141,7 @@ let merge_name : string -> int -> string =
   fun pr sf -> if sf >= 0 then pr ^ (string_of_int sf) else pr
 
 (** [split_name s] splits [s] into a [string] prefix and an [int] suffix. Note
-    that we have [split "xyz" = ("xyz", (-1))], [split "xyz12" = ("xyz", 12)], 
+    that we have [split "xyz" = ("xyz", (-1))], [split "xyz12" = ("xyz", 12)],
     or [split "12" = ("", 12)]. In other words, we take the longest suffix. *)
 let split_name : string -> string * int = fun name ->
   let is_digit c = '0' <= c && c <= '9' in
@@ -384,7 +384,7 @@ let box_array = Lift_array.lift_box
 
 (** [unbox b] takes out the element that is in the [bindbox] b. In particular,
     if some variable have not been bound, they their [mkfree] filed is used to
-    make them into elements of the expected type.  The [unbox] function should 
+    make them into elements of the expected type.  The [unbox] function should
     not be called until the construction of a term is finished (i.e., until no
     more variables need to be bound). *)
 let unbox : 'a bindbox -> 'a = fun b ->
@@ -481,14 +481,17 @@ let dummy_bindbox : 'a bindbox =
   let fail _ = failwith "Invalid use of dummy_bindbox" in
   Env([], 0, fail)
 
+(** This is safe as we can not go in the opposite direction *)
+let to_any : 'a var -> any var = Obj.magic
+
 (** [build_new_var key prefix suffix mkfree] initialises a new [var] structure
     with the given data, and updates the [bindbox] field accordingly. *)
 let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
   fun key prefix suffix mkfree ->
     let bindbox = Env([], 0, fun _ -> assert false) in
     let x = {key; prefix; suffix; mkfree; bindbox} in
-    let mk_var htbl = Env.get (fst (IMap.find key htbl)) in
-    x.bindbox <- Env([Obj.magic x], 0, mk_var); x
+    let mk_var vp = Env.get (fst (IMap.find key vp)) in
+    x.bindbox <- Env([to_any x], 0, mk_var); x
 
 (** [new_var mkfree name] create a new free variable using a wrapping function
     [mkfree] and a default [name]. *)
@@ -544,7 +547,7 @@ let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
             if x.key <> y.key then raise Not_found;
             (* The variable to bind is the last one. *)
             let t = t (IMap.singleton x.key (0, x.suffix)) in
-            let value arg = 
+            let value arg =
               let v = Env.create ~next_free:1 (n+1) in
               Env.set v 0 arg; t v
             in
@@ -625,19 +628,22 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
       in
       if vs = [] then (* All the free variables become bound. *)
         let names = Array.map (fun _ -> "") xs in
-        let pos = ref 0 in
-        let htbl = ref IMap.empty in
+        let cur_pos = ref 0 in
+        let vp = ref IMap.empty in
+        let vsl = ref [] in
         let f i key =
-          names.(i) <- name_of xs.(i);
+          let suffix = get_suffix !vsl !vp xs.(i) in
+          names.(i) <- merge_name xs.(i).prefix suffix;
+          vsl := to_any xs.(i) :: !vsl;
           if key >= 0 then
             begin
-              htbl := IMap.add key (!pos, xs.(i).suffix) !htbl;
-              incr pos; true
+              vp := IMap.add key (!cur_pos, suffix) !vp;
+              incr cur_pos; true
             end
           else false
         in
         let binds = Array.mapi f keys in
-        let t = t !htbl in
+        let t = t !vp in
         let values args =
           check_arity xs args;
           let v = Env.create m in
@@ -669,9 +675,11 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
           let ranks = List.length vs in
           let cur_pos = ref ranks in
           let vp = ref vp in
+          let vsl = ref vs in
           let f i key =
-            let suffix = get_suffix vs !vp xs.(i) in
+            let suffix = get_suffix !vsl !vp xs.(i) in
             names.(i) <- merge_name xs.(i).prefix suffix;
+            vsl := to_any xs.(i) :: !vsl;
             if key >= 0 then
               (vp := IMap.add key (!cur_pos,suffix) !vp; incr cur_pos; true)
             else false
