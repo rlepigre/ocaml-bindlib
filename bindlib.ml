@@ -618,23 +618,25 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
       Box({names; ranks = 0; binds; values})
   | Env(vs,n,t) ->
       let keys = Array.map (fun _ -> 0) xs in
+      let vss = Array.map (fun _ -> vs) xs in
       let (vs, m) =
         let vs = ref vs in let m = ref n in
         for i = Array.length xs - 1 downto 0 do
           let v = xs.(i) in
-          try vs := remove v !vs; incr m; keys.(i) <- v.key
-          with Not_found -> keys.(i) <- -1
+          begin
+            try vs := remove v !vs; incr m; keys.(i) <- v.key
+            with Not_found -> keys.(i) <- -1
+          end;
+          vss.(i) <- !vs (*NOTE: store each vs, for good renaming *)
         done; (!vs, !m)
       in
       if vs = [] then (* All the free variables become bound. *)
         let names = Array.map (fun _ -> "") xs in
         let cur_pos = ref 0 in
         let vp = ref IMap.empty in
-        let vsl = ref [] in
         let f i key =
-          let suffix = get_suffix !vsl !vp xs.(i) in
+          let suffix = get_suffix vss.(i) !vp xs.(i) in
           names.(i) <- merge_name xs.(i).prefix suffix;
-          vsl := to_any xs.(i) :: !vsl;
           if key >= 0 then
             begin
               vp := IMap.add key (!cur_pos, suffix) !vp;
@@ -675,11 +677,9 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
           let ranks = List.length vs in
           let cur_pos = ref ranks in
           let vp = ref vp in
-          let vsl = ref vs in
           let f i key =
-            let suffix = get_suffix !vsl !vp xs.(i) in
+            let suffix = get_suffix vss.(i) !vp xs.(i) in
             names.(i) <- merge_name xs.(i).prefix suffix;
-            vsl := to_any xs.(i) :: !vsl;
             if key >= 0 then
               (vp := IMap.add key (!cur_pos,suffix) !vp; incr cur_pos; true)
             else false
