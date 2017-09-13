@@ -295,10 +295,6 @@ val prefix_of : 'a var -> string
     in the longest digit suffix in the full name of [x] (see [prefix_of]). *)
 val suffix_of : 'a var -> int
 
-(** [free_of x] injects variable [x] into the corresponding type,  relying  on
-    the [mkfree] function provided at the creation of the variable. *)
-val free_of   : 'a var -> 'a
-
 (** [hash_var x] computes a hash for variable [x]. Note that this function can
     be used with the [Hashtbl] module. *)
 val hash_var  : 'a var -> int

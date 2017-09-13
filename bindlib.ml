@@ -182,12 +182,6 @@ let eq_vars : 'a var -> 'b var -> bool =
 let hash_var : 'a var -> int =
   fun x -> Hashtbl.hash (`HVar, x.key)
 
-(** [free_of x] wraps variable [x] into an element of its type. Note that this
-    function relies on a function of type ['a var -> 'a], provided by the user
-    at the creation of a variable. *)
-let free_of : 'a var -> 'a =
-  fun x -> x.mkfree x
-
 (** [box_of_var x] builds a [bindbox] from variable [x]. *)
 let box_of_var : 'a var -> 'a bindbox =
   fun x -> x.bindbox
@@ -730,7 +724,7 @@ let mvbind : ('a var -> 'a) -> string array -> ('a mvar -> 'b bindbox)
 let unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b =
   fun mkfree b ->
     let x = new_var mkfree (binder_name b) in
-    (x, subst b (free_of x))
+    (x, subst b (mkfree x))
 
 (** [unmbind mkfree b] breaks the [mbinder] [b] into an array of variables and
     a body. It is required to provide a [mkfree] function since [unmbind]  has
@@ -738,7 +732,7 @@ let unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b =
 let unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b =
   fun mkfree b ->
     let x = new_mvar mkfree (mbinder_names b) in
-    (x, msubst b (Array.map free_of x))
+    (x, msubst b (Array.map mkfree x))
 
 (** [fixpoint b] builds a binder fixpoint (advance feature). *)
 let fixpoint : (('a,'b) binder, ('a,'b) binder) binder bindbox
@@ -834,11 +828,11 @@ let mbind_in : ctxt -> ('a var -> 'a) -> string array
 let unbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) binder
     -> 'a var * 'b * ctxt = fun ctxt mkfree b ->
   let (x, ctxt) = new_var_in ctxt mkfree (binder_name b) in
-  (x, subst b (free_of x), ctxt)
+  (x, subst b (mkfree x), ctxt)
 
 (** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
     context (see [new_mvar_in]). *)
 let unmbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) mbinder
     -> 'a mvar * 'b * ctxt = fun ctxt mkfree b ->
   let (x, ctxt) = new_mvar_in ctxt mkfree (mbinder_names b) in
-  (x, msubst b (Array.map free_of x), ctxt)
+  (x, msubst b (Array.map mkfree x), ctxt)
