@@ -370,9 +370,11 @@ val mbinder_rank : ('a,'b) mbinder -> int
 
 (** {2 Attributes of bindboxes and utilities} *)
 
-
 (** [is_closed b] checks whether the [bindbox] [b] is closed. *)
 val is_closed : 'a bindbox -> bool
+
+(** [is_subst b] checks whether the [bindbox] [b] was substituted. *)
+val is_substituted : (bool -> 'a) bindbox -> 'a bindbox
 
 (** [occur x b] tells whether variable [x] occurs in the [bindbox] [b]. *)
 val occur : 'a var -> 'b bindbox -> bool
