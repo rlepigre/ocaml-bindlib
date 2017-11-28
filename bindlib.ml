@@ -159,6 +159,10 @@ let split_name : string -> string * int = fun name ->
 let name_of : 'a var -> string =
   fun x -> merge_name x.prefix x.suffix
 
+(** [uid_of x] returns a unique identifier of the given variable. *)
+let uid_of : 'a var -> int =
+  fun x -> x.key
+
 (** [prefix_of x] returns the [string] prefix of the given variable. *)
 let prefix_of : 'a var -> string =
   fun x -> x.prefix
@@ -733,6 +737,25 @@ let unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b =
   fun mkfree b ->
     let x = new_var mkfree (binder_name b) in
     (x, subst b (mkfree x))
+
+(** [unbind2 mkfree f g] is similar to [unbind mkfree f], but substitutes both
+    [f] and [g] using the same fresh variable. *)
+let unbind2 : ('a var -> 'a) -> ('a,'b) binder -> ('a,'c) binder
+    -> 'a var * 'b * 'c =
+  fun mkfree b1 b2 ->
+    let x = new_var mkfree (binder_name b1) in
+    let v = mkfree x in
+    (x, subst b1 v, subst b2 v)
+
+(** Short name for the type of an equality function. *)
+type 'a eq = 'a -> 'a -> bool
+
+(** [eq_binder eq f g] tests the equality between [f] and [g]. The binders
+    are first substituted with the same fresh variable, and [eq] is called
+    on the resulting terms. *)
+let eq_binder : ('a var -> 'a) -> 'b eq -> ('a,'b) binder eq =
+  fun mkfree eq f g -> f == g ||
+    let (x,t,u) = unbind2 mkfree f g in eq t u
 
 (** [unmbind mkfree b] breaks the [mbinder] [b] into an array of variables and
     a body. It is required to provide a [mkfree] function since [unmbind]  has

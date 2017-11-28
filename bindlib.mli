@@ -85,13 +85,27 @@ val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
     let mkfree : term var -> term = fun x -> Var(x) ]} *)
 
 (** [name_of x] returns a printable name for variable [x]. *)
-val name_of   : 'a var -> string
+val name_of  : 'a var -> string
+
+(** [uid_of x] returns a unique identifier of the given variable. *)
+val uid_of   : 'a var -> int
 
 (** [unbind mkfree b] breaks down the binder [b] into a variable, and the term
     in which this variable is now free.  Note that the usual [mkfree] function
     is required,  since [unbind] needs to create a new variable (its name will
     be that of the previously bound variable). *)
 val unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b
+
+(** [unbind2 mkfree f g] is similar to [unbind mkfree f], but substitutes both
+    [f] and [g] using the same fresh variable. *)
+val unbind2 : ('a var -> 'a) -> ('a,'b) binder -> ('a,'c) binder
+  -> 'a var * 'b * 'c
+
+(** [eq_binder eq f g] tests the equality between [f] and [g]. The binders
+    are first substituted with the same fresh variable, and [eq] is called
+    on the resulting terms. *)
+val eq_binder : ('a var -> 'a) -> ('b -> 'b -> bool) -> ('a,'b) binder
+  -> ('a,'b) binder -> bool
 
 (** [unmbind mkfree b] breaks down the binder [b] into variables, and the term
     in which these variables are now free. Again,  the usual [mkfree] function
