@@ -885,9 +885,3 @@ let unmbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) mbinder
     -> 'a mvar * 'b * ctxt = fun ctxt mkfree b ->
   let (x, ctxt) = new_mvar_in ctxt mkfree (mbinder_names b) in
   (x, msubst b (Array.map mkfree x), ctxt)
-
-(** [fake_open b] add a fake variable to make the term not closed
-    can be useful in presence of unification variables to make
-    some optimisations based on closeness correct *)
-let fake_open b =
-   box_apply2 (fun x y -> x) b (box_of_var (new_var (fun _ -> assert false) "_"))
