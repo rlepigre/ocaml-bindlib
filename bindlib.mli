@@ -471,3 +471,8 @@ val binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder
 
 (** [mbinder_from_fun] is similar to [binder_from_fun]. *)
 val mbinder_from_fun : string array -> ('a array -> 'b) -> ('a,'b) mbinder
+
+(** [fake_open b] add a fake variable to make the term not closed
+    can be useful in presence of unification variables to make
+    some optimisations based on closeness correct *)
+val fake_open : 'a bindbox -> 'a bindbox
