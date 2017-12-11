@@ -240,10 +240,9 @@ let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
         t new_env
     else
       fun env ->
+        let size = Array.length tab in (* NOTE: one word less in closure *)
         let new_env = Env.create ~next_free:size (size + n) in
-        for i = 0 to size - 1 do
-          Env.set new_env i (Env.get tab.(i) env)
-        done;
+        Array.iteri (fun i x -> Env.set new_env i (Env.get x env)) tab;
         t new_env
 
 (** [box e] injects the element [e] in the [bindbox] type, without considering
