@@ -57,6 +57,9 @@ module Env :
     (** Gets the value stored at some position in the environment. *)
     val get : int -> t -> 'a
 
+    (** blit src dst len: copy len first from src do dts *)
+    val blit : t -> t -> int -> unit
+
     (** Make a copy of the environment. *)
     val copy : t -> t
 
@@ -72,6 +75,7 @@ module Env :
       {tab = Array.make size (Obj.repr ()); next_free}
     let set env i e = Array.set env.tab i (Obj.repr e)
     let get i env = Obj.obj (Array.get env.tab i)
+    let blit src dst len = Array.blit src.tab 0 dst.tab 0 len
     let copy env = {tab = Array.copy env.tab; next_free = env.next_free}
     let get_next_free env = env.next_free
     let set_next_free env n = env.next_free <- n
@@ -221,17 +225,26 @@ let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
   fun vp ->
     let size = List.length vs in
     let tab = Array.make size 0 in
+    let prefix = ref true in
     let f (htbl, i) var =
       let {index=j; suffix; subst} = IMap.find var.key vp in
+      prefix := !prefix && i = j;
       tab.(i) <- j; (IMap.add var.key {index=i; suffix; subst} htbl, i+1)
     in
     let (new_vp,_) = List.fold_left f (IMap.empty,0) vs in
-    fun env ->
-      let new_env = Env.create ~next_free:size (size + n) in
-      for i = 0 to size - 1 do
-        Env.set new_env i (Env.get tab.(i) env)
-      done;
-      t new_vp new_env
+    let t = t new_vp in
+    if !prefix then
+      fun env ->
+        let new_env = Env.create ~next_free:size (size + n) in
+        Env.blit env new_env size;
+        t new_env
+    else
+      fun env ->
+        let new_env = Env.create ~next_free:size (size + n) in
+        for i = 0 to size - 1 do
+          Env.set new_env i (Env.get tab.(i) env)
+        done;
+        t new_env
 
 (** [box e] injects the element [e] in the [bindbox] type, without considering
     its structure. In particular, it will not be possible to bind variables in
