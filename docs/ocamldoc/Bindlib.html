@@ -3,6 +3,7 @@
 <head>
 <link rel="stylesheet" href="style.css" type="text/css">
 <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="Start" href="index.html">
 <link rel="Up" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
@@ -115,11 +116,26 @@ Following on our example of the lambda-calculus, the <code class="code">mkfree</
 <code class="code">name_of x</code> returns a printable name for variable <code class="code">x</code>.<br>
 </div>
 
+<pre><span id="VALuid_of"><span class="keyword">val</span> uid_of</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> int</code></pre><div class="info ">
+<code class="code">uid_of x</code> returns a unique identifier of the given variable.<br>
+</div>
+
 <pre><span id="VALunbind"><span class="keyword">val</span> unbind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a <a href="Bindlib.html#TYPEvar">var</a> * 'b</code></pre><div class="info ">
 <code class="code">unbind mkfree b</code> breaks down the binder <code class="code">b</code> into a variable, and the term
     in which this variable is now free.  Note that the usual <code class="code">mkfree</code> function
     is required,  since <code class="code">unbind</code> needs to create a new variable (its name will
     be that of the previously bound variable).<br>
+</div>
+
+<pre><span id="VALunbind2"><span class="keyword">val</span> unbind2</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -><br>       ('a, 'c) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a <a href="Bindlib.html#TYPEvar">var</a> * 'b * 'c</code></pre><div class="info ">
+<code class="code">unbind2 mkfree f g</code> is similar to <code class="code">unbind mkfree f</code>, but substitutes both
+    <code class="code">f</code> and <code class="code">g</code> using the same fresh variable.<br>
+</div>
+
+<pre><span id="VALeq_binder"><span class="keyword">val</span> eq_binder</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('b -> 'b -> bool) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> bool</code></pre><div class="info ">
+<code class="code">eq_binder eq f g</code> tests the equality between <code class="code">f</code> and <code class="code">g</code>. The binders
+    are first substituted with the same fresh variable, and <code class="code">eq</code> is called
+    on the resulting terms.<br>
 </div>
 
 <pre><span id="VALunmbind"><span class="keyword">val</span> unmbind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b</code></pre><div class="info ">
@@ -323,11 +339,6 @@ Similar to the <code class="code">Lift</code> functor, but handles "binary" <cod
     in the longest digit suffix in the full name of <code class="code">x</code> (see <code class="code">prefix_of</code>).<br>
 </div>
 
-<pre><span id="VALfree_of"><span class="keyword">val</span> free_of</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'a</code></pre><div class="info ">
-<code class="code">free_of x</code> injects variable <code class="code">x</code> into the corresponding type,  relying  on
-    the <code class="code">mkfree</code> function provided at the creation of the variable.<br>
-</div>
-
 <pre><span id="VALhash_var"><span class="keyword">val</span> hash_var</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> int</code></pre><div class="info ">
 <code class="code">hash_var x</code> computes a hash for variable <code class="code">x</code>. Note that this function can
     be used with the <code class="code">Hashtbl</code> module.<br>
@@ -411,6 +422,10 @@ Similar to the <code class="code">Lift</code> functor, but handles "binary" <cod
 
 <pre><span id="VALis_closed"><span class="keyword">val</span> is_closed</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> bool</code></pre><div class="info ">
 <code class="code">is_closed b</code> checks whether the <code class="code">bindbox</code> <code class="code">b</code> is closed.<br>
+</div>
+
+<pre><span id="VALis_substituted"><span class="keyword">val</span> is_substituted</span> : <code class="type">(bool -> 'a) <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'a <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<code class="code">is_subst b</code> checks whether the <code class="code">bindbox</code> <code class="code">b</code> was substituted.<br>
 </div>
 
 <pre><span id="VALoccur"><span class="keyword">val</span> occur</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> bool</code></pre><div class="info ">
