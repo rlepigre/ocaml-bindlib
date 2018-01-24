@@ -102,6 +102,17 @@ val eq_binder : ('a var -> 'a) -> ('b -> 'b -> bool) -> ('a,'b) binder
     variables that were previously bound. *)
 val unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b
 
+(** [unmbind2 mkfree f g] is similar to [unmbind mkfree f], but it substitutes
+    both [f] and [g] using the same fresh variables. *)
+val unmbind2 : ('a var -> 'a) -> ('a,'b) mbinder -> ('a,'c) mbinder
+  -> 'a mvar * 'b * 'c
+
+(** [eq_mbinder eq f g] tests the equality between two [mbinder] [f] and  [g].
+    They are first substituted with the same fresh variables, and then [eq] is
+    called on the resulting terms. *)
+val eq_mbinder : ('a var -> 'a) -> ('b -> 'b -> bool)
+  -> ('a,'b) mbinder -> ('a,'b) mbinder -> bool
+
 (** An usual use of [unbind] is the wrinting of pretty-printing functions. The
     function given bellow transforms a lambda-term into a [string].  Note that
     the [name_of] function is used for variables. {[

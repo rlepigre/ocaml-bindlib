@@ -782,7 +782,7 @@ type 'a eq = 'a -> 'a -> bool
     on the resulting terms. *)
 let eq_binder : ('a var -> 'a) -> 'b eq -> ('a,'b) binder eq =
   fun mkfree eq f g -> f == g ||
-    let (x,t,u) = unbind2 mkfree f g in eq t u
+    let (_,t,u) = unbind2 mkfree f g in eq t u
 
 (** [unmbind mkfree b] breaks the [mbinder] [b] into an array of variables and
     a body. It is required to provide a [mkfree] function since [unmbind]  has
@@ -791,6 +791,22 @@ let unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b =
   fun mkfree b ->
     let x = new_mvar mkfree (mbinder_names b) in
     (x, msubst b (Array.map mkfree x))
+
+(** [unmbind2 mkfree f g] is similar to [unmbind mkfree f], but it substitutes
+    both [f] and [g] using the same fresh variables. *)
+let unmbind2 : ('a var -> 'a) -> ('a,'b) mbinder -> ('a,'c) mbinder
+    -> 'a mvar * 'b * 'c =
+  fun mkfree b1 b2 ->
+    let xs = new_mvar mkfree (mbinder_names b1) in
+    let vs = Array.map mkfree xs in
+    (xs, msubst b1 vs, msubst b2 vs)
+
+(** [eq_mbinder eq f g] tests the equality between two [mbinder] [f] and  [g].
+    They are first substituted with the same fresh variables, and then [eq] is
+    called on the resulting terms. *)
+let eq_mbinder : ('a var -> 'a) -> 'b eq -> ('a,'b) mbinder eq =
+  fun mkfree eq f g -> f == g ||
+    let (_,t,u) = unmbind2 mkfree f g in eq t u
 
 (** [fixpoint b] builds a binder fixpoint (advance feature). *)
 let fixpoint : (('a,'b) binder, ('a,'b) binder) binder bindbox
