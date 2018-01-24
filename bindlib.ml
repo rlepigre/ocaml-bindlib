@@ -83,7 +83,7 @@ module Env :
     associates, to each variable, its index in the [Env.t] and an [int] suffix
     (used while renaming in capture-avoiding substitution). The boolean  tells
     if this variable has been substituted. *)
-type varinf = { index: int; suffix: int; subst: bool }
+type varinf = { index : int ; suffix : int ; subst : bool }
 type varpos = varinf IMap.t
 
 (** A closure of type ['a] is represented as a function taking as input a  map
@@ -130,8 +130,8 @@ type (+'a) bindbox =
 (** Type of a free variable of type ['a]. *)
 and 'a var =
   { key             : int          (* Unique identifier.                *)
-  ; prefix          : string       (* Name as a free variable (prefix). *)
-  ; suffix          : int          (* Integer suffix.                   *)
+  ; var_prefix      : string       (* Name as a free variable (prefix). *)
+  ; var_suffix      : int          (* Integer suffix.                   *)
   ; mkfree          : 'a var -> 'a (* Function to build a term.         *)
   ; mutable bindbox : 'a bindbox   (* Bindbox containing the variable.  *) }
 
@@ -154,13 +154,13 @@ let split_name : string -> string * int = fun name ->
     decr last_digit
   done;
   if !last_digit = len then (name, (-1)) else
-    let pref = String.sub name 0 !last_digit in
-    let suff = String.sub name !last_digit (len - !last_digit) in
-    (pref, int_of_string suff)
+  let pref = String.sub name 0 !last_digit in
+  let suff = String.sub name !last_digit (len - !last_digit) in
+  (pref, int_of_string suff)
 
 (** [name_of x] computes the full name of the given variable. *)
 let name_of : 'a var -> string =
-  fun x -> merge_name x.prefix x.suffix
+  fun x -> merge_name x.var_prefix x.var_suffix
 
 (** [uid_of x] returns a unique identifier of the given variable. *)
 let uid_of : 'a var -> int =
@@ -168,11 +168,11 @@ let uid_of : 'a var -> int =
 
 (** [prefix_of x] returns the [string] prefix of the given variable. *)
 let prefix_of : 'a var -> string =
-  fun x -> x.prefix
+  fun x -> x.var_prefix
 
 (** [suffix_of x] returns the [int] suffix of the given variable. *)
 let suffix_of : 'a var -> int =
-  fun x -> x.suffix
+  fun x -> x.var_suffix
 
 (** [compare_vars x y] safely compares [x] and [y].  Note that it is unsafe to
     compare variables with [Pervasive.compare]. *)
@@ -417,7 +417,7 @@ let unbox : 'a bindbox -> 'a = fun b ->
       let fn vp x =
         let i = !cur in incr cur;
         Env.set env i (x.mkfree x);
-        IMap.add x.key {index=i; suffix=x.suffix; subst=false} vp
+        IMap.add x.key {index=i; suffix=x.var_suffix; subst=false} vp
       in
       t (List.fold_left fn IMap.empty vs) env
 
@@ -507,9 +507,9 @@ let to_any : 'a var -> any var = Obj.magic
 (** [build_new_var key prefix suffix mkfree] initialises a new [var] structure
     with the given data, and updates the [bindbox] field accordingly. *)
 let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
-  fun key prefix suffix mkfree ->
+  fun key var_prefix var_suffix mkfree ->
     let bindbox = Env([], 0, fun _ -> assert false) in
-    let x = {key; prefix; suffix; mkfree; bindbox} in
+    let x = {key; var_prefix; var_suffix; mkfree; bindbox} in
     let mk_var vp = Env.get (IMap.find key vp).index in
     x.bindbox <- Env([to_any x], 0, mk_var); x
 
@@ -538,7 +538,7 @@ let copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var =
     a list of variables with name collisions,  the [varpos] with corresponding
     suffixes (and the positioning in the environment of the variables). *)
 let get_suffix : any var list -> varpos -> 'a var -> int = fun vs vp x ->
-  let pred y = x.prefix = y.prefix in
+  let pred y = x.var_prefix = y.var_prefix in
   let vs = filter_map pred (fun x -> (IMap.find x.key vp).suffix) vs in
   let rec search suffix vs =
     match vs with
@@ -546,13 +546,13 @@ let get_suffix : any var list -> varpos -> 'a var -> int = fun vs vp x ->
     | x::vs when x = suffix -> search (suffix+1) vs
     | _                     -> suffix
   in
-  search x.suffix (List.sort (-) vs)
+  search x.var_suffix (List.sort (-) vs)
 
 (** [build_binder x rank bind value] constructs a binder with the given values
     (the variable [x] is used to obtain the name of the bound variable). *)
 let build_binder : 'a var -> int -> bool -> ('b -> 'c) -> ('b,'c) binder =
   fun x rank bind value ->
-    let name = merge_name x.prefix x.suffix in
+    let name = merge_name x.var_prefix x.var_suffix in
     {name; rank; bind; value}
 
 (** [bind_var x b] produces a [binder] (in a [bindbox]) by binding [x] in [b].
@@ -566,9 +566,8 @@ let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
         | [y] ->
             if x.key <> y.key then raise Not_found;
             (* The variable to bind is the last one. *)
-            let t = t (IMap.singleton x.key
-                                      {index=0; suffix=x.suffix; subst=true})
-            in
+            let r = {index = 0; suffix = x.var_suffix; subst = true} in
+            let t = t (IMap.singleton x.key r) in
             let value arg =
               let v = Env.create ~next_free:1 (n+1) in
               Env.set v 0 arg; t v
@@ -578,11 +577,10 @@ let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
             let vs = remove x vs in
             (* General case. *)
             let cl vp =
-              let x = {x with suffix = get_suffix vs vp x} in
+              let x = {x with var_suffix = get_suffix vs vp x} in
               let rank = List.length vs in
-              let t = t (IMap.add x.key
-                                  {index=rank; suffix=x.suffix; subst=true} vp)
-              in
+              let r = {index = rank; suffix = x.var_suffix; subst = true} in
+              let t = t (IMap.add x.key r vp) in
               fun v ->
                 let value arg =
                   let next = Env.get_next_free v in
@@ -604,7 +602,7 @@ let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
       with Not_found ->
         (* The variable does not occur. *)
         let value vp =
-          let x = {x with suffix = get_suffix vs vp x} in
+          let x = {x with var_suffix = get_suffix vs vp x} in
           let t = t vp in
           let rank = List.length vs in
           fun v -> build_binder x rank false (fun _ -> t v)
@@ -660,7 +658,7 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
         let vp = ref IMap.empty in
         let f i key =
           let suffix = get_suffix vss.(i) !vp xs.(i) in
-          names.(i) <- merge_name xs.(i).prefix suffix;
+          names.(i) <- merge_name xs.(i).var_prefix suffix;
           if key >= 0 then
             begin
               vp := IMap.add key {index= !cur_pos; suffix; subst=true} !vp;
@@ -688,7 +686,7 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
         let cl vp =
           let ranks = List.length vs in
           let binds = Array.map (fun _ -> false) xs in
-          let fn x = merge_name x.prefix (get_suffix vs vp x) in
+          let fn x = merge_name x.var_prefix (get_suffix vs vp x) in
           let names = Array.map fn xs in
           let t = t vp in
           fun v ->
@@ -703,7 +701,7 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
           let vp = ref vp in
           let f i key =
             let suffix = get_suffix vss.(i) !vp xs.(i) in
-            names.(i) <- merge_name xs.(i).prefix suffix;
+            names.(i) <- merge_name xs.(i).var_prefix suffix;
             if key >= 0 then
               (vp := IMap.add key {index= !cur_pos;suffix; subst=true} !vp;
                incr cur_pos; true)
@@ -865,8 +863,8 @@ let new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt =
   in
   fun ctxt mkfree name ->
     let x = new_var mkfree name in
-    let (suffix, ctxt) = get_suffix x.prefix x.suffix ctxt in
-    ({x with suffix}, ctxt)
+    let (var_suffix, ctxt) = get_suffix x.var_prefix x.var_suffix ctxt in
+    ({x with var_suffix}, ctxt)
 
 (** [new_mvar_in ctxt mkfree names] is similar to [new_mvar mkfree names], but
     it handles the context (see [new_var_in]). *)
