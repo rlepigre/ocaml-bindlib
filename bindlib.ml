@@ -1,13 +1,10 @@
-(****************************************************************************
- * The Bindlib Library provides an efficient representation for binders (or *
- * structures with bound variables). Names are managed in the expected way, *
- * by performing minimal renaming (an integer suffix is increased in case a *
- * change of name is required).                                             *
- *                                                                          *
- * Authors:                                                                 *
- *   - Christophe Raffalli <christophe.raffalli@univ-smb.fr>                *
- *   - Rodolphe Lepigre <rodolphe.lepigre@univ-smb.fr>                      *
- ****************************************************************************)
+(** The [Bindlib] library provides support for free and bound variables in the
+    OCaml language. The main application is the construction of abstract types
+    containing a binding structure (e.g., abstract syntax trees).
+
+    @author Christophe Raffalli
+    @author Rodolphe Lepigre *)
+
 
 (** [filter_map pred f l] is equivalent to  [List.map f (List.filter pred m)],
     but it is more efficient. *)
