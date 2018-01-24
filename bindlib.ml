@@ -54,6 +54,9 @@ module Env :
     (** Gets the value stored at some position in the environment. *)
     val get : int -> t -> 'a
 
+    (** blit src dst len: copy len first from src do dts *)
+    val blit : t -> t -> int -> unit
+
     (** Make a copy of the environment. *)
     val copy : t -> t
 
@@ -69,6 +72,7 @@ module Env :
       {tab = Array.make size (Obj.repr ()); next_free}
     let set env i e = Array.set env.tab i (Obj.repr e)
     let get i env = Obj.obj (Array.get env.tab i)
+    let blit src dst len = Array.blit src.tab 0 dst.tab 0 len
     let copy env = {tab = Array.copy env.tab; next_free = env.next_free}
     let get_next_free env = env.next_free
     let set_next_free env n = env.next_free <- n
@@ -77,8 +81,10 @@ module Env :
 (** In the internals, variables are identified by a unique [int] key. Closures
     are then formed by mapping free variables in an [Env.t]. The [varpos] type
     associates, to each variable, its index in the [Env.t] and an [int] suffix
-    (used while renaming in capture-avoiding substitution). *)
-type varpos = (int * int) IMap.t
+    (used while renaming in capture-avoiding substitution). The boolean  tells
+    if this variable has been substituted. *)
+type varinf = { index: int; suffix: int; subst: bool }
+type varpos = varinf IMap.t
 
 (** A closure of type ['a] is represented as a function taking as input a  map
     ([varpos]) and an environment ([Env.t]). *)
@@ -216,17 +222,25 @@ let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
   fun vp ->
     let size = List.length vs in
     let tab = Array.make size 0 in
+    let prefix = ref true in
     let f (htbl, i) var =
-      let (j, suf) = IMap.find var.key vp in
-      tab.(i) <- j; (IMap.add var.key (i, suf) htbl, i+1)
+      let {index=j; suffix; subst} = IMap.find var.key vp in
+      prefix := !prefix && i = j;
+      tab.(i) <- j; (IMap.add var.key {index=i; suffix; subst} htbl, i+1)
     in
     let (new_vp,_) = List.fold_left f (IMap.empty,0) vs in
-    fun env ->
-      let new_env = Env.create ~next_free:size (size + n) in
-      for i = 0 to size - 1 do
-        Env.set new_env i (Env.get tab.(i) env)
-      done;
-      t new_vp new_env
+    let t = t new_vp in
+    if !prefix then
+      fun env ->
+        let new_env = Env.create ~next_free:size (size + n) in
+        Env.blit env new_env size;
+        t new_env
+    else
+      fun env ->
+        let size = Array.length tab in (* NOTE: one word less in closure *)
+        let new_env = Env.create ~next_free:size (size + n) in
+        Array.iteri (fun i x -> Env.set new_env i (Env.get x env)) tab;
+        t new_env
 
 (** [box e] injects the element [e] in the [bindbox] type, without considering
     its structure. In particular, it will not be possible to bind variables in
@@ -256,6 +270,17 @@ let occur : 'a var -> 'b bindbox -> bool = fun v b ->
 (** [is_closed b] checks whether the [bindbox] [b] is closed. *)
 let is_closed : 'a bindbox -> bool = fun b ->
   match b with Box(_) -> true | _ -> false
+
+(** [is_substituted b] checks whether the [bindbox] [b] was substituted. *)
+let is_substituted : (bool -> 'a) bindbox -> 'a bindbox = fun b ->
+  match b with Box(f) -> Box(f false)
+             | Env(vs, na, ta) ->
+                let ta = fun vs ->
+                  let subst = IMap.exists (fun _ i -> i.subst) vs in
+                  let cla = ta vs in
+                  (fun env -> cla env subst)
+                in
+                Env(vs, na, ta)
 
 (** [box_apply f a] maps the function [f] into the [bindbox] [a]. Note that it
     is equivalent to [apply_box (box f) a], but it is more efficient. *)
@@ -392,7 +417,7 @@ let unbox : 'a bindbox -> 'a = fun b ->
       let fn vp x =
         let i = !cur in incr cur;
         Env.set env i (x.mkfree x);
-        IMap.add x.key (i, x.suffix) vp
+        IMap.add x.key {index=i; suffix=x.suffix; subst=false} vp
       in
       t (List.fold_left fn IMap.empty vs) env
 
@@ -485,7 +510,7 @@ let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
   fun key prefix suffix mkfree ->
     let bindbox = Env([], 0, fun _ -> assert false) in
     let x = {key; prefix; suffix; mkfree; bindbox} in
-    let mk_var vp = Env.get (fst (IMap.find key vp)) in
+    let mk_var vp = Env.get (IMap.find key vp).index in
     x.bindbox <- Env([to_any x], 0, mk_var); x
 
 (** [new_var mkfree name] create a new free variable using a wrapping function
@@ -514,7 +539,7 @@ let copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var =
     suffixes (and the positioning in the environment of the variables). *)
 let get_suffix : any var list -> varpos -> 'a var -> int = fun vs vp x ->
   let pred y = x.prefix = y.prefix in
-  let vs = filter_map pred (fun x -> snd (IMap.find x.key vp)) vs in
+  let vs = filter_map pred (fun x -> (IMap.find x.key vp).suffix) vs in
   let rec search suffix vs =
     match vs with
     | x::vs when x < suffix -> search suffix vs
@@ -541,7 +566,9 @@ let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
         | [y] ->
             if x.key <> y.key then raise Not_found;
             (* The variable to bind is the last one. *)
-            let t = t (IMap.singleton x.key (0, x.suffix)) in
+            let t = t (IMap.singleton x.key
+                                      {index=0; suffix=x.suffix; subst=true})
+            in
             let value arg =
               let v = Env.create ~next_free:1 (n+1) in
               Env.set v 0 arg; t v
@@ -553,7 +580,9 @@ let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
             let cl vp =
               let x = {x with suffix = get_suffix vs vp x} in
               let rank = List.length vs in
-              let t = t (IMap.add x.key (rank, x.suffix) vp) in
+              let t = t (IMap.add x.key
+                                  {index=rank; suffix=x.suffix; subst=true} vp)
+              in
               fun v ->
                 let value arg =
                   let next = Env.get_next_free v in
@@ -634,7 +663,7 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
           names.(i) <- merge_name xs.(i).prefix suffix;
           if key >= 0 then
             begin
-              vp := IMap.add key (!cur_pos, suffix) !vp;
+              vp := IMap.add key {index= !cur_pos; suffix; subst=true} !vp;
               incr cur_pos; true
             end
           else false
@@ -676,7 +705,8 @@ let bind_mvar : 'a mvar -> 'b bindbox -> ('a,'b) mbinder bindbox = fun xs b ->
             let suffix = get_suffix vss.(i) !vp xs.(i) in
             names.(i) <- merge_name xs.(i).prefix suffix;
             if key >= 0 then
-              (vp := IMap.add key (!cur_pos,suffix) !vp; incr cur_pos; true)
+              (vp := IMap.add key {index= !cur_pos;suffix; subst=true} !vp;
+               incr cur_pos; true)
             else false
           in
           let binds = Array.mapi f keys in
