@@ -144,6 +144,17 @@ Following on our example of the lambda-calculus, the <code class="code">mkfree</
     is required, and the name of the new variables is based on that of all the
     variables that were previously bound.<br>
 </div>
+
+<pre><span id="VALunmbind2"><span class="keyword">val</span> unmbind2</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -><br>       ('a, 'c) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b * 'c</code></pre><div class="info ">
+<code class="code">unmbind2 mkfree f g</code> is similar to <code class="code">unmbind mkfree f</code>, but it substitutes
+    both <code class="code">f</code> and <code class="code">g</code> using the same fresh variables.<br>
+</div>
+
+<pre><span id="VALeq_mbinder"><span class="keyword">val</span> eq_mbinder</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('b -> 'b -> bool) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> bool</code></pre><div class="info ">
+<code class="code">eq_mbinder eq f g</code> tests the equality between two <code class="code">mbinder</code> <code class="code">f</code> and  <code class="code">g</code>.
+    They are first substituted with the same fresh variables, and then <code class="code">eq</code> is
+    called on the resulting terms.<br>
+</div>
 <br>
 An usual use of <code class="code">unbind</code> is the wrinting of pretty-printing functions. The
     function given bellow transforms a lambda-term into a <code class="code">string</code>.  Note that

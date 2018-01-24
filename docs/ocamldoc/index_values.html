@@ -186,6 +186,11 @@
 <code class="code">eq_binder eq f g</code> tests the equality between <code class="code">f</code> and <code class="code">g</code>.
 </div>
 </td></tr>
+<tr><td><a href="Bindlib.html#VALeq_mbinder">eq_mbinder</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">eq_mbinder eq f g</code> tests the equality between two <code class="code">mbinder</code> <code class="code">f</code> and  <code class="code">g</code>.
+</div>
+</td></tr>
 <tr><td><a href="Bindlib.html#VALeq_vars">eq_vars</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">eq_vars x y</code> safely computes the equality of <code class="code">x</code> and <code class="code">y</code>.
@@ -384,6 +389,12 @@
 <td><div class="info">
 <code class="code">unmbind mkfree b</code> breaks down the binder <code class="code">b</code> into variables, and the term
     in which these variables are now free.
+</div>
+</td></tr>
+<tr><td><a href="Bindlib.html#VALunmbind2">unmbind2</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">unmbind2 mkfree f g</code> is similar to <code class="code">unmbind mkfree f</code>, but it substitutes
+    both <code class="code">f</code> and <code class="code">g</code> using the same fresh variables.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunmbind_in">unmbind_in</a> [<a href="Bindlib.html">Bindlib</a>]</td>
