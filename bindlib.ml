@@ -54,7 +54,7 @@ module Env :
     (** Gets the value stored at some position in the environment. *)
     val get : int -> t -> 'a
 
-    (** blit src dst len: copy len first from src do dts *)
+    (** [blit s t n] copies the [n] first elements of [s] to [t]. *)
     val blit : t -> t -> int -> unit
 
     (** Make a copy of the environment. *)
