@@ -129,11 +129,11 @@ type (+'a) bindbox =
 
 (** Type of a free variable of type ['a]. *)
 and 'a var =
-  { key             : int          (* Unique identifier.                *)
-  ; var_prefix      : string       (* Name as a free variable (prefix). *)
-  ; var_suffix      : int          (* Integer suffix.                   *)
-  ; mkfree          : 'a var -> 'a (* Function to build a term.         *)
-  ; mutable bindbox : 'a bindbox   (* Bindbox containing the variable.  *) }
+  { key        : int               (* Unique identifier.                *)
+  ; var_prefix : string            (* Name as a free variable (prefix). *)
+  ; var_suffix : int               (* Integer suffix.                   *)
+  ; mkfree     : 'a var -> 'a      (* Function to build a term.         *)
+  ; bindbox    : 'a bindbox Lazy.t (* Bindbox containing the variable.  *) }
 
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
@@ -191,7 +191,7 @@ let hash_var : 'a var -> int =
 
 (** [box_of_var x] builds a [bindbox] from variable [x]. *)
 let box_of_var : 'a var -> 'a bindbox =
-  fun x -> x.bindbox
+  fun x -> Lazy.force x.bindbox
 
 (** [merge_uniq l1 l2] merges two sorted lists of variables that must not have
     any repetitions. The produced list does not have repetition eigher. *)
@@ -508,10 +508,12 @@ let to_any : 'a var -> any var = Obj.magic
     with the given data, and updates the [bindbox] field accordingly. *)
 let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
   fun key var_prefix var_suffix mkfree ->
-    let bindbox = Env([], 0, fun _ -> assert false) in
-    let x = {key; var_prefix; var_suffix; mkfree; bindbox} in
-    let mk_var vp = Env.get (IMap.find key vp).index in
-    x.bindbox <- Env([to_any x], 0, mk_var); x
+    let rec x =
+      let bindbox =
+        lazy (Env([to_any x], 0, fun vp -> Env.get (IMap.find key vp).index))
+      in
+      {key; var_prefix; var_suffix; mkfree; bindbox}
+    in x
 
 (** [new_var mkfree name] create a new free variable using a wrapping function
     [mkfree] and a default [name]. *)
@@ -614,7 +616,7 @@ let bind_var : 'a var -> 'b bindbox -> ('a, 'b) binder bindbox = fun x b ->
 let bind : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
     -> ('a,'b) binder bindbox = fun mkfree name f ->
   let x = new_var mkfree name in
-  bind_var x (f x.bindbox)
+  bind_var x (f (box_of_var x))
 
 (** [vbind mkfree name f] is similar to [bind], but the domain of the function
     taken as input has type ['a var]. It also relies on [bind_var]. *)
@@ -884,7 +886,7 @@ let bind_in : ctxt -> ('a var -> 'a) -> string
     -> ('a bindbox -> ctxt -> 'b bindbox) -> ('a,'b) binder bindbox =
   fun ctxt mkfree name f ->
     let (v, ctxt) = new_var_in ctxt mkfree name in
-    bind_var v (f v.bindbox ctxt)
+    bind_var v (f (box_of_var v) ctxt)
 
 (** [mbind_in ctxt mkfree names f] is similar to  [mbind mkfree names f],  but
     it handles the context. *)
