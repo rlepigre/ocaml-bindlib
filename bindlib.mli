@@ -12,7 +12,7 @@
 (** The [Bindlib] library provides two type constructors for building abstract
     syntax trees: ['a var] and [('a,'b) binder]. Intuitively, ['a var] will be
     a representation for a free variable of type ['a],  and [('a,'b) binder] a
-    represention for a term of type ['b] depdening on a variable (or value) of
+    represention for a term of type ['b] depending on a variable (or value) of
     type ['a] (the type [('a,'b) binder] can be seen as ['a -> 'b]). Note that
     types ['a mvar] and [('a,'b) mbinder] are provided for handling arrays  of
     variables. *)
