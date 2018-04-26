@@ -24,7 +24,7 @@ type 'a var
 type 'a mvar = 'a var array
 
 (** Type of a binder for an element of type ['a] into an element of type ['b].
-    In terms of higher-order abstract syntax, it can be seen as ['a -> 'b]. *)
+    In terms of higher order abstract syntax, it can be seen as ['a -> 'b]. *)
 type (-'a,+'b) binder
 
 (** Type of a binder for an array of elements of type ['a] into an element  of
@@ -124,71 +124,73 @@ val eq_mbinder : ('a var -> 'a) -> ('b -> 'b -> bool)
       | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u ]} *)
 
 
-(** {2 Constructing terms and binders in the bindbox} *)
+(** {2 Constructing terms and binders in the binding box} *)
 
 
 (** One of the main design priciple of the [Bindlib] library is efficiency. To
     obtain very fast substitutions, a price is paid at the construction of the
     terms. Indeed,  binders (i.e., element of type [('a,'b) binder]) cannot be
-    defined directly. Instead, they are put together in the type ['a bindbox].
-    It correspond to a term of type ['a] with free variables that may still be
-    bound in the future. *)
+    defined directly. Instead, they are put together in the type ['a box].  It
+    correspond to a term of type ['a] which free variables may be bound in the
+    future. *)
 
 (** Type of a term of type ['a] under construction. Using this representation,
     the free variable of the term can be bound easily. *)
-type +'a bindbox
+type +'a box
 
-(** [box_of_var x] builds a ['a bindbox] from the ['a var] [x]. *)
-val box_of_var : 'a var -> 'a bindbox
+(** Deprecated synonym of ['a box]. *)
+type +'a bindbox = 'a box
 
-(** [box e] puts the value [e] into the ['a bindbox] type, assuming that it is
+(** [box_of_var x] builds a ['a box] from the ['a var] [x]. *)
+val box_of_var : 'a var -> 'a box
+
+(** [box e] injects the value [e] into the ['a box] type,  assuming that it is
     closed. Thus, if [e] contains variables,  then they will not be considered
     free. This means that no variable of [e] will be available for binding. *)
-val box : 'a -> 'a bindbox
+val box : 'a -> 'a box
 
 (** [apply_box bf ba] applies the boxed function [bf] to a boxed argument [ba]
-    inside the ['a bindbox] type. This function is useful for constructing new
-    expressions by applying a function with free variables to an argument with
-    free variables. Note that the ['a bindbox] type is an applicative functor.
-    Its application operator (sometimes written "<*>") is [apply_box], and its
-    unit (sometimes called "pure") is [box]. *)
-val apply_box : ('a -> 'b) bindbox -> 'a bindbox -> 'b bindbox
+    inside the ['a box] type. This function is used to buld new expressions by
+    applying a function with free variables to an argument with free variables
+    (the ['a box] type is an applicative functor which application operator is
+    [apply_box], and which unit is [box]). *)
+val apply_box : ('a -> 'b) box -> 'a box -> 'b box
 
 (** [box_apply f ba] applies the function [f] to a boxed argument [ba].  It is
     equivalent to [apply_box (box f) ba], but is more efficient. *)
-val box_apply : ('a -> 'b) -> 'a bindbox -> 'b bindbox
+val box_apply : ('a -> 'b) -> 'a box -> 'b box
 
 (** [box_apply2 f ba bb] applies the function [f] to two boxed arguments  [ba]
     and [bb]. It is equivalent to [apply_box (apply_box (box f) ba) bb] but it
     is more efficient. *)
-val box_apply2 : ('a -> 'b -> 'c) -> 'a bindbox -> 'b bindbox -> 'c bindbox
+val box_apply2 : ('a -> 'b -> 'c) -> 'a box -> 'b box -> 'c box
 
 (** [bind mkfree name f] constructs a boxed binder from the function [f]. Note
     that [name] and [mkfree] are required to build the bound variable. *)
-val bind  : ('a var -> 'a) -> string -> ('a bindbox -> 'b bindbox)
-  -> ('a,'b) binder bindbox
+val bind : ('a var -> 'a) -> string -> ('a box -> 'b box)
+  -> ('a,'b) binder box
 
 (** [mbind mkfree names f] constructs a boxed binder from function [f],  using
     [mkfree] and [names] to build the bound variables. *)
 val mbind : ('a var -> 'a) -> string array
-  -> ('a bindbox array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+  -> ('a box array -> 'b box) -> ('a,'b) mbinder box
 
-(** As mentioned earlier,  terms with bound variables can only be build in the
-    ['a bindbox] type. To ease the writing of terms,  it is a good practice to
-    define "smart constructors" at the ['a bindbox] level.  Coming back to our
-    lambda-calculus example, we can give the following smart constructors. {[
-    let var : term var -> term bindbox =
+(** As mentioned earlier,  terms with bound variables can only be built in the
+    ['a box] type. To ease the construction of terms, it is a good practice to
+    implement “smart constructors” at the ['a box] level.  Coming back to  our
+    λ-calculus example, we can give the following smart constructors. {[
+    let var : term var -> term box =
       fun x -> box_of_var x
 
-    let abs : string -> (term bindbox -> term bindbox) -> term bindbox =
+    let abs : string -> (term box -> term box) -> term box =
       fun x f -> box_apply (fun b -> Abs(b)) (bind mkfree x f)
 
-    let app : term bindbox -> term bindbox -> term bindbox =
+    let app : term box -> term box -> term box =
       fun t u -> box_apply2 (fun t u -> App(t,u)) t u ]} *)
 
 (** [unbox e] can be called when the construction of a term is finished (e.g.,
     when the desired variables have all been bound). *)
-val unbox : 'a bindbox -> 'a
+val unbox : 'a box -> 'a
 
 (** We can then easily define terms of the lambda-calculus as follows. {[
     let id    : term = (* \x.x *)
@@ -203,20 +205,20 @@ val unbox : 'a bindbox -> 'a
 
 (** [vbind mkfree name f] constructs a boxed binder from the function [f],  as
     the [bind] function does. The difference here is that the domain of [f] is
-    ['a var], and not ['a bindbox]. *)
-val vbind  : ('a var -> 'a) -> string -> ('a var -> 'b bindbox)
-  -> ('a,'b) binder bindbox
+    ['a var], and not ['a box]. *)
+val vbind  : ('a var -> 'a) -> string -> ('a var -> 'b box)
+  -> ('a,'b) binder box
 
 (** [mvbind mkfree names f] constructs a boxed binder from the function [f] as
     the [mbind] function does. However, the domain of [f] is ['a var], and not
-    ['a bindbox]. *)
+    ['a box]. *)
 val mvbind : ('a var -> 'a) -> string array
-  -> ('a var array -> 'b bindbox) -> ('a,'b) mbinder bindbox
+  -> ('a var array -> 'b box) -> ('a,'b) mbinder box
 
 (** Using the [vbind] function instead of the [bind] function,  we can give an
     alternative smart constructor for lambda-abstraction. Note that we need to
     use the [box_of_var] to use a variable when defining a term. {[
-    let abs_var : string -> (term var -> term bindbox) -> term bindbox =
+    let abs_var : string -> (term var -> term box) -> term box =
       fun x f -> box_apply (fun b -> Abs(b)) (vbind mkfree x f)
 
     let delta : term = (* \x.(x) x *)
@@ -224,48 +226,47 @@ val mvbind : ('a var -> 'a) -> string array
 
 (** [bind_var x b] binds the variable [x] in [b] to produce a boxed binder. In
     fact, is used to implement [bind] and [vbind]. *)
-val bind_var  : 'a var  -> 'b bindbox -> ('a, 'b) binder bindbox
+val bind_var  : 'a var  -> 'b box -> ('a, 'b) binder box
 
 (** [bind_mvar xs b] binds the variables of [xs] in [b] to get a boxed binder.
     In fact, [bind_mvar] is used to implement [mbind] and [mvbind]. *)
-val bind_mvar : 'a mvar -> 'b bindbox -> ('a, 'b) mbinder bindbox
+val bind_mvar : 'a mvar -> 'b box -> ('a, 'b) mbinder box
 
 
-(** {2 More bindbox manipulation functions} *)
+(** {2 More binding box manipulation functions} *)
 
 
 (** In general, it is not difficult to use the [box] and [apply_box] functions
-    to manipulate any kind of data in the ['a bindbox] type.  However, working
-    with these functions alone can be tedious. The functions provided here can
-    be used to manipulate standard data types in an optimised way. *)
+    to manipulate any kind of data in the ['a box] type. However, working with
+    these functions alone can be tedious.  The following functions can be used
+    to manipulate standard data types in an optimised way. *)
 
-(** [box_opt bo] shifts the [option] type of [bo] into the [bindbox]. *)
-val box_opt : 'a bindbox option -> 'a option bindbox
+(** [box_opt bo] shifts the [option] type of [bo] into the [box]. *)
+val box_opt : 'a box option -> 'a option box
 
-(** [box_list bs] shifts the [list] type of [bs] into the [bindbox]. *)
-val box_list : 'a bindbox list  -> 'a list  bindbox
+(** [box_list bs] shifts the [list] type of [bs] into the [box]. *)
+val box_list : 'a box list  -> 'a list  box
 
-(** [box_rev_list bs] shifts the [list] type of [bs] into the [bindbox], while
-    reversing the list (for efficiency). *)
-val box_rev_list : 'a bindbox list  -> 'a list  bindbox
+(** [box_rev_list bs] is similar to [box_list bs], but the produced boxed list
+    is reversed (it is hence more efficient). *)
+val box_rev_list : 'a box list  -> 'a list  box
 
-(** [box_array bs] shifts the [array] type of [bs] into the [bindbox]. *)
-val box_array : 'a bindbox array -> 'a array bindbox
+(** [box_array bs] shifts the [array] type of [bs] into the [box]. *)
+val box_array : 'a box array -> 'a array box
 
 (** [box_apply3] is similar to [box_apply2]. *)
-val box_apply3 : ('a -> 'b -> 'c -> 'd) -> 'a bindbox -> 'b bindbox
-  -> 'c bindbox -> 'd bindbox
+val box_apply3 : ('a -> 'b -> 'c -> 'd)
+  -> 'a box -> 'b box -> 'c box -> 'd box
 
 (** [box_apply4] is similar to [box_apply2] and [box_apply3]. *)
-val box_apply4 : ('a -> 'b -> 'c -> 'd -> 'e) -> 'a bindbox -> 'b bindbox
-  -> 'c bindbox -> 'd bindbox -> 'e bindbox
+val box_apply4 : ('a -> 'b -> 'c -> 'd -> 'e)
+  -> 'a box -> 'b box -> 'c box -> 'd box -> 'e box
 
 (** [box_pair ba bb] is the same as [box_apply2 (fun a b -> (a,b)) ba bb]. *)
-val box_pair : 'a bindbox -> 'b bindbox -> ('a * 'b) bindbox
+val box_pair : 'a box -> 'b box -> ('a * 'b) box
 
 (** [box_trible] is similar to [box_pair], but for triples. *)
-val box_triple : 'a bindbox -> 'b bindbox -> 'c bindbox
-  -> ('a * 'b * 'c) bindbox
+val box_triple : 'a box -> 'b box -> 'c box -> ('a * 'b * 'c) box
 
 (** Type of a module equipped with a [map] function. *)
 module type Map =
@@ -274,12 +275,12 @@ module type Map =
     val map : ('a -> 'b) -> 'a t -> 'b t
   end
 
-(** Functorial interface used to build lifting functions (i.e., functions that
-    permute the ['a bindbox] type with another type constructor) for any  type
-    equipped with a [map] function. *)
+(** Functorial interface used to build lifting functions for any type equipped
+    with a [map] function. In other words,  this function can be used to allow
+    the permutation of the ['a box] type with another type constructor. *)
 module Lift(M : Map) :
   sig
-    val lift_box : 'a bindbox M.t -> 'a M.t bindbox
+    val lift_box : 'a box M.t -> 'a M.t box
   end
 
 (** Type of a module equipped with a "binary" [map] function. *)
@@ -292,7 +293,7 @@ module type Map2 =
 (** Similar to the [Lift] functor, but handles "binary" [map] functions. *)
 module Lift2(M : Map2) :
   sig
-    val lift_box : ('a bindbox, 'b bindbox) M.t -> ('a, 'b) M.t bindbox
+    val lift_box : ('a box, 'b box) M.t -> ('a, 'b) M.t box
   end
 
 
@@ -320,11 +321,6 @@ val compare_vars : 'a var -> 'b var -> int
 (** [eq_vars x y] safely computes the equality of [x] and [y]. Note that it is
     unsafe to compare variables with the polymorphic equality function. *)
 val eq_vars : 'a var -> 'b var -> bool
-
-(** [copy_var x name mkfree] makes a copy of variable [x],  with a potentially
-    different name and [mkfree] function. However, the copy is treated exactly
-    as the original in terms of binding and substitution. *)
-val copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var
 
 
 (** {2 Attributes of binders and utilities} *)
@@ -355,7 +351,6 @@ val binder_compose_left : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder
     [f] without changing anything at the binding structure. *)
 val binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
 
-
 (** [mbinder_arity b] gives the arity of the [mbinder]. *)
 val mbinder_arity : ('a,'b) mbinder -> int
 
@@ -378,31 +373,31 @@ val mbinder_closed : ('a,'b) mbinder -> bool
 val mbinder_rank : ('a,'b) mbinder -> int
 
 
-(** {2 Attributes of bindboxes and utilities} *)
+(** {2 Attributes of binding boxes and utilities} *)
 
-(** [is_closed b] checks whether the [bindbox] [b] is closed. *)
-val is_closed : 'a bindbox -> bool
+(** [is_closed b] checks whether the [box] [b] is closed. *)
+val is_closed : 'a box -> bool
 
-(** [is_subst b] checks whether the [bindbox] [b] was substituted. *)
-val is_substituted : (bool -> 'a) bindbox -> 'a bindbox
+(** [is_subst b] checks whether the [box] [b] was substituted. *)
+val is_substituted : (bool -> 'a) box -> 'a box
 
-(** [occur x b] tells whether variable [x] occurs in the [bindbox] [b]. *)
-val occur : 'a var -> 'b bindbox -> bool
+(** [occur x b] tells whether variable [x] occurs in the [box] [b]. *)
+val occur : 'a var -> 'b box -> bool
 
 (** [bind_apply bb barg] substitute the boxed binder [bb] with the boxed value
-    [barb] in the [bindbox] type. This is useful for working with higher-order
-    variables, which may be represented as binders themselves. *)
-val bind_apply  : ('a, 'b) binder bindbox  -> 'a bindbox       -> 'b bindbox
+    [barb] in the [box] type. This function is useful when working with higher
+    order variables, which may be represented as binders themselves. *)
+val bind_apply : ('a, 'b) binder box -> 'a box -> 'b box
 
-(** [mbind_apply bb bargs] substitute the boxed binder  [bb]  with  the  boxed
-    array of values [barbs] in the [bindbox] type.  This is useful for working
-    with higher-order variables. *)
-val mbind_apply : ('a, 'b) mbinder bindbox -> 'a array bindbox -> 'b bindbox
+(** [mbind_apply bb bargs] substitute the boxed binder [bb] with a boxed array
+    of values [barbs] in the [box] type.  This function is useful when working
+    with higher order variables. *)
+val mbind_apply : ('a, 'b) mbinder box -> 'a array box -> 'b box
 
 (** [fixpoint bb] constructs a binder fixpoint. This very advanced feature can
     be used to build recursive definitions (like with OCaml's "let rec"). *)
-val fixpoint : (('a, 'b) binder, ('a, 'b) binder) binder bindbox
-  -> ('a, 'b) binder bindbox
+val fixpoint : (('a, 'b) binder, ('a, 'b) binder) binder box
+  -> ('a, 'b) binder box
 
 
 (** {2 Working in a context} *)
@@ -430,8 +425,7 @@ val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
 
 (** [unbind_in ctxt mkfree b] is similar to [unbind mkfree b],  but it handles
     the context (see [new_mvar_in]). *)
-val unbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) binder
-  -> 'a var * 'b * ctxt
+val unbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b * ctxt
 
 (** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
     context (see [new_mvar_in]). *)
@@ -440,27 +434,35 @@ val unmbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) mbinder
 
 (** [bind_in ctxt mkfree name f] is like [bind mkfree name f],  but it handles
     the context. *)
-val bind_in : ctxt -> ('a var -> 'a) -> string
-  -> ('a bindbox -> ctxt -> 'b bindbox) -> ('a,'b) binder bindbox
+val bind_in : ctxt -> ('a var -> 'a) -> string -> ('a box -> ctxt -> 'b box)
+  -> ('a,'b) binder box
 
 (** [mbind_in ctxt mkfree names f] is similar to  [mbind mkfree names f],  but
     it handles the context. *)
 val mbind_in : ctxt -> ('a var -> 'a) -> string array
-  -> ('a bindbox array -> ctxt -> 'b bindbox) -> ('a,'b) mbinder bindbox
+  -> ('a box array -> ctxt -> 'b box) -> ('a,'b) mbinder box
 
 
 (** {2 Unsafe, advanced features} *)
 
+
+(** [copy_var x name mkfree] makes a copy of variable [x],  with a potentially
+    different name and [mkfree] function. However, the copy is treated exactly
+    as the original in terms of binding and substitution. The main application
+    of this function is for translating abstract syntax trees while preserving
+    binders. In particular, variables at two different types should never live
+    together (this may produce segmentation faults). *)
+val copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var
 
 (** [reset_counter ()] resets the unique identifier counter on which [Bindlib]
     relies. This function should only be called when previously generated data
     (e.g., variables) cannot be accessed anymore. *)
 val reset_counter : unit -> unit
 
-(** [dummy_bindbox] can be used for initialising structires (e.g., arrays). If
-    [unbox] is called on a data structure containing  a  [dummy_bindbox],  the
-    exception [Failure "Invalid use of dummy_bindbox"] is raised. *)
-val dummy_bindbox : 'a bindbox
+(** [dummy_box] can be used for initialising structures like arrays. Note that
+    if [unbox] is called on a data structure containing [dummy_box],  then the
+    exception [Failure "Invalid use of dummy_box"] is raised. *)
+val dummy_box : 'a box
 
 (** [binder_from_fun name f] transform a function into a binder. Note that the
     function is only called when the binder is substituted (see [subst]). This
