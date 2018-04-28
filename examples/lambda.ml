@@ -15,7 +15,7 @@ let mkfree : term var -> term =
 
 (* Smart constructors to build terms in the [box]. *)
 let var : term var -> term box =
-  box_of_var
+  box_var
 
 let abs : term var -> term box -> term box =
   fun x t -> box_apply (fun b -> Abs(b)) (bind_var x t)
@@ -80,7 +80,7 @@ let rec print : out_channel -> term -> unit = fun ch t ->
 (* Lifting to the [box]. *)
 let rec lift : term -> term box = fun t ->
   match t with
-  | Var(x)   -> box_of_var x
+  | Var(x)   -> box_var x
   | Abs(b)   -> let (x,t) = unbind b in
                 abs x (lift (subst b (Var(x))))
   | App(u,v) -> app (lift u) (lift v)

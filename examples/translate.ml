@@ -14,7 +14,7 @@ module A =
 
     let mkfree x = A_Var(x)
 
-    let var x = box_of_var x
+    let var x = box_var x
     let abs x t = box_apply (fun b -> A_Abs(b)) (bind_var x t)
     let app = box_apply2 (fun t u -> A_App(t,u))
   end
@@ -29,7 +29,7 @@ module B =
 
     let mkfree x = B_Var(x)
 
-    let var x = box_of_var x
+    let var x = box_var x
     let abs x t = box_apply (fun b -> B_Abs(b)) (bind_var x t)
     let app = box_apply2 (fun t u -> B_App(t,u))
   end
@@ -45,7 +45,7 @@ let b_to_a_var : B.term var -> A.term var =
 let translate : A.term -> B.term =
   let rec tr : A.term -> B.term bindbox = fun t ->
     match t with
-    | A.A_Var(x)   -> box_of_var (a_to_b_var x)
+    | A.A_Var(x)   -> box_var (a_to_b_var x)
     | A.A_Abs(b)   -> let (x,t) = unbind b in
                       B.abs (a_to_b_var x) (tr t)
     | A.A_App(t,u) -> B.app (tr t) (tr u)

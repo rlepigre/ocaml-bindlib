@@ -14,7 +14,7 @@ let mkfree : term var -> term =
   fun x -> Var(x)
 
 let var : term var -> term bindbox =
-  fun x -> box_of_var x
+  fun x -> box_var x
 
 let abs : term var -> term bindbox -> term bindbox =
   fun x t -> box_apply (fun b -> Abs(b)) (bind_var x t)
