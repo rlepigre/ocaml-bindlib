@@ -13,46 +13,45 @@ type term =
 let mkfree : term var -> term =
   fun x -> Var(x)
 
-(* Smart constructors to build terms in the [bindbox]. *)
-let abs : string -> (term bindbox -> term bindbox) -> term bindbox =
-  fun x f -> box_apply (fun b -> Abs(b)) (bind mkfree x f)
+(* Smart constructors to build terms in the [box]. *)
+let var : term var -> term box =
+  box_of_var
 
-let app : term bindbox -> term bindbox -> term bindbox =
+let abs : term var -> term box -> term box =
+  fun x t -> box_apply (fun b -> Abs(b)) (bind_var x t)
+
+let app : term box -> term box -> term box =
   fun t u -> box_apply2 (fun t u -> App(t,u)) t u
 
-(* Alternative smart constructor for [Abs], using [bind_var]. *)
-let abs_var : term var -> term bindbox -> term bindbox =
-  fun v t -> box_apply (fun b -> Abs(b)) (bind_var v t)
-
 (* A function to create a fresh variable. *)
-let var : string -> term var =
+let fresh_var : string -> term var =
   fun x -> new_var mkfree x
 
-(* NOTE two calls to [var] will produce two distinct variables. *)
+(* NOTE two calls to [fresh_var] will produce two distinct variables. *)
 
 (* Some examples of terms (not unboxed). *)
-let x     : term bindbox = box_of_var (var "x")
-let y     : term bindbox = box_of_var (var "y")
-let id    : term bindbox = abs "x" (fun x -> x)
-let fst   : term bindbox = abs "x" (fun x -> abs "y" (fun y -> x))
-let delta : term bindbox = abs "x" (fun x -> app x x)
-let omega : term bindbox = app delta delta
+let x     : term var = fresh_var "x"
+let y     : term var = fresh_var "y"
+let id    : term box = abs x (var x)
+let fst   : term box = abs x (abs y (var x))
+let delta : term box = abs x (app (var x) (var x))
+let omega : term box = app delta delta
 
 (* An example of term constructed using [var] and [abs_var]. *)
-let swap : term bindbox =
-  let x = var "x" in
-  let y = var "y" in
-  let t = app (box_of_var y) (box_of_var x) in
-  abs_var x (abs_var y t)
+let swap : term box =
+  let x = fresh_var "x" in
+  let y = fresh_var "y" in
+  let t = app (var y) (var x) in
+  abs x (abs y t)
 
 (* Examples producing capture during evaluation. *)
-let fst_y  : term bindbox = app fst y
-let fst_yx : term bindbox = app fst_y x
-let swap_y : term bindbox = app swap y
+let fst_y  : term box = app fst (var y)
+let fst_yx : term box = app fst_y (var x)
+let swap_y : term box = app swap (var y)
 
 (* Unboxed terms. *)
-let x      : term = unbox x
-let y      : term = unbox y
+let x      : term = unbox (var x)
+let y      : term = unbox (var y)
 let id     : term = unbox id
 let fst    : term = unbox fst
 let delta  : term = unbox delta
@@ -66,7 +65,7 @@ let swap_y : term = unbox swap_y
 let rec to_string : term -> string = fun t ->
   match t with
   | Var(x)   -> name_of x
-  | Abs(b)   -> let (x,t) = unbind mkfree b in
+  | Abs(b)   -> let (x,t) = unbind b in
                 "λ" ^ name_of x ^ "." ^ to_string t
   | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u
 
@@ -74,16 +73,16 @@ let rec to_string : term -> string = fun t ->
 let rec print : out_channel -> term -> unit = fun ch t ->
   match t with
   | Var(x)   -> Printf.fprintf ch "%s" (name_of x)
-  | Abs(b)   -> let (x,t) = unbind mkfree b in
+  | Abs(b)   -> let (x,t) = unbind b in
                 Printf.fprintf ch "λ%s.%a" (name_of x) print t
   | App(t,u) -> Printf.fprintf ch "(%a) %a" print t print u
 
-(* Lifting to the [bindbox]. *)
-let rec lift : term -> term bindbox = fun t ->
+(* Lifting to the [box]. *)
+let rec lift : term -> term box = fun t ->
   match t with
   | Var(x)   -> box_of_var x
-  | Abs(b)   -> let (x,t) = unbind mkfree b in
-                abs_var x (lift (subst b (Var(x))))
+  | Abs(b)   -> let (x,t) = unbind b in
+                abs x (lift (subst b (Var(x))))
   | App(u,v) -> app (lift u) (lift v)
 
 (* Update function to recompute names (required after substitution). *)

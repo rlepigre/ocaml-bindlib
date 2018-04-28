@@ -135,7 +135,6 @@ and 'a var =
   ; mkfree      : 'a var -> 'a (* Function to build a term.         *)
   ; mutable box : 'a box       (* Bindbox containing the variable.  *) }
 
-
 (** Deprecated synonym of ['a box]. *)
 type (+'a) bindbox = 'a box
 
@@ -163,39 +162,31 @@ let split_name : string -> string * int = fun name ->
   (pref, int_of_string suff)
 
 (** [name_of x] computes the full name of the given variable. *)
-let name_of : 'a var -> string =
-  fun x -> merge_name x.var_prefix x.var_suffix
+let name_of : 'a var -> string = fun x -> merge_name x.var_prefix x.var_suffix
+
+(** [names_of xs] returns printable names for the variables of [xs]. *)
+let names_of : 'a mvar -> string array = fun xs -> Array.map name_of xs
 
 (** [uid_of x] returns a unique identifier of the given variable. *)
-let uid_of : 'a var -> int =
-  fun x -> x.key
+let uid_of : 'a var -> int = fun x -> x.key
 
-(** [prefix_of x] returns the [string] prefix of the given variable. *)
-let prefix_of : 'a var -> string =
-  fun x -> x.var_prefix
-
-(** [suffix_of x] returns the [int] suffix of the given variable. *)
-let suffix_of : 'a var -> int =
-  fun x -> x.var_suffix
+(** [uids_of xs] returns the unique identifiers of the variables of [xs]. *)
+let uids_of : 'a mvar -> int array = fun xs -> Array.map uid_of xs
 
 (** [compare_vars x y] safely compares [x] and [y].  Note that it is unsafe to
     compare variables with [Pervasive.compare]. *)
-let compare_vars : 'a var -> 'b var -> int =
-  fun x y -> y.key - x.key
+let compare_vars : 'a var -> 'b var -> int = fun x y -> y.key - x.key
 
 (** [eq_vars x y] safely computes the equality of [x] and [y]. Note that it is
     unsafe to compare variables with the polymorphic equality function. *)
-let eq_vars : 'a var -> 'b var -> bool =
-  fun x y -> x.key = y.key
+let eq_vars : 'a var -> 'b var -> bool = fun x y -> x.key = y.key
 
 (** [hash_var x] computes a hash for variable [x]. Note that this function can
     be used with the [Hashtbl] module. *)
-let hash_var : 'a var -> int =
-  fun x -> Hashtbl.hash (`HVar, x.key)
+let hash_var : 'a var -> int = fun x -> Hashtbl.hash (`HVar, x.key)
 
-(** [box_of_var x] builds a [box] from variable [x]. *)
-let box_of_var : 'a var -> 'a box =
-  fun x -> x.box
+(** [box_var x] builds a [box] from variable [x]. *)
+let box_var : 'a var -> 'a box = fun x -> x.box
 
 (** [merge_uniq l1 l2] merges two sorted lists of variables that must not have
     any repetitions. The produced list does not have repetition eigher. *)
@@ -276,14 +267,15 @@ let is_closed : 'a box -> bool = fun b ->
 
 (** [is_substituted b] checks whether the [box] [b] was substituted. *)
 let is_substituted : (bool -> 'a) box -> 'a box = fun b ->
-  match b with Box(f) -> Box(f false)
-             | Env(vs, na, ta) ->
-                let ta = fun vs ->
-                  let subst = IMap.exists (fun _ i -> i.subst) vs in
-                  let cla = ta vs in
-                  (fun env -> cla env subst)
-                in
-                Env(vs, na, ta)
+  match b with
+  | Box(f)        -> Box(f false)
+  | Env(vs,na,ta) ->
+      let ta vs =
+        let subst = IMap.exists (fun _ i -> i.subst) vs in
+        let cla = ta vs in
+        (fun env -> cla env subst)
+      in
+      Env(vs, na, ta)
 
 (** [box_apply f a] maps the function [f] into the binding box [a].  Note that
     this is equivalent to [apply_box (box f) a], but it is more efficient. *)
@@ -427,10 +419,11 @@ let unbox : 'a box -> 'a = fun b ->
 (** The representation of a [binder],  which is an element of type ['b] with a
     bound variable of type ['a]. *)
 type ('a,'b) binder =
-  { name  : string   (** Name of the bound variable.                *)
-  ; bind  : bool     (** Indicates whether the variable occurs.     *)
-  ; rank  : int      (** Number of remaining free variables (>= 0). *)
-  ; value : 'a -> 'b (** Substitution function.                     *) }
+  { name   : string       (** Name of the bound variable.                *)
+  ; bind   : bool         (** Indicates whether the variable occurs.     *)
+  ; rank   : int          (** Number of remaining free variables (>= 0). *)
+  ; mkfree : 'a var -> 'a (** Injection of variables into domain.        *)
+  ; value  : 'a -> 'b     (** Substitution function.                     *) }
 
 (** [binder_name] returns the name of the variable bound by the [binder]. *)
 let binder_name : ('a,'b) binder -> string = fun b -> b.name
@@ -452,24 +445,15 @@ let binder_closed : ('a,'b) binder -> bool = fun b -> b.rank = 0
 (** [binder_rank b] gives the number of free variables contained in [b]. *)
 let binder_rank : ('a,'b) binder -> int = fun b -> b.rank
 
-(** [binder_compose_left f b] precomposes the binder [b] with the function [f]
-    without changing anything at the binding structure. *)
-let binder_compose_left  : ('a -> 'b) -> ('b,'c) binder -> ('a,'c) binder =
-  fun f b -> { b with value = fun x -> b.value (f x) }
-
-(** [binder_compose_rigth b f] postcomposes the binder [b] with  the  function
-    [f] without changing anything at the binding structure. *)
-let binder_compose_right : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder =
-  fun b f -> { b with value = fun x -> f (b.value x) }
-
 (** The representation of a multiple binder,  which binds several variables at
     once. It corresponds to an expression of type ['b] with bound variables of
     type ['a]. *)
 type ('a,'b) mbinder =
   { names  : string array   (** Names of the bound variables.          *)
   ; binds  : bool array     (** Indicates whether the variables occur. *)
-  ; ranks  : int            (** Number of remaining free variables.    *)
-  ; values : 'a array -> 'b (** Substitution function.                 *) }
+  ; rank   : int            (** Number of remaining free variables.    *)
+  ; mkfree : 'a var -> 'a   (** Injection of variables into domain.    *)
+  ; value  : 'a array -> 'b (** Substitution function.                 *) }
 
 (** [mbinder_arity b] gives the arity of the [mbinder]. *)
 let mbinder_arity : ('a,'b) mbinder -> int = fun mb -> Array.length mb.names
@@ -480,7 +464,7 @@ let mbinder_names : ('a,'b) mbinder -> string array = fun mb -> mb.names
 
 (** [msubst b vs] substitutes the variables bound by [b], using the array [vs]
     (which size should correspond to [mbinder_arity b]). *)
-let msubst : ('a,'b) mbinder -> 'a array -> 'b = fun mb xs -> mb.values xs
+let msubst : ('a,'b) mbinder -> 'a array -> 'b = fun mb xs -> mb.value xs
 
 (** [mbinder_occurs b] returns an array of [bool] indicating if the  variables
     that are bound occur (i.e., are used). *)
@@ -492,10 +476,10 @@ let mbinder_constant : ('a,'b) mbinder -> bool =
   fun mb -> Array.fold_left (||) false mb.binds
 
 (** [mbinder_closed b] indicates whether [b] is closed. *)
-let mbinder_closed : ('a,'b) mbinder -> bool = fun mb -> mb.ranks = 0
+let mbinder_closed : ('a,'b) mbinder -> bool = fun mb -> mb.rank = 0
 
 (* [mbinder_rank b] gives the number of free variables contained in [b]. *)
-let mbinder_rank : ('a,'b) mbinder -> int = fun mb -> mb.ranks
+let mbinder_rank : ('a,'b) mbinder -> int = fun mb -> mb.rank
 
 (** [dummy_box] can be used for initialising structures like arrays. Note that
     if [unbox] is called on a data structure containing [dummy_box],  then the
@@ -553,10 +537,10 @@ let get_suffix : any var list -> varpos -> 'a var -> int = fun vs vp x ->
 
 (** [build_binder x rank bind value] constructs a binder with the given values
     (the variable [x] is used to obtain the name of the bound variable). *)
-let build_binder : 'a var -> int -> bool -> ('b -> 'c) -> ('b,'c) binder =
+let build_binder : 'a var -> int -> bool -> ('a -> 'b) -> ('a,'b) binder =
   fun x rank bind value ->
     let name = merge_name x.var_prefix x.var_suffix in
-    {name; rank; bind; value}
+    {name; rank; bind; value; mkfree = x.mkfree}
 
 (** [bind_var x b] produces a [binder] (in a [box]) by binding [x] in [b].
     This is one of the main [Bindlib] functions. *)
@@ -611,21 +595,6 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
           fun v -> build_binder x rank false (fun _ -> t v)
         in Env(vs, n, value)
 
-(** [bind mkfree name f] transforms the function [f] into a binder. Everything
-    happens in a box, and [mkfree] and [name] are required to create a new
-    variable to call [bind_var]. *)
-let bind : ('a var -> 'a) -> string -> ('a box -> 'b box)
-    -> ('a,'b) binder box = fun mkfree name f ->
-  let x = new_var mkfree name in
-  bind_var x (f x.box)
-
-(** [vbind mkfree name f] is similar to [bind], but the domain of the function
-    taken as input has type ['a var]. It also relies on [bind_var]. *)
-let vbind : ('a var -> 'a) -> string -> ('a var -> 'b box)
-    -> ('a,'b) binder box = fun mkfree name f ->
-  let x = new_var mkfree name in
-  bind_var x (f x)
-
 (** [check_arity xs args] matches the size of [xs] and [args],  and raises the
     [Invalid_argument "Bad arity in msubst"] exception in case of failure. The
     error can only be triggered at runtime (in [msubst]). *)
@@ -635,12 +604,16 @@ let check_arity : 'a mvar -> 'a array -> unit = fun xs args ->
 (** [bind_mvar xs b] produces a [mbinder] (in a [box]) by binding [xs]  in
     [b], in a similar way as [bind_var] does for single variables. *)
 let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
+  let mkfree =
+    if Array.length xs > 0 then xs.(0).mkfree
+    else (fun _ -> assert false)
+  in
   match b with
   | Box(t)      ->
-      let values args = check_arity xs args; t in
+      let value args = check_arity xs args; t in
       let binds = Array.map (fun _ -> false) xs in
       let names = Array.map name_of xs in
-      Box({names; ranks = 0; binds; values})
+      Box({names; rank = 0; binds; value; mkfree})
   | Env(vs,n,t) ->
       let keys = Array.map (fun _ -> 0) xs in
       let vss = Array.map (fun _ -> vs) xs in
@@ -671,7 +644,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
         in
         let binds = Array.mapi f keys in
         let t = t !vp in
-        let values args =
+        let value args =
           check_arity xs args;
           let v = Env.create m in
           let pos = ref 0 in
@@ -684,23 +657,23 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
           Env.set_next_free v !pos;
           t v
         in
-        Box({names; binds; ranks = 0; values})
+        Box({names; binds; rank = 0; value; mkfree})
       else if m = n then (* None of the variables occur. *)
         let cl vp =
-          let ranks = List.length vs in
+          let rank = List.length vs in
           let binds = Array.map (fun _ -> false) xs in
           let fn x = merge_name x.var_prefix (get_suffix vs vp x) in
           let names = Array.map fn xs in
           let t = t vp in
           fun v ->
-            let values args = check_arity xs args; t v in
-            {names; ranks; binds; values}
+            let value args = check_arity xs args; t v in
+            {names; rank; binds; value; mkfree}
         in Env(vs, n, cl)
       else (* General case. *)
         let cl vp =
           let names = Array.map (fun _ -> "") xs in
-          let ranks = List.length vs in
-          let cur_pos = ref ranks in
+          let rank = List.length vs in
+          let cur_pos = ref rank in
           let vp = ref vp in
           let f i key =
             let suffix = get_suffix vss.(i) !vp xs.(i) in
@@ -713,11 +686,11 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
           let binds = Array.mapi f keys in
           let t = t !vp in
           fun v ->
-            let values args =
+            let value args =
               check_arity xs args;
               let next = Env.get_next_free v in
-              let cur_pos = ref ranks in
-              if next = ranks then
+              let cur_pos = ref rank in
+              if next = rank then
                 begin
                   for i = 0 to Array.length xs - 1 do
                     if binds.(i) then begin
@@ -741,38 +714,21 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
                   for i = !cur_pos to next - 1 do Env.set v i 0 done;
                   t v
                 end
-            in {names; ranks; binds; values}
+            in {names; rank; binds; value; mkfree}
         in Env(vs, m, cl)
 
-(** [mbind mkfree names f] builds a [mbinder] from the function [f]. It relies
-    on [bind_mvar] to do so, and thus it require [mkfree] and [names]. *)
-let mbind : ('a var -> 'a) -> string array -> ('a box array -> 'b box)
-    -> ('a,'b) mbinder box = fun mkfree names f ->
-  let vs = new_mvar mkfree names in
-  bind_mvar vs (f (Array.map box_of_var vs))
+(** [unbind b] breaks the [binder] [b] into a variable and a body. The name of
+    this variable is based on that of the binder. *)
+let unbind : ('a,'b) binder -> 'a var * 'b = fun b ->
+    let x = new_var b.mkfree (binder_name b) in
+    (x, subst b (b.mkfree x))
 
-(** [mvbind mkfree names f] builds a [mbinder] from the function [f], like the
-    [mbind] function do (up to the type of the function [f]). *)
-let mvbind : ('a var -> 'a) -> string array -> ('a mvar -> 'b box)
-    -> ('a,'b) mbinder box = fun mkfree names f ->
-  let vs = new_mvar mkfree names in
-  bind_mvar vs (f vs)
-
-(** [unbind mkfree b] breaks the [binder] [b] into a variable and a body.  The
-    [mkfree] function is required since it is necessary to create a  variable.
-    The name of this variable is based on that of the binder. *)
-let unbind : ('a var -> 'a) -> ('a,'b) binder -> 'a var * 'b =
-  fun mkfree b ->
-    let x = new_var mkfree (binder_name b) in
-    (x, subst b (mkfree x))
-
-(** [unbind2 mkfree f g] is similar to [unbind mkfree f], but substitutes both
-    [f] and [g] using the same fresh variable. *)
-let unbind2 : ('a var -> 'a) -> ('a,'b) binder -> ('a,'c) binder
-    -> 'a var * 'b * 'c =
-  fun mkfree b1 b2 ->
-    let x = new_var mkfree (binder_name b1) in
-    let v = mkfree x in
+(** [unbind2 f g] is similar to [unbind f], but it substitutes two binders [f]
+    and [g] at once, using the same fresh variable. *)
+let unbind2 : ('a,'b) binder -> ('a,'c) binder -> 'a var * 'b * 'c =
+  fun b1 b2 ->
+    let x = new_var b1.mkfree (binder_name b1) in
+    let v = b1.mkfree x in
     (x, subst b1 v, subst b2 v)
 
 (** Short name for the type of an equality function. *)
@@ -781,44 +737,47 @@ type 'a eq = 'a -> 'a -> bool
 (** [eq_binder eq f g] tests the equality between the binders [f] and [g]. The
     binders are first substituted using the same fresh variable, and then [eq]
     is called on the resulting terms. *)
-let eq_binder : ('a var -> 'a) -> 'b eq -> ('a,'b) binder eq =
-  fun mkfree eq f g -> f == g ||
-    let (_,t,u) = unbind2 mkfree f g in eq t u
+let eq_binder : 'b eq -> ('a,'b) binder eq = fun eq f g ->
+  f == g || let (_,t,u) = unbind2 f g in eq t u
 
 (** [unmbind mkfree b] breaks the [mbinder] [b] into an array of variables and
     a body. It is required to provide a [mkfree] function since [unmbind]  has
     to create new variables. Their names are besed on the bound variables. *)
-let unmbind : ('a var -> 'a) -> ('a,'b) mbinder -> 'a mvar * 'b =
-  fun mkfree b ->
-    let x = new_mvar mkfree (mbinder_names b) in
-    (x, msubst b (Array.map mkfree x))
+let unmbind : ('a,'b) mbinder -> 'a mvar * 'b = fun b ->
+  let x = new_mvar b.mkfree (mbinder_names b) in
+  (x, msubst b (Array.map b.mkfree x))
 
 (** [unmbind2 mkfree f g] is similar to [unmbind mkfree f], but it substitutes
     both [f] and [g] using the same fresh variables. *)
-let unmbind2 : ('a var -> 'a) -> ('a,'b) mbinder -> ('a,'c) mbinder
-    -> 'a mvar * 'b * 'c =
-  fun mkfree b1 b2 ->
-    let xs = new_mvar mkfree (mbinder_names b1) in
-    let vs = Array.map mkfree xs in
+let unmbind2 : ('a,'b) mbinder -> ('a,'c) mbinder -> 'a mvar * 'b * 'c =
+  fun b1 b2 ->
+    let xs = new_mvar b1.mkfree (mbinder_names b1) in
+    let vs = Array.map b1.mkfree xs in
     (xs, msubst b1 vs, msubst b2 vs)
 
 (** [eq_mbinder eq f g] tests the equality between two [mbinder] [f] and  [g].
     They are first substituted with the same fresh variables, and then [eq] is
     called on the resulting terms. *)
-let eq_mbinder : ('a var -> 'a) -> 'b eq -> ('a,'b) mbinder eq =
-  fun mkfree eq f g -> f == g ||
-    let (_,t,u) = unmbind2 mkfree f g in eq t u
+let eq_mbinder : 'b eq -> ('a,'b) mbinder eq = fun eq f g ->
+  f == g || let (_,t,u) = unmbind2 f g in eq t u
 
-(** [fixpoint b] builds a binder fixpoint (advance feature). *)
-let fixpoint : (('a,'b) binder, ('a,'b) binder) binder box
-    -> ('a, 'b) binder box = fun b ->
-  match b with
-  | Box(t)      -> let rec fix t = t (fix t) in Box(fix t.value)
-  | Env(vs,n,t) ->
-     let cl vp =
-       let t = t vp in
-       let rec fix env = (t env).value (fix env) in fix
-     in Env(vs, n, cl)
+(** [box_binder f b] boxes the binder [b] using the boxing function [f].  Note
+    that when [b] is closed, it is immediately boxed using the [box] function.
+    In that case, the function [f] is not used at all. *)
+let box_binder : ('b -> 'b box) -> ('a,'b) binder -> ('a,'b) binder box =
+  fun f b ->
+    if b.rank = 0 then box b else
+    let (x,t) = unbind b in
+    bind_var x (f t)
+
+(** [box_mbinder f b] boxes the multiple binder [b] using the boxings function
+    [f]. Note that if [b] is closed then it is immediately boxed (with [box]),
+    without relying on [f] at all. *)
+let box_mbinder : ('b -> 'b box) -> ('a,'b) mbinder -> ('a,'b) mbinder box =
+  fun f b ->
+    if b.rank = 0 then box b else
+    let (xs,t) = unmbind b in
+    bind_mvar xs (f t)
 
 (** [bind_apply b arg] substitute a [binder] in the [box] type. *)
 let bind_apply : ('a,'b) binder box -> 'a box -> 'b box =
@@ -827,19 +786,6 @@ let bind_apply : ('a,'b) binder box -> 'a box -> 'b box =
 (** [mbind_apply b args] substitute a [mbinder] in the [box] type. *)
 let mbind_apply : ('a,'b) mbinder box -> 'a array box -> 'b box =
   fun b args -> box_apply2 msubst b args
-
-(** [binder_from_fun name f] builds a [binder] from the function [f] using the
-    variable name [name]. This function is very unsafe. Use farefully. *)
-let binder_from_fun : string -> ('a -> 'b) -> ('a,'b) binder =
-  fun name f ->
-    unbox (bind (fun _ -> assert false) name (box_apply f))
-
-(** [mbinder_from_fun names f] builds a [mbinder] from the function [f]  using
-    the variable names [names]. This function is also very unsafe. *)
-let mbinder_from_fun : string array -> ('a array -> 'b) -> ('a,'b) mbinder =
-  fun names f ->
-    let fn xs = box_apply f (box_array xs) in
-    unbox (mbind (fun _ -> assert false) names fn)
 
 (** Representation of a context, or a list of reserved names. *)
 type ctxt = int list SMap.t
@@ -878,36 +824,49 @@ let new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt =
       let (v, new_ctxt) = new_var_in !ctxt mkfree name in
       ctxt := new_ctxt; v
     in
-    let vs = Array.map f names in
-    (vs, !ctxt)
+    (Array.map f names, !ctxt)
 
-(** [bind_in ctxt mkfree name f] is like [bind mkfree name f],  but it handles
-    the context. *)
-let bind_in : ctxt -> ('a var -> 'a) -> string
-    -> ('a box -> ctxt -> 'b box) -> ('a,'b) binder box =
-  fun ctxt mkfree name f ->
-    let (v, ctxt) = new_var_in ctxt mkfree name in
-    bind_var v (f v.box ctxt)
-
-(** [mbind_in ctxt mkfree names f] is similar to  [mbind mkfree names f],  but
-    it handles the context. *)
-let mbind_in : ctxt -> ('a var -> 'a) -> string array
-    -> ('a box array -> ctxt -> 'b box) -> ('a,'b) mbinder box =
-  fun ctxt mkfree names fpt ->
-    let (vs, ctxt) = new_mvar_in ctxt mkfree names in
-    let args = Array.map box_of_var vs in
-    bind_mvar vs (fpt args ctxt)
-
-(** [unbind_in ctxt mkfree b] is similar to [unbind mkfree b],  but it handles
-    the context (see [new_mvar_in]). *)
-let unbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) binder
-    -> 'a var * 'b * ctxt = fun ctxt mkfree b ->
-  let (x, ctxt) = new_var_in ctxt mkfree (binder_name b) in
-  (x, subst b (mkfree x), ctxt)
+(** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
+    explaine in the documentation of [new_mvar_in]. *)
+let unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt = fun ctxt b ->
+  let (x, ctxt) = new_var_in ctxt b.mkfree (binder_name b) in
+  (x, subst b (b.mkfree x), ctxt)
 
 (** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
     context (see [new_mvar_in]). *)
-let unmbind_in : ctxt -> ('a var -> 'a) -> ('a,'b) mbinder
-    -> 'a mvar * 'b * ctxt = fun ctxt mkfree b ->
-  let (x, ctxt) = new_mvar_in ctxt mkfree (mbinder_names b) in
-  (x, msubst b (Array.map mkfree x), ctxt)
+let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
+  fun ctxt b ->
+    let (x, ctxt) = new_mvar_in ctxt b.mkfree (mbinder_names b) in
+    (x, msubst b (Array.map b.mkfree x), ctxt)
+
+(** [binder_compose b f] postcomposes the binder [b] with the function [f]. In
+    the process, the binding structure is not changed. Note that this function
+    is not alwasy safe. Use it with care. *)
+let binder_compose : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder =
+  fun b f -> {b with value = (fun x -> f (b.value x))}
+
+(** [mbinder_compose b f] postcomposes the multiple binder [b] with [f]. This
+    function is similar to [binder_compose], and it is not always safe. *)
+let mbinder_compose : ('a,'b) mbinder -> ('b -> 'c) -> ('a,'c) mbinder =
+  fun b f -> {b with value = (fun x -> f (b.value x))}
+
+(** [raw_binder name bind rank mkfree value] builds a binder using the [value]
+    function as its definition. The parameter [name] correspond to a preferred
+    name of the bound variable, the boolean [bind] indicates whether the bound
+    variable occurs, and [rank] gives the number of distinct free variables in
+    the produced binder. The [mkfree] function injecting variables in the type
+    ['a] of the domain of the binder must also be given. This function must be
+    considered unsafe because it is the responsibility of the user to give the
+    accurate value for [bind] and [rank]. *)
+let raw_binder : string -> bool -> int -> ('a var -> 'a) -> ('a -> 'b)
+    -> ('a,'b) binder =
+  fun name bind rank mkfree value ->
+    {name; bind; rank; mkfree; value}
+
+(** [raw_mbinder names binds rank value] is similar to [raw_binder], but it is
+    applied to a multiple binder. As for [raw_binder], this function has to be
+    considered unsafe because the user must enforce invariants. *)
+let raw_mbinder : string array -> bool array -> int -> ('a var -> 'a)
+    -> ('a array -> 'b) -> ('a,'b) mbinder =
+  fun names binds rank mkfree value ->
+    {names; binds; rank; mkfree; value}
