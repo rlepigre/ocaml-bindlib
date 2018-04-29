@@ -16,13 +16,12 @@ let filter_map : ('a -> bool) -> ('a -> 'b) -> 'a list -> 'b list =
       | x::l -> if pred x then aux (f x::acc) l else aux acc l
     in aux [] l
 
-(** Counter for fresh symbol generation. *)
-let counter : int ref = ref (-1)
-
 (** [reset_counter ()] resets the counter. This function should only be called
     when previously generated [Bindlib] data structures cannot be accessed any
-    more. *)
-let reset_counter : unit -> unit = fun () -> counter := (-1)
+    more. [fresh_key ()] produces a fresh key, using the hidden counter. *)
+let ((reset_counter : unit -> unit), (fresh_key : unit -> int)) =
+  let c = ref (-1) in
+  ((fun () -> c := -1), (fun () -> incr c; !c))
 
 (** Maps with [int] keys. *)
 module IMap = Map.Make(
@@ -505,8 +504,7 @@ let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
 let new_var : ('a var -> 'a) -> string -> 'a var =
   fun mkfree name ->
     let (prefix, suffix) = split_name name in
-    let key = incr counter; !counter in
-    build_new_var key prefix suffix mkfree
+    build_new_var (fresh_key ()) prefix suffix mkfree
 
 (** [new_mvar mkfree names] creates an array of new free variables in the same
     way as [new_var] does. *)
