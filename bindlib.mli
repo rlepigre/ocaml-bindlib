@@ -138,9 +138,6 @@ val eq_mbinder : ('b -> 'b -> bool) -> ('a,'b) mbinder -> ('a,'b) mbinder
     the free variable of the term can be bound easily. *)
 type +'a box
 
-(** Deprecated synonym of ['a box]. *)
-type +'a bindbox = 'a box
-
 (** [box_var x] builds a ['a box] from the ['a var] [x]. *)
 val box_var : 'a var -> 'a box
 

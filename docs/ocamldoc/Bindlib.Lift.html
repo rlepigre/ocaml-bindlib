@@ -20,9 +20,9 @@
 <h1>Functor <a href="type_Bindlib.Lift.html">Bindlib.Lift</a></h1>
 
 <pre><span class="keyword">module</span> Lift <code class="code">(</code><code class="code">M</code><code class="code"> : </code><code class="type"><a href="Bindlib.Map.html">Map</a></code><code class="code">) </code>: <code class="code">sig</code> <a href="Bindlib.Lift.html">..</a> <code class="code">end</code></pre><div class="info module top">
-Functorial interface used to build lifting functions (i.e., functions that
-    permute the <code class="code">'a bindbox</code> type with another type constructor) for any  type
-    equipped with a <code class="code">map</code> function.<br>
+Functorial interface used to build lifting functions for any type equipped
+    with a <code class="code">map</code> function. In other words,  this function can be used to allow
+    the permutation of the <code class="code">'a box</code> type with another type constructor.<br>
 </div>
 <table border="0" cellpadding="3" width="100%">
 <tr>
@@ -40,4 +40,4 @@ Functorial interface used to build lifting functions (i.e., functions that
 </table>
 <hr width="100%">
 
-<pre><span id="VALlift_box"><span class="keyword">val</span> lift_box</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">Bindlib.bindbox</a> M.t -> 'a M.t <a href="Bindlib.html#TYPEbindbox">Bindlib.bindbox</a></code></pre></body></html>
+<pre><span id="VALlift_box"><span class="keyword">val</span> lift_box</span> : <code class="type">'a <a href="Bindlib.html#TYPEbox">Bindlib.box</a> M.t -> 'a M.t <a href="Bindlib.html#TYPEbox">Bindlib.box</a></code></pre></body></html>

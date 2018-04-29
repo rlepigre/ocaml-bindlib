@@ -134,9 +134,6 @@ and 'a var =
   ; var_mkfree      : 'a var -> 'a (* Function to build a term.         *)
   ; mutable var_box : 'a box       (* Bindbox containing the variable.  *) }
 
-(** Deprecated synonym of ['a box]. *)
-type (+'a) bindbox = 'a box
-
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
 

@@ -33,13 +33,13 @@ let rec to_string : term -> string = fun t ->
   | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u
 
 (* Smart constructors. *)
-let var : term var -> term bindbox =
+let var : term var -> term box =
   fun x -> box_var x
 
-let abs : term var -> term bindbox -> term bindbox =
+let abs : term var -> term box -> term box =
   fun x t -> box_apply (fun b -> Abs(b)) (bind_var x t)
 
-let app : term bindbox -> term bindbox -> term bindbox =
+let app : term box -> term box -> term box =
   fun t u -> box_apply2 (fun t u -> App(t,u)) t u
 
 (* NOTE the [var] smart constructor is only used with free variables. They can

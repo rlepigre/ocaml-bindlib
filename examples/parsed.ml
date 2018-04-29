@@ -13,13 +13,13 @@ type term =
 let mkfree : term var -> term =
   fun x -> Var(x)
 
-let var : term var -> term bindbox =
+let var : term var -> term box =
   fun x -> box_var x
 
-let abs : term var -> term bindbox -> term bindbox =
+let abs : term var -> term box -> term box =
   fun x t -> box_apply (fun b -> Abs(b)) (bind_var x t)
 
-let app : term bindbox -> term bindbox -> term bindbox =
+let app : term box -> term box -> term box =
   fun t u -> box_apply2 (fun t u -> App(t,u)) t u
 
 (* Printing function. *)
@@ -38,7 +38,7 @@ type pterm =
 
 (* Translation function to our AST using bindlib. *)
 let trans : pterm -> term =
-  let rec trans : (string * term var) list -> pterm -> term bindbox =
+  let rec trans : (string * term var) list -> pterm -> term box =
     fun env t ->
       match t with
       | PVar(x)   -> var (List.assoc x env) (* unbound if not found *)
