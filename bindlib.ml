@@ -147,7 +147,9 @@ let merge_name : string -> int -> string =
 
 (** [split_name s] splits [s] into a [string] prefix and an [int] suffix. Note
     that we have [split "xyz" = ("xyz", (-1))], [split "xyz12" = ("xyz", 12)],
-    or [split "12" = ("", 12)]. In other words, we take the longest suffix. *)
+    or [split "12" = ("", 12)]. In other words, we take the longest suffix. In
+    particular, [split "xyz007"] and [split "xyz7"] both yield the same value,
+    which is [("xyz", 7)]. *)
 let split_name : string -> string * int = fun name ->
   let is_digit c = '0' <= c && c <= '9' in
   let len = String.length name in

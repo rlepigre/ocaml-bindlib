@@ -62,7 +62,13 @@ val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
 (** [new_var mkfree name] creates a new variable using a function [mkfree] and
     a [name]. The [mkfree] function is used to inject variables in the type of
-    the corresponding elements. It is a form of syntactic wrapper. *)
+    the corresponding elements. It is a form of syntactic wrapper. Note that a
+    variable name is understood as a couple of a prefix string, and a possible
+    natural number suffix (the longest suffix of [name] formed of digits). For
+    example, the variable name ["xzy"] will have no suffix, and ["xyz12"] will
+    have the prefix ["xyz"] and the suffix [12]. Note that the name ["xyz007"]
+    and ["xyz7"] are considered the same,  and are both shown as the latter by
+    the [name_of] function. *)
 val new_var  : ('a var -> 'a) -> string       -> 'a var
 
 (** [new_mvar mkfree names] creates a new array of variables using a  function
