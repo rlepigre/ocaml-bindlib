@@ -183,7 +183,7 @@ let eq_vars : 'a var -> 'b var -> bool = fun x y -> x.var_key = y.var_key
     be used with the [Hashtbl] module. *)
 let hash_var : 'a var -> int = fun x -> Hashtbl.hash (`HVar, x.var_key)
 
-(** [box_var x] builds a [box] from variable [x]. *)
+(** [box_var x] boxes variable [a] to make it available for binding. *)
 let box_var : 'a var -> 'a box = fun x -> x.var_box
 
 (** [merge_uniq l1 l2] merges two sorted lists of variables that must not have
@@ -489,10 +489,11 @@ let dummy_box : 'a box =
 (** This is safe as we can not go in the opposite direction *)
 let to_any : 'a var -> any var = Obj.magic
 
-(** [build_new_var key prefix suffix mkfree] initialises a new [var] structure
-    with the given data, and updates the [box] field accordingly. *)
-let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
-  fun var_key var_prefix var_suffix var_mkfree ->
+(** [build_new_var key name mkfree] initialises a new [var] structure with the
+    given data, and updates the [box] field accordingly. *)
+let build_new_var : int -> string -> ('a var -> 'a) -> 'a var =
+  fun var_key name var_mkfree ->
+    let (var_prefix, var_suffix) = split_name name in
     let var_box = Env([], 0, fun _ -> assert false) in
     let x = {var_key; var_prefix; var_suffix; var_mkfree; var_box} in
     let mk_var vp = Env.get (IMap.find var_key vp).index in
@@ -501,9 +502,7 @@ let build_new_var : int -> string -> int -> ('a var -> 'a) -> 'a var =
 (** [new_var mkfree name] create a new free variable using a wrapping function
     [mkfree] and a default [name]. *)
 let new_var : ('a var -> 'a) -> string -> 'a var =
-  fun mkfree name ->
-    let (prefix, suffix) = split_name name in
-    build_new_var (fresh_key ()) prefix suffix mkfree
+  fun mkfree name -> build_new_var (fresh_key ()) name mkfree
 
 (** [new_mvar mkfree names] creates an array of new free variables in the same
     way as [new_var] does. *)
@@ -514,9 +513,7 @@ let new_mvar : ('a var -> 'a) -> string array -> 'a mvar =
     different name and syntactic wrapper. However, the copy is treated exactly
     as the original in terms of binding and substitution. *)
 let copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var =
-  fun x name mkfree ->
-    let (prefix, suffix) = split_name name in
-    build_new_var x.var_key prefix suffix mkfree
+  fun x name mkfree -> build_new_var x.var_key name mkfree
 
 (** [get_suffix vs vp x] finds a non-colliding suffix for variable [x],  given
     a list of variables with name collisions,  the [varpos] with corresponding
