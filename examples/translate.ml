@@ -36,10 +36,10 @@ module B =
 
 (* Conversion functions between variables. *)
 let a_to_b_var : A.term var -> B.term var =
-  fun x -> copy_var x (name_of x) B.mkfree
+  fun x -> copy_var x B.mkfree (name_of x)
 
 let b_to_a_var : B.term var -> A.term var =
-  fun x -> copy_var x (name_of x) A.mkfree
+  fun x -> copy_var x A.mkfree (name_of x)
 
 (* Translation function. *)
 let translate : A.term -> B.term =

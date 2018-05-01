@@ -489,10 +489,10 @@ let dummy_box : 'a box =
 (** This is safe as we can not go in the opposite direction *)
 let to_any : 'a var -> any var = Obj.magic
 
-(** [build_new_var key name mkfree] initialises a new [var] structure with the
-    given data, and updates the [box] field accordingly. *)
-let build_new_var : int -> string -> ('a var -> 'a) -> 'a var =
-  fun var_key name var_mkfree ->
+(** [build_var key mkfree name] initialises a new ['a var] structure using the
+    given data, and updates the [var_box] field accordingly. *)
+let build_var : int ->  ('a var -> 'a) -> string -> 'a var =
+  fun var_key var_mkfree name ->
     let (var_prefix, var_suffix) = split_name name in
     let var_box = Env([], 0, fun _ -> assert false) in
     let x = {var_key; var_prefix; var_suffix; var_mkfree; var_box} in
@@ -502,7 +502,7 @@ let build_new_var : int -> string -> ('a var -> 'a) -> 'a var =
 (** [new_var mkfree name] create a new free variable using a wrapping function
     [mkfree] and a default [name]. *)
 let new_var : ('a var -> 'a) -> string -> 'a var =
-  fun mkfree name -> build_new_var (fresh_key ()) name mkfree
+  fun mkfree -> build_var (fresh_key ()) mkfree
 
 (** [new_mvar mkfree names] creates an array of new free variables in the same
     way as [new_var] does. *)
@@ -512,8 +512,8 @@ let new_mvar : ('a var -> 'a) -> string array -> 'a mvar =
 (** [copy_var x name mkfree] makes a copy of variable [x],  with a potentially
     different name and syntactic wrapper. However, the copy is treated exactly
     as the original in terms of binding and substitution. *)
-let copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var =
-  fun x name mkfree -> build_new_var x.var_key name mkfree
+let copy_var : 'b var -> ('a var -> 'a) -> string -> 'a var =
+  fun x mkfree -> build_var x.var_key mkfree
 
 (** [get_suffix vs vp x] finds a non-colliding suffix for variable [x],  given
     a list of variables with name collisions,  the [varpos] with corresponding

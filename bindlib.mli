@@ -399,13 +399,13 @@ val uid_of  : 'a var  -> int
 (** [uids_of xs] returns the unique identifiers of the variables of [xs]. *)
 val uids_of : 'a mvar -> int array
 
-(** [copy_var x name mkfree] makes a copy of variable [x],  with a potentially
+(** [copy_var x mkfree name] makes a copy of variable [x],  with a potentially
     different name and [mkfree] function. However, the copy is treated exactly
     as the original in terms of binding and substitution. The main application
     of this function is for translating abstract syntax trees while preserving
     binders. In particular, variables at two different types should never live
     together (this may produce segmentation faults). *)
-val copy_var : 'b var -> string -> ('a var -> 'a) -> 'a var
+val copy_var : 'b var -> ('a var -> 'a) -> string -> 'a var
 
 (** [reset_counter ()] resets the unique identifier counter on which [Bindlib]
     relies. This function should only be called when previously generated data
