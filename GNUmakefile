@@ -36,7 +36,7 @@ examples/fchurch.native: examples/fchurch.ml
 
 .PHONY: tests
 tests: examples
-	@$(foreach exe,$(EXAMPLES),./$(notdir $(exe)) > /dev/null &&) \
+	@$(foreach e,$(shell find _build -name "*.native"),$(e) &&) \
 		echo "All good."
 
 ## Installation
