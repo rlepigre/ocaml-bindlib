@@ -82,7 +82,7 @@ let rec lift : term -> term box = fun t ->
   match t with
   | Var(x)   -> box_var x
   | Abs(b)   -> let (x,t) = unbind b in
-                abs x (lift (subst b (Var(x))))
+                abs x (lift t)
   | App(u,v) -> app (lift u) (lift v)
 
 (* Update function to recompute names (required after substitution). *)

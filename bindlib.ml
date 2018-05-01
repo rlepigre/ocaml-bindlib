@@ -194,13 +194,13 @@ let merge_uniq : any var list -> any var list -> any var list =
     | ([]   , _    ) -> List.rev_append acc l2
     | (_    , []   ) -> List.rev_append acc l1
     | (x::xs, y::ys) when x.var_key = y.var_key -> merge_uniq (x::acc) xs ys
-    | (x::xs, y::ys) when x.var_key < y.var_key -> merge_uniq (x::acc) xs l2
-    | (x::xs, y::ys) (*x.var_key > y.var_key*)  -> merge_uniq (y::acc) l1 ys
+    | (x::xs, y::_ ) when x.var_key < y.var_key -> merge_uniq (x::acc) xs l2
+    | (_::_ , y::ys) (*x.var_key > y.var_key*)  -> merge_uniq (y::acc) l1 ys
   in merge_uniq []
 
 (** [remove x l] removes variable [x] from the list [l]. If [x] is not in [l],
     then the exception [Not_found] is raised. *)
-let remove : 'a var -> any var list -> any var list = fun {var_key} ->
+let remove : 'a var -> any var list -> any var list = fun {var_key ; _} ->
   let rec remove acc = function
     | v::l when v.var_key < var_key -> remove (v::acc) l
     | v::l when v.var_key = var_key -> List.rev_append acc l
@@ -261,7 +261,7 @@ let occur : 'a var -> 'b box -> bool = fun v b ->
 
 (** [is_closed b] checks whether the [box] [b] is closed. *)
 let is_closed : 'a box -> bool = fun b ->
-  match b with Box(_) -> true | _ -> false
+  match b with Box(_) -> true | Env(_,_,_) -> false
 
 (** [is_substituted b] checks whether the [box] [b] was substituted. *)
 let is_substituted : (bool -> 'a) box -> 'a box = fun b ->
@@ -306,7 +306,7 @@ type data = bool * any var list * int
     reserved in the environment. This data is accumulated into [acc]. *)
 let gather_data (only_box, vs_acc, n_acc) b =
   match b with
-  | Box(e)      -> (only_box, vs_acc              , n_acc      )
+  | Box(_)      -> (only_box, vs_acc              , n_acc      )
   | Env(vs,n,_) -> (false   , merge_uniq vs_acc vs, max n_acc n)
 
 (** [no_data] is in some sense the neutral element of [gather_data]. *)
