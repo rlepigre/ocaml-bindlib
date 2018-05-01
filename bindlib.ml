@@ -216,10 +216,10 @@ let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
     let size = List.length vs in
     let tab = Array.make size 0 in
     let prefix = ref true in
-    let f (htbl, i) var =
+    let f (vp, i) var =
       let {index=j; suffix; subst} = IMap.find var.var_key vp in
       prefix := !prefix && i = j;
-      tab.(i) <- j; (IMap.add var.var_key {index=i; suffix; subst} htbl, i+1)
+      tab.(i) <- j; (IMap.add var.var_key {index=i; suffix; subst} vp, i+1)
     in
     let (new_vp,_) = List.fold_left f (IMap.empty,0) vs in
     let t = t new_vp in
