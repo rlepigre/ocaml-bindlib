@@ -12,9 +12,12 @@ bindlib.cmxa: bindlib.mli bindlib.ml
 	$(OCAMLBUILD) $@
 
 ## Examples
+EXAMPLES = examples/lambda.native examples/translate.native \
+           examples/basic.native examples/parsed.native \
+           examples/fchurch.native
+
 .PHONY: examples
-examples: examples/lambda.native examples/translate.native \
-	examples/basic.native examples/parsed.native examples/fchurch.native
+examples: $(EXAMPLES)
 
 examples/lambda.native: examples/lambda.ml
 	$(OCAMLBUILD) $@
@@ -30,6 +33,11 @@ examples/parsed.native: examples/parsed.ml
 
 examples/fchurch.native: examples/fchurch.ml
 	$(OCAMLBUILD) $@
+
+.PHONY: tests
+tests: examples
+	@$(foreach exe,$(EXAMPLES),./$(notdir $(exe)) > /dev/null &&) \
+		echo "All good."
 
 ## Installation
 uninstall:
