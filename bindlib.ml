@@ -98,9 +98,9 @@ let map_closure : ('a -> 'b) -> 'a closure -> 'b closure =
 
 (** [app_closure cl a] applies the argument [a] to the closure [cl]. Note that
     we make sure that the [varpos] is computed as soon as possible. *)
-let app_closure_aux a f env = f env a
+let app_closure_aux f a env = f env a
 let app_closure : ('a -> 'b) closure -> 'a -> 'b closure =
-  fun clf a vs -> app_closure_aux a (clf vs)
+  fun clf a vs -> app_closure_aux (clf vs) a
 
 (** [clf <*> cla] applies the function closure [clf] to the  argument  closure
     [cla]. Note that the [varpos] are computed as soon as possible.  Note also
