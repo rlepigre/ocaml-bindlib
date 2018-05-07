@@ -91,19 +91,22 @@ type 'a closure = varpos -> Env.t -> 'a
 
 (** [map_closure f cl] applies the function [f] under the closure [cl], making
     sure that the [varpos] is computed as soon as possible. *)
+let map_closure_aux f a env = f (a env)
 let map_closure : ('a -> 'b) -> 'a closure -> 'b closure =
-  fun f cla vs -> (fun a env -> f (a env)) (cla vs)
+  fun f cla vs -> map_closure_aux f (cla vs)
 
 (** [app_closure cl a] applies the argument [a] to the closure [cl]. Note that
     we make sure that the [varpos] is computed as soon as possible. *)
+let app_closure_aux f a env = f env a
 let app_closure : ('a -> 'b) closure -> 'a -> 'b closure =
-  fun clf a vs -> (fun f env -> f env a) (clf vs)
+  fun clf a vs -> app_closure_aux (clf vs) a
 
 (** [clf <*> cla] applies the function closure [clf] to the  argument  closure
     [cla]. Note that the [varpos] are computed as soon as possible.  Note also
     that the [(<*>)] operator is the "apply" of an applicative functor. *)
+let apply_closure_aux f a env = f env (a env)
 let (<*>) : ('a -> 'b) closure -> 'a closure -> 'b closure =
-  fun clf cla vs -> (fun f a env -> f env (a env)) (clf vs) (cla vs)
+  fun clf cla vs -> apply_closure_aux (clf vs) (cla vs)
 
 (** Elements of the type ['a] with bound variables are constructed in the type
     ['a box]. A free variable can only be bound under this constructor. Hence,
