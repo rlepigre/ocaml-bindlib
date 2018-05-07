@@ -213,17 +213,14 @@ let remove : 'a var -> any var list -> any var list = fun {var_key ; _} ->
 (** [minimize vs n cl] builds a minimal closure that is equivalent to [cl] and
     only contains variables of [vs]. Note that [n] extra slots are reserved in
     the environment. *)
-let minimize' size n t =
-  fun env ->
-    let new_env = Env.create ~next_free:size (size + n) in
-    Env.blit env new_env size;
-    t new_env
-let minimize'' tab n t =
-  fun env ->
-    let size = Array.length tab in (* NOTE: one word less in closure *)
-    let new_env = Env.create ~next_free:size (size + n) in
-    Array.iteri (fun i x -> Env.set new_env i (Env.get x env)) tab;
-    t new_env
+let minimize_aux_prefix size n t = fun env ->
+  let new_env = Env.create ~next_free:size (size + n) in
+  Env.blit env new_env size; t new_env
+let minimize_aux tab n t = fun env ->
+  let size = Array.length tab in
+  let new_env = Env.create ~next_free:size (size + n) in
+  Array.iteri (fun i x -> Env.set new_env i (Env.get x env)) tab;
+  t new_env
 let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
   if n = 0 then t else
   fun vp ->
@@ -237,8 +234,7 @@ let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
     in
     let (new_vp,_) = List.fold_left f (IMap.empty,0) vs in
     let t = t new_vp in
-    if !prefix then minimize' size n t
-    else minimize'' tab n t
+    if !prefix then minimize_aux_prefix size n t else minimize_aux tab n t
 
 (** [box e] injects the element [e] in the [box] type, without considering its
     structure. It will thus be impossible to bind variables in [e]. *)
@@ -269,7 +265,7 @@ let is_closed : 'a box -> bool = fun b ->
   match b with Box(_) -> true | Env(_,_,_) -> false
 
 (** [is_substituted b] checks whether the [box] [b] was substituted. *)
-let is_substituted' f subst = fun env -> f env subst
+let is_substituted_aux f subst = fun env -> f env subst
 let is_substituted : (bool -> 'a) box -> 'a box = fun b ->
   match b with
   | Box(f)        -> Box(f false)
@@ -277,7 +273,7 @@ let is_substituted : (bool -> 'a) box -> 'a box = fun b ->
       let ta vs =
         let subst = IMap.exists (fun _ i -> i.subst) vs in
         let cla = ta vs in
-        is_substituted' cla subst
+        is_substituted_aux cla subst
       in
       Env(vs, na, ta)
 
@@ -337,7 +333,7 @@ module type Map =
     permute the [box] type with another type constructor). *)
 module Lift(M : Map) =
   struct
-    let lift' m = fun env -> M.map (fun o -> o env) m
+    let lift_box_aux m = fun env -> M.map (fun o -> o env) m
     let lift_box : 'a box M.t -> 'a M.t box =
       fun m ->
         let data = ref no_data in
@@ -345,7 +341,7 @@ module Lift(M : Map) =
         let m = M.map fn m in
         let aux vp =
           let m = M.map (fun o -> o vp) m in
-          lift' m
+          lift_box_aux m
         in
         match !data with
         | (true, _ , _) -> Box(aux IMap.empty (Env.create 0))
@@ -362,7 +358,7 @@ module type Map2 =
 (** Similar to the [Lift] functor, but handles "binary" [map] functions. *)
 module Lift2(M : Map2) =
   struct
-    let lift' m = fun env -> M.map (fun o -> o env) (fun o -> o env) m
+    let lift_box_aux m = fun env -> M.map (fun o -> o env) (fun o -> o env) m
     let lift_box : ('a box, 'b box) M.t -> ('a,'b) M.t box =
       fun m ->
         let data = ref no_data in
@@ -370,7 +366,7 @@ module Lift2(M : Map2) =
         let m = M.map fn fn m in
         let aux vp =
           let m = M.map (fun o -> o vp) (fun o -> o vp) m in
-          lift' m
+          lift_box_aux m
         in
         match !data with
         | (true, _ , _) -> Box(aux IMap.empty (Env.create 0))
@@ -546,10 +542,10 @@ let build_binder : 'a var -> int -> bool -> ('a -> 'b) -> ('a,'b) binder =
 
 (** [bind_var x b] produces a [binder] (in a [box]) by binding [x] in [b].
     This is one of the main [Bindlib] functions. *)
-let bind_var1 n t = fun arg ->
+let bind_var_aux1 n t = fun arg ->
   let env = Env.create ~next_free:1 (n+1) in
   Env.set env 0 arg; t env
-let bind_var2 rank t = fun env arg ->
+let bind_var_aux2 rank t = fun env arg ->
   let next = Env.get_next_free env in
   if next = rank then
     begin
@@ -563,12 +559,12 @@ let bind_var2 rank t = fun env arg ->
       for i = rank+1 to next-1 do Env.set env i 0 done;
       Env.set env rank arg; t env
     end
-let bind_var3 x rank t = fun env ->
-  let value = bind_var2 rank t env in
+let bind_var_aux3 x rank t = fun env ->
+  let value = bind_var_aux2 rank t env in
   build_binder x rank true value
-let bind_var4 t = fun env _ -> t env
-let bind_var5 x rank t = fun env ->
-  let value = bind_var4 t env in
+let bind_var_aux4 t = fun env _ -> t env
+let bind_var_aux5 x rank t = fun env ->
+  let value = bind_var_aux4 t env in
   build_binder x rank false value
 
 let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
@@ -582,7 +578,7 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
             (* The variable to bind is the last one. *)
             let r = {index = 0; suffix = x.var_suffix; subst = true} in
             let t = t (IMap.singleton x.var_key r) in
-            let value = bind_var1 n t in
+            let value = bind_var_aux1 n t in
             Box(build_binder x 0 true value)
         | _   ->
             let vs = remove x vs in
@@ -592,7 +588,7 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
               let rank = List.length vs in
               let r = {index = rank; suffix = x.var_suffix; subst = true} in
               let t = t (IMap.add x.var_key r vp) in
-              bind_var3 x rank t
+              bind_var_aux3 x rank t
             in
             Env(vs, n+1, cl)
       with Not_found ->
@@ -601,7 +597,7 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
           let x = {x with var_suffix = get_suffix vs vp x} in
           let t = t vp in
           let rank = List.length vs in
-          bind_var5 x rank t
+          bind_var_aux5 x rank t
         in Env(vs, n, value)
 
 (** [check_arity xs args] matches the size of [xs] and [args],  and raises the
@@ -612,8 +608,8 @@ let check_arity : 'a mvar -> 'a array -> unit = fun xs args ->
 
 (** [bind_mvar xs b] produces a [mbinder] (in a [box]) by binding [xs]  in
     [b], in a similar way as [bind_var] does for single variables. *)
-let bind_mvar0 xs t = fun args -> check_arity xs args; t
-let bind_mvar1 m xs mb_binds t = fun args ->
+let bind_mvar_aux0 xs t = fun args -> check_arity xs args; t
+let bind_mvar_aux1 m xs mb_binds t = fun args ->
   check_arity xs args;
   let v = Env.create m in
   let pos = ref 0 in
@@ -625,11 +621,11 @@ let bind_mvar1 m xs mb_binds t = fun args ->
   done;
   Env.set_next_free v !pos;
   t v
-let bind_mvar2 xs t = fun env args -> check_arity xs args; t env
-let bind_mvar3 xs t mb_names mb_rank mb_binds mb_mkfree = fun env ->
-  let mb_value = bind_mvar2 xs t env in
+let bind_mvar_aux2 xs t = fun env args -> check_arity xs args; t env
+let bind_mvar_aux3 xs t mb_names mb_rank mb_binds mb_mkfree = fun env ->
+  let mb_value = bind_mvar_aux2 xs t env in
   {mb_names; mb_rank; mb_binds; mb_value; mb_mkfree}
-let bind_mvar4 xs t mb_rank mb_binds = fun env args ->
+let bind_mvar_aux4 xs t mb_rank mb_binds = fun env args ->
   check_arity xs args;
   let next = Env.get_next_free env in
   let cur_pos = ref mb_rank in
@@ -657,8 +653,8 @@ let bind_mvar4 xs t mb_rank mb_binds = fun env args ->
       for i = !cur_pos to next - 1 do Env.set env i 0 done;
       t env
     end
-let bind_mvar5 xs t mb_names mb_rank mb_binds mb_mkfree = fun env ->
-  let mb_value = bind_mvar4 xs t mb_rank mb_binds env in
+let bind_mvar_aux5 xs t mb_names mb_rank mb_binds mb_mkfree = fun env ->
+  let mb_value = bind_mvar_aux4 xs t mb_rank mb_binds env in
   {mb_names; mb_rank; mb_binds; mb_value; mb_mkfree}
 
 let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
@@ -670,7 +666,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
   | Box(t)      ->
       let mb_binds = Array.map (fun _ -> false) xs in
       let mb_names = Array.map name_of xs in
-      let mb_value = bind_mvar0 xs t in
+      let mb_value = bind_mvar_aux0 xs t in
       Box({mb_names; mb_rank = 0; mb_binds; mb_value; mb_mkfree})
   | Env(vs,n,t) ->
       let keys = Array.map (fun _ -> 0) xs in
@@ -702,7 +698,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
         in
         let mb_binds = Array.mapi f keys in
         let t = t !vp in
-        let mb_value = bind_mvar1 m xs mb_binds t in
+        let mb_value = bind_mvar_aux1 m xs mb_binds t in
         Box({mb_names; mb_binds; mb_rank = 0; mb_value; mb_mkfree})
       else if m = n then (* None of the variables occur. *)
         let cl vp =
@@ -711,7 +707,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
           let fn x = merge_name x.var_prefix (get_suffix vs vp x) in
           let mb_names = Array.map fn xs in
           let t = t vp in
-          bind_mvar3 xs t mb_names mb_rank mb_binds mb_mkfree
+          bind_mvar_aux3 xs t mb_names mb_rank mb_binds mb_mkfree
         in Env(vs, n, cl)
       else (* General case. *)
         let cl vp =
@@ -729,7 +725,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
           in
           let mb_binds = Array.mapi f keys in
           let t = t !vp in
-          bind_mvar5 xs t mb_names mb_rank mb_binds mb_mkfree
+          bind_mvar_aux5 xs t mb_names mb_rank mb_binds mb_mkfree
        in Env(vs, m, cl)
 
 (** [unbind b] breaks the [binder] [b] into a variable and a body. The name of
