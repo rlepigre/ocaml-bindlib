@@ -495,13 +495,13 @@ let to_any : 'a var -> any var = Obj.magic
 
 (** [build_var key mkfree name] initialises a new ['a var] structure using the
     given data, and updates the [var_box] field accordingly. *)
+let build_var_aux key vp = Env.get (IMap.find key vp).index
 let build_var : int ->  ('a var -> 'a) -> string -> 'a var =
   fun var_key var_mkfree name ->
     let (var_prefix, var_suffix) = split_name name in
     let var_box = Env([], 0, fun _ -> assert false) in
     let x = {var_key; var_prefix; var_suffix; var_mkfree; var_box} in
-    let mk_var vp = Env.get (IMap.find var_key vp).index in
-    x.var_box <- Env([to_any x], 0, mk_var); x
+    x.var_box <- Env([to_any x], 0, build_var_aux var_key); x
 
 (** [new_var mkfree name] create a new free variable using a wrapping function
     [mkfree] and a default [name]. *)
