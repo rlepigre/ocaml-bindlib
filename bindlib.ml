@@ -80,9 +80,8 @@ module Env :
 (** In the internals, variables are identified by a unique [int] key. Closures
     are then formed by mapping free variables in an [Env.t]. The [varpos] type
     associates, to each variable, its index in the [Env.t] and an [int] suffix
-    (used while renaming in capture-avoiding substitution). The boolean  tells
-    if this variable has been substituted. *)
-type varinf = { index : int ; suffix : int ; subst : bool }
+    (used while renaming in capture-avoiding substitution). *)
+type varinf = { index : int ; suffix : int }
 type varpos = varinf IMap.t
 
 (** A closure of type ['a] is represented as a function taking as input a  map
@@ -228,9 +227,9 @@ let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
     let tab = Array.make size 0 in
     let prefix = ref true in
     let f (new_vp, i) var =
-      let {index=j; suffix; subst} = IMap.find var.var_key vp in
+      let {index=j; suffix} = IMap.find var.var_key vp in
       prefix := !prefix && i = j; tab.(i) <- j;
-      (IMap.add var.var_key {index=i; suffix; subst} new_vp, i+1)
+      (IMap.add var.var_key {index=i; suffix} new_vp, i+1)
     in
     let (new_vp,_) = List.fold_left f (IMap.empty,0) vs in
     let t = t new_vp in
@@ -263,19 +262,6 @@ let occur : 'a var -> 'b box -> bool = fun v b ->
 (** [is_closed b] checks whether the [box] [b] is closed. *)
 let is_closed : 'a box -> bool = fun b ->
   match b with Box(_) -> true | Env(_,_,_) -> false
-
-(** [is_substituted b] checks whether the [box] [b] was substituted. *)
-let is_substituted_aux f subst = fun env -> f env subst
-let is_substituted : (bool -> 'a) box -> 'a box = fun b ->
-  match b with
-  | Box(f)        -> Box(f false)
-  | Env(vs,na,ta) ->
-      let ta vs =
-        let subst = IMap.exists (fun _ i -> i.subst) vs in
-        let cla = ta vs in
-        is_substituted_aux cla subst
-      in
-      Env(vs, na, ta)
 
 (** [box_apply f a] maps the function [f] into the binding box [a].  Note that
     this is equivalent to [apply_box (box f) a], but it is more efficient. *)
@@ -414,7 +400,7 @@ let unbox : 'a box -> 'a = fun b ->
       let fn vp x =
         let i = !cur in incr cur;
         Env.set env i (x.var_mkfree x);
-        IMap.add x.var_key {index=i; suffix=x.var_suffix; subst=false} vp
+        IMap.add x.var_key {index=i; suffix=x.var_suffix} vp
       in
       t (List.fold_left fn IMap.empty vs) env
 
@@ -576,7 +562,7 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
         | [y] ->
             if x.var_key <> y.var_key then raise Not_found;
             (* The variable to bind is the last one. *)
-            let r = {index = 0; suffix = x.var_suffix; subst = true} in
+            let r = {index = 0; suffix = x.var_suffix} in
             let t = t (IMap.singleton x.var_key r) in
             let value = bind_var_aux1 n t in
             Box(build_binder x 0 true value)
@@ -586,7 +572,7 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
             let cl vp =
               let x = {x with var_suffix = get_suffix vs vp x} in
               let rank = List.length vs in
-              let r = {index = rank; suffix = x.var_suffix; subst = true} in
+              let r = {index = rank; suffix = x.var_suffix} in
               let t = t (IMap.add x.var_key r vp) in
               bind_var_aux3 x rank t
             in
@@ -691,7 +677,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
           mb_names.(i) <- merge_name xs.(i).var_prefix suffix;
           if key >= 0 then
             begin
-              vp := IMap.add key {index= !cur_pos; suffix; subst=true} !vp;
+              vp := IMap.add key {index = !cur_pos; suffix} !vp;
               incr cur_pos; true
             end
           else false
@@ -719,7 +705,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
             let suffix = get_suffix vss.(i) !vp xs.(i) in
             mb_names.(i) <- merge_name xs.(i).var_prefix suffix;
             if key >= 0 then
-              (vp := IMap.add key {index= !cur_pos;suffix; subst=true} !vp;
+              (vp := IMap.add key {index = !cur_pos; suffix} !vp;
                incr cur_pos; true)
             else false
           in

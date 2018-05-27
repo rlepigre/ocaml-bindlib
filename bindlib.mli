@@ -373,9 +373,6 @@ val bind_apply : ('a, 'b) binder box -> 'a box -> 'b box
     with higher order variables. *)
 val mbind_apply : ('a, 'b) mbinder box -> 'a array box -> 'b box
 
-(** [is_subst b] checks whether the [box] [b] was substituted. *)
-val is_substituted : (bool -> 'a) box -> 'a box
-
 
 (** {2 Working in a context} *)
 
