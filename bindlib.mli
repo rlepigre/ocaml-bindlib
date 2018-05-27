@@ -140,7 +140,7 @@ val eq_mbinder : ('b -> 'b -> bool) -> ('a,'b) mbinder -> ('a,'b) mbinder
       match t with
       | Var(x)   -> name_of x
       | Abs(b)   -> let (x,t) = unbind b in
-                    "\\" ^ name_of x ^ "." ^ to_string t
+                    "λ" ^ name_of x ^ "." ^ to_string t
       | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u ]} *)
 
 
@@ -217,16 +217,16 @@ val box_mbinder : ('b -> 'b box) -> ('a,'b) mbinder -> ('a,'b) mbinder box
 val unbox : 'a box -> 'a
 
 (** We can then easily define terms of the lambda-calculus as follows. {[
-    let id    : term = (* \x.x *)
+    let id    : term = (* λx.x *)
       let x = new_var "x" mkfree in
       unbox (abs x (var x))
 
-    let fst   : term = (* \x.\y.x *)
+    let fst   : term = (* λx.λy.x *)
       let x = new_var "x" mkfree in
       let y = new_var "y" mkfree in
       unbox (abs x (abs y (var x)))
 
-    let omega : term = (* (\x.(x) x) \x.(x) x *)
+    let omega : term = (* (λx.(x) x) λx.(x) x *)
       let x = new_var "x" mkfree in
       let delta = abs x (app (var x) (var x)) in
       unbox (app delta delta) ]} *)

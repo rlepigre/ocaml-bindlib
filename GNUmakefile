@@ -1,15 +1,17 @@
 VERSION    := 4.0.5
 OCAMLFIND  := ocamlfind
 OCAMLBUILD := ocamlbuild -quiet
+CFLAGS     := -cflags -w,A
+DFLAGS     := -docflags -charset,utf-8,-short-functors
 
 ## Compilation
 all: bindlib.cma bindlib.cmxa
 
 bindlib.cma: bindlib.mli bindlib.ml
-	$(OCAMLBUILD) -cflags -w,A $@
+	$(OCAMLBUILD) $(CFLAGS) $@
 
 bindlib.cmxa: bindlib.mli bindlib.ml
-	$(OCAMLBUILD) -cflags -w,A $@
+	$(OCAMLBUILD) $(CFLAGS) $@
 
 ## Examples
 EXAMPLES = examples/lambda.native examples/translate.native \
@@ -60,7 +62,7 @@ distclean: clean
 .PHONY: doc
 doc: bindlib.docdir/index.html
 bindlib.docdir/index.html: bindlib.ml bindlib.mli
-	$(OCAMLBUILD) -docflag -short-functors $@
+	$(OCAMLBUILD) $(DFLAGS) $@
 
 .PHONY: updatedoc
 updatedoc: doc
