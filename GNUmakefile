@@ -1,20 +1,25 @@
 VERSION    := 4.0.5
 OCAMLFIND  := ocamlfind
 OCAMLBUILD := ocamlbuild -quiet
+CFLAGS     := -cflags -w,A
+DFLAGS     := -docflags -charset,utf-8,-short-functors
 
 ## Compilation
 all: bindlib.cma bindlib.cmxa
 
 bindlib.cma: bindlib.mli bindlib.ml
-	$(OCAMLBUILD) $@
+	$(OCAMLBUILD) $(CFLAGS) $@
 
 bindlib.cmxa: bindlib.mli bindlib.ml
-	$(OCAMLBUILD) $@
+	$(OCAMLBUILD) $(CFLAGS) $@
 
 ## Examples
+EXAMPLES = examples/lambda.native examples/translate.native \
+           examples/basic.native examples/parsed.native \
+           examples/fchurch.native
+
 .PHONY: examples
-examples: examples/lambda.native examples/translate.native \
-	examples/basic.native examples/parsed.native
+examples: $(EXAMPLES)
 
 examples/lambda.native: examples/lambda.ml
 	$(OCAMLBUILD) $@
@@ -27,6 +32,14 @@ examples/basic.native: examples/basic.ml
 
 examples/parsed.native: examples/parsed.ml
 	$(OCAMLBUILD) $@
+
+examples/fchurch.native: examples/fchurch.ml
+	$(OCAMLBUILD) $@
+
+.PHONY: tests
+tests: examples
+	@$(foreach e,$(shell find _build -name "*.native"),$(e) &&) \
+		echo "All good."
 
 ## Installation
 uninstall:
@@ -49,7 +62,7 @@ distclean: clean
 .PHONY: doc
 doc: bindlib.docdir/index.html
 bindlib.docdir/index.html: bindlib.ml bindlib.mli
-	$(OCAMLBUILD) -docflag -short-functors $@
+	$(OCAMLBUILD) $(DFLAGS) $@
 
 .PHONY: updatedoc
 updatedoc: doc

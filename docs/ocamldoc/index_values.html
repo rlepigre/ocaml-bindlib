@@ -1,7 +1,7 @@
 <html>
 <head>
 <link rel="stylesheet" href="style.css" type="text/css">
-<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<meta content="text/html; charset=utf-8" http-equiv="Content-Type">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="Start" href="index.html">
 <link title="Index of types" rel=Appendix href="index_types.html">
@@ -19,25 +19,14 @@
 <tr><td><a href="Bindlib.html#VALapply_box">apply_box</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">apply_box bf ba</code> applies the boxed function <code class="code">bf</code> to a boxed argument <code class="code">ba</code>
-    inside the <code class="code">'a bindbox</code> type.
+    inside the <code class="code">'a box</code> type.
 </div>
 </td></tr>
 <tr><td align="left"><br>B</td></tr>
-<tr><td><a href="Bindlib.html#VALbind">bind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">bind mkfree name f</code> constructs a boxed binder from the function <code class="code">f</code>.
-</div>
-</td></tr>
 <tr><td><a href="Bindlib.html#VALbind_apply">bind_apply</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">bind_apply bb barg</code> substitute the boxed binder <code class="code">bb</code> with the boxed value
-    <code class="code">barb</code> in the <code class="code">bindbox</code> type.
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALbind_in">bind_in</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">bind_in ctxt mkfree name f</code> is like <code class="code">bind mkfree name f</code>,  but it handles
-    the context.
+    <code class="code">barb</code> in the <code class="code">box</code> type.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbind_mvar">bind_mvar</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -56,27 +45,15 @@
     contain any free variable).
 </div>
 </td></tr>
-<tr><td><a href="Bindlib.html#VALbinder_compose_left">binder_compose_left</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<tr><td><a href="Bindlib.html#VALbinder_compose">binder_compose</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">binder_compose_left f b</code> precomposes the binder <code class="code">b</code> with the function <code class="code">f</code>
-    without changing anything at the binding structure.
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALbinder_compose_right">binder_compose_right</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">binder_compose_rigth b f</code> postcomposes the binder <code class="code">b</code> with  the  function
-    <code class="code">f</code> without changing anything at the binding structure.
+<code class="code">binder_compose b f</code> postcomposes the binder <code class="code">b</code> with the function <code class="code">f</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbinder_constant">binder_constant</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">binder_constant b</code> tests whether the <code class="code">binder</code> <code class="code">b</code> is constant (i.e.,  its
     bound variable does not occur).
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALbinder_from_fun">binder_from_fun</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">binder_from_fun name f</code> transform a function into a binder.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbinder_name">binder_name</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -96,7 +73,7 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbox">box</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">box e</code> puts the value <code class="code">e</code> into the <code class="code">'a bindbox</code> type, assuming that it is
+<code class="code">box e</code> injects the value <code class="code">e</code> into the <code class="code">'a box</code> type,  assuming that it is
     closed.
 </div>
 </td></tr>
@@ -123,22 +100,28 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbox_array">box_array</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">box_array bs</code> shifts the <code class="code">array</code> type of <code class="code">bs</code> into the <code class="code">bindbox</code>.
+<code class="code">box_array bs</code> shifts the <code class="code">array</code> type of <code class="code">bs</code> into the <code class="code">box</code>.
+</div>
+</td></tr>
+<tr><td><a href="Bindlib.html#VALbox_binder">box_binder</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">box_binder f b</code> boxes the binder <code class="code">b</code> using the boxing function <code class="code">f</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbox_list">box_list</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">box_list bs</code> shifts the <code class="code">list</code> type of <code class="code">bs</code> into the <code class="code">bindbox</code>.
+<code class="code">box_list bs</code> shifts the <code class="code">list</code> type of <code class="code">bs</code> into the <code class="code">box</code>.
 </div>
 </td></tr>
-<tr><td><a href="Bindlib.html#VALbox_of_var">box_of_var</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<tr><td><a href="Bindlib.html#VALbox_mbinder">box_mbinder</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">box_of_var x</code> builds a <code class="code">'a bindbox</code> from the <code class="code">'a var</code> <code class="code">x</code>.
+<code class="code">box_mbinder f b</code> boxes the multiple binder <code class="code">b</code> using the boxings function
+    <code class="code">f</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbox_opt">box_opt</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">box_opt bo</code> shifts the <code class="code">option</code> type of <code class="code">bo</code> into the <code class="code">bindbox</code>.
+<code class="code">box_opt bo</code> shifts the <code class="code">option</code> type of <code class="code">bo</code> into the <code class="code">box</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbox_pair">box_pair</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -148,13 +131,18 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbox_rev_list">box_rev_list</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">box_rev_list bs</code> shifts the <code class="code">list</code> type of <code class="code">bs</code> into the <code class="code">bindbox</code>, while
-    reversing the list (for efficiency).
+<code class="code">box_rev_list bs</code> is similar to <code class="code">box_list bs</code>, but the produced boxed list
+    is reversed (it is hence more efficient).
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALbox_triple">box_triple</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">box_trible</code> is similar to <code class="code">box_pair</code>, but for triples.
+</div>
+</td></tr>
+<tr><td><a href="Bindlib.html#VALbox_var">box_var</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">box_var x</code> builds a <code class="code">'a box</code> from the <code class="code">'a var</code> <code class="code">x</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>C</td></tr>
@@ -165,14 +153,14 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALcopy_var">copy_var</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">copy_var x name mkfree</code> makes a copy of variable <code class="code">x</code>,  with a potentially
+<code class="code">copy_var x mkfree name</code> makes a copy of variable <code class="code">x</code>,  with a potentially
     different name and <code class="code">mkfree</code> function.
 </div>
 </td></tr>
 <tr><td align="left"><br>D</td></tr>
-<tr><td><a href="Bindlib.html#VALdummy_bindbox">dummy_bindbox</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<tr><td><a href="Bindlib.html#VALdummy_box">dummy_box</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">dummy_bindbox</code> can be used for initialising structires (e.g., arrays).
+<code class="code">dummy_box</code> can be used for initialising structures like arrays.
 </div>
 </td></tr>
 <tr><td align="left"><br>E</td></tr>
@@ -188,18 +176,13 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALeq_mbinder">eq_mbinder</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">eq_mbinder eq f g</code> tests the equality between two <code class="code">mbinder</code> <code class="code">f</code> and  <code class="code">g</code>.
+<code class="code">eq_mbinder eq f g</code> tests the equality of the two multiple binders <code class="code">f</code> and
+    <code class="code">g</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALeq_vars">eq_vars</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">eq_vars x y</code> safely computes the equality of <code class="code">x</code> and <code class="code">y</code>.
-</div>
-</td></tr>
-<tr><td align="left"><br>F</td></tr>
-<tr><td><a href="Bindlib.html#VALfixpoint">fixpoint</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">fixpoint bb</code> constructs a binder fixpoint.
 </div>
 </td></tr>
 <tr><td align="left"><br>H</td></tr>
@@ -211,12 +194,7 @@
 <tr><td align="left"><br>I</td></tr>
 <tr><td><a href="Bindlib.html#VALis_closed">is_closed</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">is_closed b</code> checks whether the <code class="code">bindbox</code> <code class="code">b</code> is closed.
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALis_substituted">is_substituted</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">is_subst b</code> checks whether the <code class="code">bindbox</code> <code class="code">b</code> was substituted.
+<code class="code">is_closed b</code> checks whether the <code class="code">box</code> <code class="code">b</code> is closed.
 </div>
 </td></tr>
 <tr><td align="left"><br>L</td></tr>
@@ -229,22 +207,10 @@
 <td></td></tr>
 <tr><td><a href="Bindlib.Map.html#VALmap">map</a> [<a href="Bindlib.Map.html">Bindlib.Map</a>]</td>
 <td></td></tr>
-<tr><td><a href="Bindlib.html#VALmbind">mbind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">mbind mkfree names f</code> constructs a boxed binder from function <code class="code">f</code>,  using
-    <code class="code">mkfree</code> and <code class="code">names</code> to build the bound variables.
-</div>
-</td></tr>
 <tr><td><a href="Bindlib.html#VALmbind_apply">mbind_apply</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">mbind_apply bb bargs</code> substitute the boxed binder  <code class="code">bb</code>  with  the  boxed
-    array of values <code class="code">barbs</code> in the <code class="code">bindbox</code> type.
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALmbind_in">mbind_in</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">mbind_in ctxt mkfree names f</code> is similar to  <code class="code">mbind mkfree names f</code>,  but
-    it handles the context.
+<code class="code">mbind_apply bb bargs</code> substitute the boxed binder <code class="code">bb</code> with a boxed array
+    of values <code class="code">barbs</code> in the <code class="code">box</code> type.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALmbinder_arity">mbinder_arity</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -257,14 +223,14 @@
 <code class="code">mbinder_closed b</code> indicates whether <code class="code">b</code> is closed.
 </div>
 </td></tr>
+<tr><td><a href="Bindlib.html#VALmbinder_compose">mbinder_compose</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">mbinder_compose b f</code> postcomposes the multiple binder <code class="code">b</code> with <code class="code">f</code>.
+</div>
+</td></tr>
 <tr><td><a href="Bindlib.html#VALmbinder_constant">mbinder_constant</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">mbinder_constant b</code> indicates whether the <code class="code">mbinder</code> <code class="code">b</code> is constant.
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALmbinder_from_fun">mbinder_from_fun</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">mbinder_from_fun</code> is similar to <code class="code">binder_from_fun</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALmbinder_names">mbinder_names</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -283,20 +249,18 @@
 <td></td></tr>
 <tr><td><a href="Bindlib.html#VALmsubst">msubst</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">msubst b vs</code> substitutes (using application) the array of variables bound
-    by <code class="code">b</code> with the values <code class="code">vs</code>.
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALmvbind">mvbind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">mvbind mkfree names f</code> constructs a boxed binder from the function <code class="code">f</code> as
-    the <code class="code">mbind</code> function does.
+<code class="code">msubst b vs</code> substitutes the variables bound by <code class="code">b</code> with the values <code class="code">vs</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>N</td></tr>
 <tr><td><a href="Bindlib.html#VALname_of">name_of</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">name_of x</code> returns a printable name for variable <code class="code">x</code>.
+</div>
+</td></tr>
+<tr><td><a href="Bindlib.html#VALnames_of">names_of</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">names_of xs</code> returns printable names for the variables of <code class="code">xs</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALnew_mvar">new_mvar</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -326,17 +290,22 @@
 <tr><td align="left"><br>O</td></tr>
 <tr><td><a href="Bindlib.html#VALoccur">occur</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">occur x b</code> tells whether variable <code class="code">x</code> occurs in the <code class="code">bindbox</code> <code class="code">b</code>.
-</div>
-</td></tr>
-<tr><td align="left"><br>P</td></tr>
-<tr><td><a href="Bindlib.html#VALprefix_of">prefix_of</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">prefix_of x</code> returns the <code class="code">string</code> prefix of variable <code class="code">x</code>'s name, which is
-    only the first part of its full name (obtained with <code class="code">name_of x</code>).
+<code class="code">occur x b</code> tells whether variable <code class="code">x</code> occurs in the <code class="code">box</code> <code class="code">b</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>R</td></tr>
+<tr><td><a href="Bindlib.html#VALraw_binder">raw_binder</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">raw_binder name bind rank mkfree value</code> builds a binder using the <code class="code">value</code>
+    function as its definition.
+</div>
+</td></tr>
+<tr><td><a href="Bindlib.html#VALraw_mbinder">raw_mbinder</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">raw_mbinder names binds rank value</code> is similar to <code class="code">raw_binder</code>, but it is
+    applied to a multiple binder.
+</div>
+</td></tr>
 <tr><td><a href="Bindlib.html#VALreset_counter">reset_counter</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">reset_counter ()</code> resets the unique identifier counter on which <code class="code">Bindlib</code>
@@ -346,13 +315,7 @@
 <tr><td align="left"><br>S</td></tr>
 <tr><td><a href="Bindlib.html#VALsubst">subst</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">subst b v</code> substitutes (using application) the variable bound by <code class="code">b</code> with
-    the value <code class="code">b</code>.
-</div>
-</td></tr>
-<tr><td><a href="Bindlib.html#VALsuffix_of">suffix_of</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">suffix_of x</code> returns the <code class="code">int</code> suffix of variable <code class="code">x</code>'s name.
+<code class="code">subst b v</code> substitutes the variable bound by <code class="code">b</code> with the value <code class="code">v</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>U</td></tr>
@@ -361,22 +324,26 @@
 <code class="code">uid_of x</code> returns a unique identifier of the given variable.
 </div>
 </td></tr>
+<tr><td><a href="Bindlib.html#VALuids_of">uids_of</a> [<a href="Bindlib.html">Bindlib</a>]</td>
+<td><div class="info">
+<code class="code">uids_of xs</code> returns the unique identifiers of the variables of <code class="code">xs</code>.
+</div>
+</td></tr>
 <tr><td><a href="Bindlib.html#VALunbind">unbind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unbind mkfree b</code> breaks down the binder <code class="code">b</code> into a variable, and the term
-    in which this variable is now free.
+<code class="code">unbind b</code> substitutes the binder <code class="code">b</code> using a fresh variable.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunbind2">unbind2</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unbind2 mkfree f g</code> is similar to <code class="code">unbind mkfree f</code>, but substitutes both
-    <code class="code">f</code> and <code class="code">g</code> using the same fresh variable.
+<code class="code">unbind2 f g</code> is similar to <code class="code">unbind f</code>, but it substitutes two binders <code class="code">f</code>
+    and <code class="code">g</code> at once using the same fresh variable.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunbind_in">unbind_in</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unbind_in ctxt mkfree b</code> is similar to <code class="code">unbind mkfree b</code>,  but it handles
-    the context (see <code class="code">new_mvar_in</code>).
+<code class="code">unbind_in ctxt b</code> is similar to <code class="code">unbind b</code>, but it handles the context as
+    explained in the documentation of <code class="code">new_mvar_in</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunbox">unbox</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -387,27 +354,19 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunmbind">unmbind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unmbind mkfree b</code> breaks down the binder <code class="code">b</code> into variables, and the term
-    in which these variables are now free.
+<code class="code">unmbind b</code> substitutes the multiple binder <code class="code">b</code> with fresh variables.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunmbind2">unmbind2</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unmbind2 mkfree f g</code> is similar to <code class="code">unmbind mkfree f</code>, but it substitutes
-    both <code class="code">f</code> and <code class="code">g</code> using the same fresh variables.
+<code class="code">unmbind2 f g</code> is similar to <code class="code">unmbind f</code>,  but it substitutes two multiple
+    binder <code class="code">f</code> and <code class="code">g</code> at once, using the same fresh variables.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunmbind_in">unmbind_in</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">munbind_in ctxt mkfree b</code> is like <code class="code">munbind mkfree b</code>,  but it handles the
-    context (see <code class="code">new_mvar_in</code>).
-</div>
-</td></tr>
-<tr><td align="left"><br>V</td></tr>
-<tr><td><a href="Bindlib.html#VALvbind">vbind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
-<td><div class="info">
-<code class="code">vbind mkfree name f</code> constructs a boxed binder from the function <code class="code">f</code>,  as
-    the <code class="code">bind</code> function does.
+<code class="code">unmbind_in ctxt b</code> is like <code class="code">unmbind b</code>,  but it handles the context as is
+    explained in the documentation of <code class="code">new_mvar_in</code>.
 </div>
 </td></tr>
 </table>

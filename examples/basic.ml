@@ -28,46 +28,46 @@ let mkfree : term var -> term = fun x -> Var(x)
 let rec to_string : term -> string = fun t ->
   match t with
   | Var(x)   -> name_of x
-  | Abs(b)   -> let (x,t) = unbind mkfree b in
+  | Abs(b)   -> let (x,t) = unbind b in
                 "λ" ^ name_of x ^ "." ^ to_string t
   | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u
 
 (* Smart constructors. *)
-let var : term var -> term bindbox =
-  fun x -> box_of_var x
+let var : term var -> term box =
+  fun x -> box_var x
 
-let abs : string -> (term bindbox -> term bindbox) -> term bindbox =
-  fun x f -> box_apply (fun b -> Abs(b)) (bind mkfree x f)
+let abs : term var -> term box -> term box =
+  fun x t -> box_apply (fun b -> Abs(b)) (bind_var x t)
 
-let app : term bindbox -> term bindbox -> term bindbox =
+let app : term box -> term box -> term box =
   fun t u -> box_apply2 (fun t u -> App(t,u)) t u
 
 (* NOTE the [var] smart constructor is only used with free variables. They can
-   be created using [new_var]. In fact, [var] is also useful when we consider
-   another smart constructor for λ-abstraction (see below). *)
+   be created using [new_var]. *)
 
 (* Examples of terms. *)
 let id: term = (* \x.x *)
-  unbox (abs "x" (fun x -> x))
+  let x = new_var mkfree "x" in
+  unbox (abs x (var x))
 
 let fst : term = (* \x.\y.x *)
-  unbox (abs "x" (fun x -> abs "y" (fun _ -> x)))
+  let x = new_var mkfree "x" in
+  let y = new_var mkfree "y" in
+  unbox (abs x (abs y (var x)))
+
+let delta : term box = (* \x.(x) x (boxed) *)
+  let x = new_var mkfree "x" in
+  abs x (app (var x) (var x))
 
 let omega : term = (* (\x.(x) x) \x.(x) x *)
-  let delta = abs "x" (fun x -> app x x) in
   unbox (app delta delta)
 
-(* Alternative smart constructor for λ-abstraction. *)
-let abs_var : string -> (term var -> term bindbox) -> term bindbox =
-  fun x f -> box_apply (fun b -> Abs(b)) (vbind mkfree x f)
-
-(* Example of term using this new smart constructor (and [var]). *)
 let delta : term = (* \x.(x) x *)
-  unbox (abs_var "x" (fun x -> app (var x) (var x)))
+  unbox delta
 
 (* Tests. *)
 let _ =
   Printf.printf "%s\n%!" (to_string id);
   Printf.printf "%s\n%!" (to_string fst);
-  Printf.printf "%s\n%!" (to_string omega);
-  Printf.printf "%s\n%!" (to_string delta)
+  Printf.printf "%s\n%!" (to_string delta);
+  Printf.printf "%s\n%!" (to_string omega)

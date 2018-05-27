@@ -37,6 +37,8 @@ before_install:
 install:
   - make install
 script:
+  - make examples
+  - make tests
   - echo "All good."
 os:
   - linux
