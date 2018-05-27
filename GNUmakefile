@@ -5,13 +5,26 @@ CFLAGS     := -cflags -w,A
 DFLAGS     := -docflags -charset,utf-8,-short-functors
 
 ## Compilation
-all: bindlib.cma bindlib.cmxa
+all: bindlib.cma bindlib.cmxa bindlib.cmxs META
 
 bindlib.cma: bindlib.mli bindlib.ml
 	$(OCAMLBUILD) $(CFLAGS) $@
 
 bindlib.cmxa: bindlib.mli bindlib.ml
 	$(OCAMLBUILD) $(CFLAGS) $@
+
+bindlib.cmxs: bindlib.mli bindlib.ml
+	$(OCAMLBUILD) $(CFLAGS) $@
+
+META:
+	@echo "name=\"bindlib\""                                  > $@
+	@echo "version=\"$(VERSION)\""                           >> $@
+	@echo "description=\"Efficient binder representation.\"" >> $@
+	@echo "requires=\"\""                                    >> $@
+	@echo "archive(byte)=\"bindlib.cma\""                    >> $@
+	@echo "archive(native)=\"bindlib.cmxa\""                 >> $@
+	@echo "plugin(byte)=\"bindlib.cma\""                     >> $@
+	@echo "plugin(native)=\"bindlib.cmxs\""                  >> $@
 
 ## Examples
 EXAMPLES = examples/lambda.native examples/translate.native \
@@ -56,7 +69,7 @@ clean:
 	$(OCAMLBUILD) -clean
 
 distclean: clean
-	rm -f *~ examples/*~ docs/*~ docs/ocamldoc/*~
+	rm -f *~ examples/*~ docs/*~ docs/ocamldoc/*~ META
 
 ## Documentation
 .PHONY: doc
