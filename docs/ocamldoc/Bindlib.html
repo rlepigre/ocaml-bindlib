@@ -30,6 +30,7 @@ The <code class="code">Bindlib</code> library provides support for free and boun
     OCaml language. The main application is the construction of abstract types
     containing a binding structure (e.g., abstract syntax trees).<br>
 <b>Author(s):</b> Christophe Raffalli, Rodolphe Lepigre<br>
+<b>Version:</b> 5.0<br>
 </div>
 <hr width="100%">
 <br>
@@ -76,15 +77,16 @@ As an example, we give bellow the definition of a simple representation of
       | App of term * term </code></pre><br>
 
 <pre><span id="VALsubst"><span class="keyword">val</span> subst</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a -> 'b</code></pre><div class="info ">
-<code class="code">subst b v</code> substitutes (using application) the variable bound by <code class="code">b</code> with
-    the value <code class="code">b</code>. This is a very efficient operations.<br>
+<code class="code">subst b v</code> substitutes the variable bound by <code class="code">b</code> with the value <code class="code">v</code>. This
+    is a very efficient operation.<br>
 </div>
 
 <pre><span id="VALmsubst"><span class="keyword">val</span> msubst</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a array -> 'b</code></pre><div class="info ">
-<code class="code">msubst b vs</code> substitutes (using application) the array of variables bound
-    by <code class="code">b</code> with the values <code class="code">vs</code>. This is a very efficient operations. However,
-    the length of the <code class="code">vs</code> array should match the arity of the binder (see the
-    function <code class="code">mbinder_arity</code>).<br>
+<code class="code">msubst b vs</code> substitutes the variables bound by <code class="code">b</code> with the values <code class="code">vs</code>.
+    This is a very efficient operation. Note that the length of the <code class="code">vs</code> array
+    should match the arity of the multiple binder <code class="code">b</code> (it can be obtained with
+    <code class="code">mbinder_arity</code>). If that is not the case, the exception <code class="code">Invalid_argument
+    "Bad arity in msubst"</code> is raised.<br>
 </div>
 <br>
 Comming back to our lambda-calculus example,  we can define the evaluation
@@ -127,36 +129,54 @@ Following on our example of the lambda-calculus, the <code class="code">mkfree</
 </div>
 
 <pre><span id="VALunbind"><span class="keyword">val</span> unbind</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a <a href="Bindlib.html#TYPEvar">var</a> * 'b</code></pre><div class="info ">
-<code class="code">unbind b</code> breaks the binder <code class="code">b</code> into a pair of a variable and a body. The
-    name of the variable is based on that of the binder.<br>
+<code class="code">unbind b</code> substitutes the binder <code class="code">b</code> using a fresh variable. The variable
+    and the result of the substitution are returned. Note that the name of the
+    fresh variable is based on that of the binder.  The <code class="code">mkfree</code> function used
+    to create the fresh variable is that of the variable that was bound by <code class="code">b</code>
+    at its construction (see <code class="code">new_var</code> and <code class="code">bind_var</code>).<br>
 </div>
 
 <pre><span id="VALunbind2"><span class="keyword">val</span> unbind2</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -><br>       ('a, 'c) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a <a href="Bindlib.html#TYPEvar">var</a> * 'b * 'c</code></pre><div class="info ">
 <code class="code">unbind2 f g</code> is similar to <code class="code">unbind f</code>, but it substitutes two binders <code class="code">f</code>
-    and <code class="code">g</code> at once, using the same fresh variable.<br>
+    and <code class="code">g</code> at once using the same fresh variable. The name of the variable is
+    based on that of the binder <code class="code">f</code>. Similarly, the <code class="code">mkfree</code> syntactic wrapper
+    that is used for the fresh variable is the one that was given for creating
+    the variable that was bound to construct <code class="code">f</code> (see <code class="code">bind_var</code> and <code class="code">new_var</code>
+    for details on this process). In particular, the use of <code class="code">unbind2</code> may lead
+    to unexpected results if the binders <code class="code">f</code> and <code class="code">g</code> were not built using free
+    variables created with the same <code class="code">mkfree</code>.<br>
 </div>
 
 <pre><span id="VALeq_binder"><span class="keyword">val</span> eq_binder</span> : <code class="type">('b -> 'b -> bool) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> bool</code></pre><div class="info ">
 <code class="code">eq_binder eq f g</code> tests the equality between <code class="code">f</code> and <code class="code">g</code>. The binders are
-    first substituted with the same fresh variable,  and <code class="code">eq</code> is called on the
-    resulting terms.<br>
+    first substituted with the same fresh variable (using <code class="code">unbind2</code>), and <code class="code">eq</code>
+    is called on the resulting values.  Note that <code class="code">eq_binder</code> may not have the
+    expected result if <code class="code">f</code> and <code class="code">g</code> were not built by binding variables with an
+    identical <code class="code">mkfree</code> syntactic wrapper.<br>
 </div>
 
 <pre><span id="VALunmbind"><span class="keyword">val</span> unmbind</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b</code></pre><div class="info ">
-<code class="code">unmbind b</code> breaks down the binder <code class="code">b</code> into an array of variables, and the
-    term in which these variables are now free. The name of the variables that
-    are created are based on the bound variable names.<br>
+<code class="code">unmbind b</code> substitutes the multiple binder <code class="code">b</code> with fresh variables. This
+    function is analogous to <code class="code">unbind</code> for binders. Note that the names used to
+    create the fresh variables are based on those of the multiple binder.  The
+    syntactic wrapper (of <code class="code">mkfree</code>) that is used to build the variables is the
+    one that was given when creating the multiple variables that were bound in
+    <code class="code">b</code> (see <code class="code">new_mvar</code> and <code class="code">bind_mvar</code>).<br>
 </div>
 
 <pre><span id="VALunmbind2"><span class="keyword">val</span> unmbind2</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -><br>       ('a, 'c) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b * 'c</code></pre><div class="info ">
-<code class="code">unmbind2 f g</code> is similar to <code class="code">unmbind f</code>,  but it substitutes both <code class="code">f</code> and
-    <code class="code">g</code> using the same fresh variables.<br>
+<code class="code">unmbind2 f g</code> is similar to <code class="code">unmbind f</code>,  but it substitutes two multiple
+    binder <code class="code">f</code> and <code class="code">g</code> at once, using the same fresh variables.  This function
+    may have an unexpected results in some cases, for reasons explained in the
+    documentation of <code class="code">unbind2</code>.<br>
 </div>
 
 <pre><span id="VALeq_mbinder"><span class="keyword">val</span> eq_mbinder</span> : <code class="type">('b -> 'b -> bool) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> bool</code></pre><div class="info ">
-<code class="code">eq_mbinder eq f g</code> tests the equality between two <code class="code">mbinder</code> <code class="code">f</code> and  <code class="code">g</code>.
-    They are first substituted with the same fresh variables, and then <code class="code">eq</code> is
-    called on the resulting terms.<br>
+<code class="code">eq_mbinder eq f g</code> tests the equality of the two multiple binders <code class="code">f</code> and
+    <code class="code">g</code>. They are substituted with the same fresh variables (using <code class="code">unmbind2</code>)
+    and <code class="code">eq</code> is called on the resulting values. This function may not have the
+    expected result in some cases,  for reasons explained in the documentation
+    of <code class="code">eq_binder</code>.<br>
 </div>
 <br>
 An usual use of <code class="code">unbind</code> is the wrinting of pretty-printing functions. The
@@ -170,8 +190,7 @@ An usual use of <code class="code">unbind</code> is the wrinting of pretty-print
 <br>
 <h2 id="2_Constructingtermsandbindersinthebindingbox">Constructing terms and binders in the binding box</h2><br>
 <br>
-One of the main design priciple of the <code class="code">Bindlib</code> library is efficiency. To
-    obtain very fast substitutions, a price is paid at the construction of the
+To obtain fast substitutions,  a price must be paid at the construction of
     terms. Indeed,  binders (i.e., element of type <code class="code">('a,'b) binder</code>) cannot be
     defined directly. Instead, they are put together in the type <code class="code">'a box</code>.  It
     correspond to a term of type <code class="code">'a</code> which free variables may be bound in the
@@ -332,7 +351,7 @@ Similar to the <code class="code">Lift</code> functor, but handles "binary" <cod
 
 <pre><span id="VALcompare_vars"><span class="keyword">val</span> compare_vars</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEvar">var</a> -> int</code></pre><div class="info ">
 <code class="code">compare_vars x y</code> safely compares <code class="code">x</code> and <code class="code">y</code>.  Note that it is unsafe to
-    compare variables with <code class="code">Pervasive.compare</code>.<br>
+    compare variables using <code class="code">Pervasive.compare</code>.<br>
 </div>
 
 <pre><span id="VALeq_vars"><span class="keyword">val</span> eq_vars</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEvar">var</a> -> bool</code></pre><div class="info ">
@@ -394,10 +413,6 @@ Similar to the <code class="code">Lift</code> functor, but handles "binary" <cod
 <code class="code">is_closed b</code> checks whether the <code class="code">box</code> <code class="code">b</code> is closed.<br>
 </div>
 
-<pre><span id="VALis_substituted"><span class="keyword">val</span> is_substituted</span> : <code class="type">(bool -> 'a) <a href="Bindlib.html#TYPEbox">box</a> -> 'a <a href="Bindlib.html#TYPEbox">box</a></code></pre><div class="info ">
-<code class="code">is_subst b</code> checks whether the <code class="code">box</code> <code class="code">b</code> was substituted.<br>
-</div>
-
 <pre><span id="VALoccur"><span class="keyword">val</span> occur</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEbox">box</a> -> bool</code></pre><div class="info ">
 <code class="code">occur x b</code> tells whether variable <code class="code">x</code> occurs in the <code class="code">box</code> <code class="code">b</code>.<br>
 </div>
@@ -412,6 +427,10 @@ Similar to the <code class="code">Lift</code> functor, but handles "binary" <cod
 <code class="code">mbind_apply bb bargs</code> substitute the boxed binder <code class="code">bb</code> with a boxed array
     of values <code class="code">barbs</code> in the <code class="code">box</code> type.  This function is useful when working
     with higher order variables.<br>
+</div>
+
+<pre><span id="VALis_substituted"><span class="keyword">val</span> is_substituted</span> : <code class="type">(bool -> 'a) <a href="Bindlib.html#TYPEbox">box</a> -> 'a <a href="Bindlib.html#TYPEbox">box</a></code></pre><div class="info ">
+<code class="code">is_subst b</code> checks whether the <code class="code">box</code> <code class="code">b</code> was substituted.<br>
 </div>
 <br>
 <h2 id="2_Workinginacontext">Working in a context</h2><br>
@@ -462,8 +481,8 @@ Type of a context.<br>
 <code class="code">uids_of xs</code> returns the unique identifiers of the variables of <code class="code">xs</code>.<br>
 </div>
 
-<pre><span id="VALcopy_var"><span class="keyword">val</span> copy_var</span> : <code class="type">'b <a href="Bindlib.html#TYPEvar">var</a> -> string -> ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> 'a <a href="Bindlib.html#TYPEvar">var</a></code></pre><div class="info ">
-<code class="code">copy_var x name mkfree</code> makes a copy of variable <code class="code">x</code>,  with a potentially
+<pre><span id="VALcopy_var"><span class="keyword">val</span> copy_var</span> : <code class="type">'b <a href="Bindlib.html#TYPEvar">var</a> -> ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> string -> 'a <a href="Bindlib.html#TYPEvar">var</a></code></pre><div class="info ">
+<code class="code">copy_var x mkfree name</code> makes a copy of variable <code class="code">x</code>,  with a potentially
     different name and <code class="code">mkfree</code> function. However, the copy is treated exactly
     as the original in terms of binding and substitution. The main application
     of this function is for translating abstract syntax trees while preserving

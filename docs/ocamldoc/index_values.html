@@ -153,7 +153,7 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALcopy_var">copy_var</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">copy_var x name mkfree</code> makes a copy of variable <code class="code">x</code>,  with a potentially
+<code class="code">copy_var x mkfree name</code> makes a copy of variable <code class="code">x</code>,  with a potentially
     different name and <code class="code">mkfree</code> function.
 </div>
 </td></tr>
@@ -176,7 +176,8 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALeq_mbinder">eq_mbinder</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">eq_mbinder eq f g</code> tests the equality between two <code class="code">mbinder</code> <code class="code">f</code> and  <code class="code">g</code>.
+<code class="code">eq_mbinder eq f g</code> tests the equality of the two multiple binders <code class="code">f</code> and
+    <code class="code">g</code>.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALeq_vars">eq_vars</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -253,8 +254,7 @@
 <td></td></tr>
 <tr><td><a href="Bindlib.html#VALmsubst">msubst</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">msubst b vs</code> substitutes (using application) the array of variables bound
-    by <code class="code">b</code> with the values <code class="code">vs</code>.
+<code class="code">msubst b vs</code> substitutes the variables bound by <code class="code">b</code> with the values <code class="code">vs</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>N</td></tr>
@@ -320,8 +320,7 @@
 <tr><td align="left"><br>S</td></tr>
 <tr><td><a href="Bindlib.html#VALsubst">subst</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">subst b v</code> substitutes (using application) the variable bound by <code class="code">b</code> with
-    the value <code class="code">b</code>.
+<code class="code">subst b v</code> substitutes the variable bound by <code class="code">b</code> with the value <code class="code">v</code>.
 </div>
 </td></tr>
 <tr><td align="left"><br>U</td></tr>
@@ -337,13 +336,13 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunbind">unbind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unbind b</code> breaks the binder <code class="code">b</code> into a pair of a variable and a body.
+<code class="code">unbind b</code> substitutes the binder <code class="code">b</code> using a fresh variable.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunbind2">unbind2</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
 <code class="code">unbind2 f g</code> is similar to <code class="code">unbind f</code>, but it substitutes two binders <code class="code">f</code>
-    and <code class="code">g</code> at once, using the same fresh variable.
+    and <code class="code">g</code> at once using the same fresh variable.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunbind_in">unbind_in</a> [<a href="Bindlib.html">Bindlib</a>]</td>
@@ -360,14 +359,13 @@
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunmbind">unmbind</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unmbind b</code> breaks down the binder <code class="code">b</code> into an array of variables, and the
-    term in which these variables are now free.
+<code class="code">unmbind b</code> substitutes the multiple binder <code class="code">b</code> with fresh variables.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunmbind2">unmbind2</a> [<a href="Bindlib.html">Bindlib</a>]</td>
 <td><div class="info">
-<code class="code">unmbind2 f g</code> is similar to <code class="code">unmbind f</code>,  but it substitutes both <code class="code">f</code> and
-    <code class="code">g</code> using the same fresh variables.
+<code class="code">unmbind2 f g</code> is similar to <code class="code">unmbind f</code>,  but it substitutes two multiple
+    binder <code class="code">f</code> and <code class="code">g</code> at once, using the same fresh variables.
 </div>
 </td></tr>
 <tr><td><a href="Bindlib.html#VALunmbind_in">unmbind_in</a> [<a href="Bindlib.html">Bindlib</a>]</td>
