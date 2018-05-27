@@ -1,4 +1,4 @@
-VERSION    := 4.0.5
+VERSION    := 5.0.0
 OCAMLFIND  := ocamlfind
 OCAMLBUILD := ocamlbuild -quiet
 CFLAGS     := -cflags -w,A
