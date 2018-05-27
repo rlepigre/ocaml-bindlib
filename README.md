@@ -34,4 +34,5 @@ make doc
 To build the examples:
 ```bash
 make examples
+make tests
 ```
