@@ -492,7 +492,7 @@ let build_var : int ->  ('a var -> 'a) -> string -> 'a var =
 (** [new_var mkfree name] create a new free variable using a wrapping function
     [mkfree] and a default [name]. *)
 let new_var : ('a var -> 'a) -> string -> 'a var =
-  fun mkfree -> build_var (fresh_key ()) mkfree
+  fun mkfree s -> build_var (fresh_key ()) mkfree s
 
 (** [new_mvar mkfree names] creates an array of new free variables in the same
     way as [new_var] does. *)
