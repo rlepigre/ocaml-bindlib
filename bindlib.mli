@@ -120,16 +120,17 @@ val eq_binder : ('b -> 'b -> bool) -> ('a,'b) binder -> ('a,'b) binder -> bool
 val unmbind : ('a,'b) mbinder -> 'a mvar * 'b
 
 (** [unmbind2 f g] is similar to [unmbind f],  but it substitutes two multiple
-    binder [f] and [g] at once, using the same fresh variables.  This function
-    may have an unexpected results in some cases, for reasons explained in the
-    documentation of [unbind2]. *)
+    binder [f] and [g] at once, using the same fresh variables.  Note that the
+    two binders must have the same arity. This function may have an unexpected
+    results in some cases (see the documentation of [unbind2]). *)
 val unmbind2 : ('a,'b) mbinder -> ('a,'c) mbinder -> 'a mvar * 'b * 'c
 
 (** [eq_mbinder eq f g] tests the equality of the two multiple binders [f] and
     [g]. They are substituted with the same fresh variables (using [unmbind2])
     and [eq] is called on the resulting values. This function may not have the
     expected result in some cases,  for reasons explained in the documentation
-    of [eq_binder]. *)
+    of [eq_binder]. It is safe to use this function on multiple binders with a
+    different arity (they are considered different). *)
 val eq_mbinder : ('b -> 'b -> bool) -> ('a,'b) mbinder -> ('a,'b) mbinder
   -> bool
 
