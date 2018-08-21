@@ -756,7 +756,9 @@ let unmbind2 : ('a,'b) mbinder -> ('a,'c) mbinder -> 'a mvar * 'b * 'c =
     They are first substituted with the same fresh variables, and then [eq] is
     called on the resulting terms. *)
 let eq_mbinder : 'b eq -> ('a,'b) mbinder eq = fun eq f g ->
-  f == g || let (_,t,u) = unmbind2 f g in eq t u
+  f == g ||
+    (mbinder_arity f = mbinder_arity g &&
+       let (_,t,u) = unmbind2 f g in eq t u)
 
 (** [box_binder f b] boxes the binder [b] using the boxing function [f].  Note
     that when [b] is closed, it is immediately boxed using the [box] function.
