@@ -7,6 +7,8 @@ for programming languages, but also for manipulating terms of the
 λ-calculus or quantified formulas. In the internals,  binders are
 represented using a form of higher-order abstract syntax (HOAS).
 
+**[Introductory paper.](http://eptcs.web.cse.unsw.edu.au/paper.cgi?LFMTP2018.4)**
+
 Dependencies
 ------------
 
