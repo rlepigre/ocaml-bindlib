@@ -166,9 +166,9 @@ Following on our example of the lambda-calculus, the <code class="code">mkfree</
 
 <pre><span id="VALunmbind2"><span class="keyword">val</span> unmbind2</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -><br>       ('a, 'c) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b * 'c</code></pre><div class="info ">
 <code class="code">unmbind2 f g</code> is similar to <code class="code">unmbind f</code>,  but it substitutes two multiple
-    binder <code class="code">f</code> and <code class="code">g</code> at once, using the same fresh variables.  This function
-    may have an unexpected results in some cases, for reasons explained in the
-    documentation of <code class="code">unbind2</code>.<br>
+    binder <code class="code">f</code> and <code class="code">g</code> at once, using the same fresh variables.  Note that the
+    two binders must have the same arity. This function may have an unexpected
+    results in some cases (see the documentation of <code class="code">unbind2</code>).<br>
 </div>
 
 <pre><span id="VALeq_mbinder"><span class="keyword">val</span> eq_mbinder</span> : <code class="type">('b -> 'b -> bool) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> bool</code></pre><div class="info ">
@@ -176,7 +176,8 @@ Following on our example of the lambda-calculus, the <code class="code">mkfree</
     <code class="code">g</code>. They are substituted with the same fresh variables (using <code class="code">unmbind2</code>)
     and <code class="code">eq</code> is called on the resulting values. This function may not have the
     expected result in some cases,  for reasons explained in the documentation
-    of <code class="code">eq_binder</code>.<br>
+    of <code class="code">eq_binder</code>. It is safe to use this function on multiple binders with a
+    different arity (they are considered different).<br>
 </div>
 <br>
 An usual use of <code class="code">unbind</code> is the wrinting of pretty-printing functions. The
@@ -233,13 +234,12 @@ Type of a term of type <code class="code">'a</code> under construction. Using th
 </div>
 
 <pre><span id="VALbind_var"><span class="keyword">val</span> bind_var</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEbox">box</a> -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbox">box</a></code></pre><div class="info ">
-<code class="code">bind_var x b</code> binds the variable <code class="code">x</code> in <code class="code">b</code> to produce a boxed binder. In
-    fact, is used to implement <code class="code">bind</code> and <code class="code">vbind</code>.<br>
+<code class="code">bind_var x b</code> binds the variable <code class="code">x</code> in <code class="code">b</code>, producing a boxed binder.<br>
 </div>
 
 <pre><span id="VALbind_mvar"><span class="keyword">val</span> bind_mvar</span> : <code class="type">'a <a href="Bindlib.html#TYPEmvar">mvar</a> -> 'b <a href="Bindlib.html#TYPEbox">box</a> -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> <a href="Bindlib.html#TYPEbox">box</a></code></pre><div class="info ">
 <code class="code">bind_mvar xs b</code> binds the variables of <code class="code">xs</code> in <code class="code">b</code> to get a boxed binder.
-    In fact, <code class="code">bind_mvar</code> is used to implement <code class="code">mbind</code> and <code class="code">mvbind</code>.<br>
+    It is the equivalent of <code class="code">bind_var</code> for multiple variables.<br>
 </div>
 
 <pre><span id="VALbox_binder"><span class="keyword">val</span> box_binder</span> : <code class="type">('b -> 'b <a href="Bindlib.html#TYPEbox">box</a>) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbox">box</a></code></pre><div class="info ">

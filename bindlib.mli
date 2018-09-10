@@ -182,12 +182,11 @@ val box_apply : ('a -> 'b) -> 'a box -> 'b box
     is more efficient. *)
 val box_apply2 : ('a -> 'b -> 'c) -> 'a box -> 'b box -> 'c box
 
-(** [bind_var x b] binds the variable [x] in [b] to produce a boxed binder. In
-    fact, is used to implement [bind] and [vbind]. *)
+(** [bind_var x b] binds the variable [x] in [b], producing a boxed binder. *)
 val bind_var  : 'a var  -> 'b box -> ('a, 'b) binder box
 
 (** [bind_mvar xs b] binds the variables of [xs] in [b] to get a boxed binder.
-    In fact, [bind_mvar] is used to implement [mbind] and [mvbind]. *)
+    It is the equivalent of [bind_var] for multiple variables. *)
 val bind_mvar : 'a mvar -> 'b box -> ('a, 'b) mbinder box
 
 (** [box_binder f b] boxes the binder [b] using the boxing function [f].  Note

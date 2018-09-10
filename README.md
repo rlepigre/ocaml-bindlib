@@ -4,7 +4,8 @@ The Bindlib library for OCaml
 Bindlib is a library allowing the manipulation of data structures
 with bound variables. It is particularly useful when writing ASTs
 for programming languages, but also for manipulating terms of the
-λ-calculus or quantified formulas.
+λ-calculus or quantified formulas. In the internals,  binders are
+represented using a form of higher-order abstract syntax (HOAS).
 
 Dependencies
 ------------
