@@ -865,9 +865,9 @@ let raw_binder : string -> bool -> int -> ('a var -> 'a) -> ('a -> 'b)
   fun b_name b_bind b_rank b_mkfree b_value ->
     {b_name; b_bind; b_rank; b_mkfree; b_value}
 
-(** [raw_mbinder names binds rank value] is similar to [raw_binder], but it is
-    applied to a multiple binder. As for [raw_binder], this function has to be
-    considered unsafe because the user must enforce invariants. *)
+(** [raw_mbinder names binds rank mk_free value] is similar  to  [raw_binder],
+    but it is applied to a multiple binder. As for [raw_binder], this function
+    has to be considered unsafe because the user must enforce invariants. *)
 let raw_mbinder : string array -> bool array -> int -> ('a var -> 'a)
     -> ('a array -> 'b) -> ('a,'b) mbinder =
   fun mb_names mb_binds mb_rank mb_mkfree mb_value ->
