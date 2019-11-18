@@ -13,8 +13,8 @@
 (** The [Bindlib] library provides two type constructors for building abstract
     syntax trees: ['a var] and [('a,'b) binder]. Intuitively, ['a var] will be
     a representation for a free variable of type ['a],  and [('a,'b) binder] a
-    represention for a term of type ['b] depending on a variable (or value) of
-    type ['a] (the type [('a,'b) binder] can be seen as ['a -> 'b]). Note that
+    representation for a term of type ['b] depending on a variable  (or value)
+    of type ['a] (type [('a,'b) binder] can be seen as ['a -> 'b]).  Note that
     types ['a mvar] and [('a,'b) mbinder] are provided for handling arrays  of
     variables. *)
 
@@ -134,7 +134,7 @@ val unmbind2 : ('a,'b) mbinder -> ('a,'c) mbinder -> 'a mvar * 'b * 'c
 val eq_mbinder : ('b -> 'b -> bool) -> ('a,'b) mbinder -> ('a,'b) mbinder
   -> bool
 
-(** An usual use of [unbind] is the wrinting of pretty-printing functions. The
+(** An usual use of [unbind] is the writing of pretty-printing functions.  The
     function given bellow transforms a lambda-term into a [string].  Note that
     the [name_of] function is used for variables. {[
     let rec to_string : term -> string = fun t ->
@@ -167,7 +167,7 @@ val box_var : 'a var -> 'a box
 val box : 'a -> 'a box
 
 (** [apply_box bf ba] applies the boxed function [bf] to a boxed argument [ba]
-    inside the ['a box] type. This function is used to buld new expressions by
+    inside the [box] type.  This function is used to build new expressions  by
     applying a function with free variables to an argument with free variables
     (the ['a box] type is an applicative functor which application operator is
     [apply_box], and which unit is [box]). *)
@@ -264,7 +264,7 @@ val box_apply4 : ('a -> 'b -> 'c -> 'd -> 'e)
 (** [box_pair ba bb] is the same as [box_apply2 (fun a b -> (a,b)) ba bb]. *)
 val box_pair : 'a box -> 'b box -> ('a * 'b) box
 
-(** [box_trible] is similar to [box_pair], but for triples. *)
+(** [box_triple] is similar to [box_pair], but for triples. *)
 val box_triple : 'a box -> 'b box -> 'c box -> ('a * 'b * 'c) box
 
 (** Type of a module equipped with a [map] function. *)
@@ -435,10 +435,10 @@ val dummy_box : 'a box
 
 (** [binder_compose b f] postcomposes the binder [b] with the function [f]. In
     the process, the binding structure is not changed. Note that this function
-    is not alwasy safe. Use it with care. *)
+    is not always safe. Use it with care. *)
 val binder_compose : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder
 
-(** [mbinder_compose b f] postcomposes the multiple binder [b] with [f]. This
+(** [mbinder_compose b f] postcomposes the multiple binder [b] with [f].  This
     function is similar to [binder_compose], and it is not always safe. *)
 val mbinder_compose : ('a,'b) mbinder -> ('b -> 'c) -> ('a,'c) mbinder
 

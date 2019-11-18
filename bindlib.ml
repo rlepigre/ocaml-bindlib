@@ -37,7 +37,7 @@ module SMap = Map.Make(String)
 type any = Obj.t
 
 (** An environment is used to store the value of every bound variables. We use
-    the [Obj] module to store variables with potentially different types in a
+    the [Obj] module to store variables with potentially different types in  a
     single array. However, this module is only used in a safe way. *)
 module Env :
   sig
@@ -109,8 +109,8 @@ let (<*>) : ('a -> 'b) closure -> 'a closure -> 'b closure =
 
 (** Elements of the type ['a] with bound variables are constructed in the type
     ['a box]. A free variable can only be bound under this constructor. Hence,
-    an element of type ['a box] corresponds to an element of type ['a] in which
-    free variables may be bound later. *)
+    an element of type ['a box] can be understood as an element of  type  ['a]
+    whose free variables may be bound later. *)
 type 'a box =
   | Box of 'a
   (* Element of type ['a] with no free variable. *)
@@ -121,7 +121,7 @@ type 'a box =
     (stored by key), the number [nb] of bound variables having a reserved slot
     in the environment, the open term [t] itself. The term [t] should be given
     the environment as second argument, and the position of the free variables
-    of [vs] in the environmenet as a first argument. *)
+    of [vs] in the environment as a first argument. *)
 
 (** Important remark: the function of type [varpos -> Env.t -> 'a] is going to
     be used to build efficient substitutions. They are represented as closures
@@ -189,7 +189,7 @@ let hash_var : 'a var -> int = fun x -> Hashtbl.hash (`HVar, x.var_key)
 let box_var : 'a var -> 'a box = fun x -> x.var_box
 
 (** [merge_uniq l1 l2] merges two sorted lists of variables that must not have
-    any repetitions. The produced list does not have repetition eigher. *)
+    any repetitions. The produced list does not have repetition either. *)
 let merge_uniq : any var list -> any var list -> any var list =
   let rec merge_uniq acc l1 l2 =
     match (l1, l2) with
@@ -829,7 +829,7 @@ let new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt =
     (Array.map f names, !ctxt)
 
 (** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
-    explaine in the documentation of [new_mvar_in]. *)
+    explained in the documentation of [new_mvar_in]. *)
 let unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt = fun ctxt b ->
   let (x, ctxt) = new_var_in ctxt b.b_mkfree (binder_name b) in
   (x, subst b (b.b_mkfree x), ctxt)
@@ -843,11 +843,11 @@ let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
 
 (** [binder_compose b f] postcomposes the binder [b] with the function [f]. In
     the process, the binding structure is not changed. Note that this function
-    is not alwasy safe. Use it with care. *)
+    is not always safe. Use it with care. *)
 let binder_compose : ('a,'b) binder -> ('b -> 'c) -> ('a,'c) binder =
   fun b f -> {b with b_value = (fun x -> f (b.b_value x))}
 
-(** [mbinder_compose b f] postcomposes the multiple binder [b] with [f]. This
+(** [mbinder_compose b f] postcomposes the multiple binder [b] with [f].  This
     function is similar to [binder_compose], and it is not always safe. *)
 let mbinder_compose : ('a,'b) mbinder -> ('b -> 'c) -> ('a,'c) mbinder =
   fun b f -> {b with mb_value = (fun x -> f (b.mb_value x))}
