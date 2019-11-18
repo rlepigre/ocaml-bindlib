@@ -37,7 +37,7 @@ module SMap = Map.Make(String)
 type any = Obj.t
 
 (** An environment is used to store the value of every bound variables. We use
-    the [Obj] module to strore variables with potentially different types in a
+    the [Obj] module to store variables with potentially different types in a
     single array. However, this module is only used in a safe way. *)
 module Env :
   sig
@@ -109,7 +109,7 @@ let (<*>) : ('a -> 'b) closure -> 'a closure -> 'b closure =
 
 (** Elements of the type ['a] with bound variables are constructed in the type
     ['a box]. A free variable can only be bound under this constructor. Hence,
-    an element of type ['a box] corresponds to an element of type  ['a]  which
+    an element of type ['a box] corresponds to an element of type ['a] in which
     free variables may be bound later. *)
 type 'a box =
   | Box of 'a
@@ -139,7 +139,7 @@ and 'a var =
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
 
-(** [merge_name prefux suffux] builds a variable name using a [string]  prefix
+(** [merge_name prefix suffix] builds a variable name using a [string]  prefix
     and an [int] suffix. *)
 let merge_name : string -> int -> string =
   fun pr sf -> if sf >= 0 then pr ^ (string_of_int sf) else pr
@@ -451,7 +451,7 @@ let mbinder_arity : ('a,'b) mbinder -> int = fun b -> Array.length b.mb_names
 let mbinder_names : ('a,'b) mbinder -> string array = fun b -> b.mb_names
 
 (** [msubst b vs] substitutes the variables bound by [b], using the array [vs]
-    (which size should correspond to [mbinder_arity b]). *)
+    (whose size should be equal to [mbinder_arity b]). *)
 let msubst : ('a,'b) mbinder -> 'a array -> 'b = fun b xs -> b.mb_value xs
 
 (** [mbinder_occurs b] returns an array of [bool] indicating if the  variables
