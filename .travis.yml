@@ -40,7 +40,7 @@ before_install:
   - opam update
   - opam switch "$OCAML_VERSION"
   - eval $(opam env)
-  - opam install dune>=1.7.0
+  - opam install ocamlbuild ocamlfind
 
 install:
   - make
