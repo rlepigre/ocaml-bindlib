@@ -11,7 +11,7 @@ build: [make]
 install: [make "install"]
 remove: [make "uninstall"]
 depends: [
-  "ocaml" {>= "3.12.1"}
+  "ocaml" {>= "4.02.0"}
   "ocamlbuild" {build}
   "ocamlfind" {build}
 ]
