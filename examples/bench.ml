@@ -105,7 +105,7 @@ let ch_2   = App(succ, App(succ, zero))
 let ch_4   = App(ch_2, ch_2)
 let ch_8   = App(App(plus, ch_4), ch_4)
 let ch_10  = App(App(plus, ch_2), ch_8)
-let ch_100 = App(App(mult, ch_10), ch_10) 
+let ch_100 = App(App(mult, ch_10), ch_10)
 let ch_1000= App(App(mult, ch_100), ch_10)
 
 let bench () =

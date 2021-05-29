@@ -63,15 +63,15 @@ module Examples = struct
   let _Y = new_var (fun x -> TyVar(x)) "Y"
   let f  = new_var (fun x -> TeVar(x)) "f"
   let a  = new_var (fun x -> TeVar(x)) "a"
-  
+
   (* Representation of the type X ⇒ Y. *)
   let _X_arr_Y : ty box =
     _TyArr (_TyVar _X) (_TyVar _Y)
-  
+
   (* Representation of the type ∀X.∀Y.(X ⇒ Y) ⇒ X ⇒ Y. *)
   let appl_ty : ty box =
     _TyAll (bind_var _X (_TyAll (bind_var _Y (_TyArr _X_arr_Y _X_arr_Y))))
-  
+
   (* Representation of the term ΛX.ΛY.λf:X⇒Y.λa:X.f a. *)
   let appl_te : te box =
     _TeLam (bind_var _X (_TeLam (bind_var _Y (
@@ -187,7 +187,7 @@ let rec infer : (te var * ty) list -> te -> ty = fun ctx t ->
       end
 
 and check : (te var * ty) list -> te -> ty -> unit = fun ctx t a ->
-  match (t, a) with 
+  match (t, a) with
   | (TeVar(x)  , b         ) ->
       let a =
         match find_ctxt x ctx with
