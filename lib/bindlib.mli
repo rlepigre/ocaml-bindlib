@@ -425,7 +425,7 @@ module type Renaming = sig
   val new_name : string -> ctxt -> string * ctxt
 end
 
-module Ctxt(_:Renaming) : sig
+module Ctxt(R:Renaming) : sig
   (** equal to R.ctxt *)
   type ctxt
 
