@@ -75,11 +75,14 @@ let (!!) x = var x
 
 let x = Bindlib.new_var mkfree "x"
 let y = Bindlib.new_var mkfree "y"
+let z = Bindlib.new_var mkfree "z"
 let t = Bindlib.new_var mkfree "t"
 let f = Bindlib.new_var mkfree "f"
+let l = Bindlib.new_var mkfree "l"
 let n = Bindlib.new_var mkfree "n"
 let m = Bindlib.new_var mkfree "m"
 let p = Bindlib.new_var mkfree "p"
+let q = Bindlib.new_var mkfree "q"
 let r = Bindlib.new_var mkfree "r"
 let app2 f x y = app(app f x) y
 let bb f = Bindlib.box f
@@ -98,7 +101,6 @@ let fix   = Bindlib.unbox (app delta_fix delta_fix)
 let succ  =
   Bindlib.unbox (n >>= (f >>= (x >>= (app !!f !!n))))
 
-
 let plus  = Bindlib.unbox
               (bb1 fix (r >>= (n >>= (m >>= (
                    app2 !!n (p >>= bb1 succ (app2 !!r !!m !!p)) !!m)))))
@@ -110,14 +112,40 @@ let mult  = Bindlib.unbox
 let pred  = Bindlib.unbox
               (n >>= (app2 !!n (p >>= !!p) (bb zero)))
 
-let iter = Bindlib.unbox
-             (bb1 fix (r >>= (n >>= (f >>= (x >>= (
+let minus = Bindlib.unbox
+              (bb1 fix (r >>= (n >>= (m >>= (
+                   app2 !!m (p >>= bb1 pred (app2 !!r !!n !!p)) !!n)))))
+
+let leq   = Bindlib.unbox
+              (bb1 fix (r >>= (n >>= (m >>= (
+                                        app2 !!n (p >>= app2 !!m (q >>= app2 !!r !!p !!q) (bb tfls)) (bb ttru))))))
+
+let le   = Bindlib.unbox
+              (bb1 fix (r >>= (n >>= (m >>= (
+                                        app2 !!m (q >>= app2 !!n (p >>= app2 !!r !!p !!q) (bb ttru)) (bb tfls))))))
+
+let modul = Bindlib.unbox
+              (bb1 fix (r >>= (n >>= (m >>= (
+                   app2 (app2 (bb le) !!n !!m) !!n (app2 !!r (app2 (bb minus) !!n !!m) !!m))))))
+
+let iter   = Bindlib.unbox
+              (bb1 fix (r >>= (n >>= (f >>= (x >>= (
                    app2 !!n (p >>= app !!f (app2 (app !!r !!p) !!f !!x)) !!x))))))
 
-let sc_2   = App(succ, App(succ, zero))
+let nil    = zero
+let cons   = Bindlib.unbox (y >>= (l >>= (f >>= (x >>= app2 !!f !!y !!l))))
+
+let ltree  = Bindlib.unbox
+               (app (bb1 fix (r >>= (l >>= (n >>= (
+                   app2 !!n (p >>= (y >>= (z >>= app2 !!y (app2 !!r (app2 (bb cons) !!y !!l) !!p) (app2 !!r (app2 (bb cons) !!z !!l) !!p)))) !!l))))) (bb nil))
+let sc_1   = App(succ, zero)
+let sc_2   = App(succ, sc_1)
+let sc_3   = App(succ, sc_2)
 let sc_4   = App(App(mult,sc_2), sc_2)
+let sc_6   = App(App(mult,sc_4), sc_2)
 let sc_8   = App(App(plus, sc_4), sc_4)
 let sc_10  = App(App(plus, sc_2), sc_8)
+let sc_15  = App(succ,App(App(plus, sc_10), sc_4))
 let sc_100 = App(App(mult, sc_10), sc_10)
 let sc_1000= App(App(mult, sc_100), sc_10)
 let sc_10000= App(App(mult, sc_100), sc_100)
@@ -126,16 +154,26 @@ let sc_1000000= App(App(mult, sc_1000), sc_1000)
 let bench () =
   let res  = norm (App(pred,sc_4)) in
   Printf.printf "Result: %a\n%!" print_term res;
-  let fh = App(App(mult, sc_4), sc_100 ) in
-  let ft = App(App(mult, sc_4), sc_1000) in
-  let res = norm (App(App(App(iter,ft), pred), ft)) in
+  let res = norm (App(App(leq,sc_2), sc_3)) in
   Printf.printf "Result: %a\n%!" print_term res;
-  let _ = norm (App(App(mult, fh), sc_100)) in
-  Printf.printf "Result: ...\n%!";
-  let _ = norm (App(App(mult, fh), fh)) in
-  Printf.printf "Result: ...\n%!";
-  let res = norm (App(App(App(iter,sc_10000),pred),sc_10000)) in
+  let res = norm (App(App(leq,sc_3), sc_3)) in
   Printf.printf "Result: %a\n%!" print_term res;
+  let res = norm (App(App(leq,sc_3), sc_2)) in
+  Printf.printf "Result: %a\n%!" print_term res;
+  let res = norm (App(App(le,sc_2), sc_3)) in
+  Printf.printf "Result: %a\n%!" print_term res;
+  let res = norm (App(App(le,sc_3), sc_3)) in
+  Printf.printf "Result: %a\n%!" print_term res;
+  let res = norm (App(App(le,sc_3), sc_2)) in
+  Printf.printf "Result: %a\n%!" print_term res;
+  let res = norm (App(App(modul,sc_100), sc_3)) in
+  Printf.printf "Result: %a\n%!" print_term res;
+  let res = norm (App(App(modul,App(succ,sc_100)), sc_3)) in
+  Printf.printf "Result: %a\n%!" print_term res;
+  let res = norm (App(App(modul,App(succ,App(succ,sc_100))), sc_3)) in
+  Printf.printf "Result: %a\n%!" print_term res;
+  let _ = norm (App(ltree,sc_15)) in
+  Printf.printf "Result: ...\n%!";
   Printf.printf "Minor words: %f\n%!" Gc.((stat ()).minor_words -. top0)
 
 let _ = bench ()

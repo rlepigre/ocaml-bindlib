@@ -1,4 +1,8 @@
-λx.x
-λx.λy.x
-λx.(x) x
-(λx.(x) x) λx.(x) x
+id     (size =  1): λx.x
+fst    (size =  2): λx.λy.x
+delta  (size =  2): λx.(x) x
+omega  (size =  5): (λx.(x) x) λx.(x) x
+t      (size = 15): ((λx.λy.x) (λx.x) (λx.(x) x) λx.x) (λx.(x) x) λx.(x) x
+eval t (size =  1): λx.x
+t      (size =  3): (λx.λy1.x) y
+eval t (size =  1): λy1.y
