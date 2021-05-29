@@ -105,7 +105,7 @@ let print_ty : ?ctxt:ctxt -> out_channel -> ty -> unit =
     | TyAll(f)   -> let (x,a,ctxt) = unbind_in ctxt f in
                     Printf.fprintf oc "∀%s.%a" (name_of x) (fn ctxt) a
   in
-  fn empty_ctxt oc a
+  fn ctxt oc a
 
 let print_te : out_channel -> te -> unit = fun oc t ->
   let rec fn ctxt oc t =
