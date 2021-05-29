@@ -16,35 +16,21 @@ Projects using Bindlib:
  - [PML₂ language](https://github.com/rlepigre/pml)
  - [SubML language](https://rlepigre.github.io/subml/)
  - [PML](https://lama.univ-savoie.fr/tracpml)
+ - [The Catala language](https://catala-lang.org/)
  - Many more small projects...
 
 Dependencies
 ------------
 
 List of dependencies:
- - OCaml (at least 3.12)
- - Findlib (build)
- - OCamlbuild (build)
- - GNU Make (build)
+ - OCaml (at least version 4.02.0),
+ - The Dune build system (at least version 2.7.0).
 
 Installation
 ------------
 
+You can either pin the repository with opam or run the following.
 ```bash
 make
 make install
-```
-
-Other things
-------------
-
-To generate the documentation (ocamldoc):
-```bash
-make doc
-```
-
-To build the examples:
-```bash
-make examples
-make tests
 ```
