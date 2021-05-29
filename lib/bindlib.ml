@@ -739,9 +739,40 @@ let bind_apply : ('a,'b) binder box -> 'a box -> 'b box =
 let mbind_apply : ('a,'b) mbinder box -> 'a array box -> 'b box =
   fun b args -> box_apply2 msubst b args
 
+(** Record controling renaming policy *)
+type renaming_policy = {
+   reset_context_for_closed_term : bool;
+    (** If true, contexts are reset to empty when using [unbind_in] or
+       [munbind_in] on a closed binder (which have no free variables and
+       therefore can not capture name). This allows for printing lx.lx.x and
+       lx.(x lx x). *)
+
+   do_not_record_constant_binder : bool;
+   (** If true, names of constant binders are not recorded in the context,
+      permitting to reuse the name in a lower binder. This allows for printing
+      lx.lx.x but not lx.(x lx x). *)
+
+   constant_binder_name          : string option
+   (** If this field is [Some s], [s] is used as name for all constant binders
+      and [s] is not recorded in the context. This allows for printing l_.lx.x
+      if you use [Some "_"].
+
+      If this field is not [None], the field [do_not_record_constant_binder] is
+      ignored.*)
+  }
+
+(** Default renaming policy, use by the default context function *)
+let default_renaming_policy =
+  { reset_context_for_closed_term = false;
+    do_not_record_constant_binder = false;
+    constant_binder_name          = None }
+
 module type Renaming = sig
   (** A type to represent set of variables *)
   type ctxt
+
+  (** The renaming policy for that context *)
+  val policy : renaming_policy
 
   (** [empty_ctxt] is the empty context. *)
   val empty_ctxt : ctxt
@@ -778,22 +809,50 @@ module Ctxt(R:Renaming) = struct
   (** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
     explained in the documentation of [new_mvar_in]. *)
   let unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt = fun ctxt b ->
-    let ctxt = if binder_closed b then empty_ctxt else ctxt in
-    let (x, ctxt) = new_var_in ctxt b.b_mkfree (binder_name b) in
+    let ctxt = if policy.reset_context_for_closed_term && binder_closed b then
+                 empty_ctxt else ctxt
+    in
+    let (x, ctxt) =
+      match (binder_constant b,
+             policy.do_not_record_constant_binder,
+             policy.constant_binder_name) with
+      | (true, _, Some s) ->
+         let x =  new_var b.b_mkfree s in
+         (x, ctxt)
+      | (true, true, None) ->
+         let x =  new_var b.b_mkfree (binder_name b) in
+         (x,ctxt)
+      | _ ->
+         new_var_in ctxt b.b_mkfree (binder_name b)
+    in
     (x, subst b (b.b_mkfree x), ctxt)
 
   (** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
       context (see [new_mvar_in]). *)
   let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
     fun ctxt b ->
-    let ctxt = if mbinder_closed b then empty_ctxt else ctxt in
-    let (x, ctxt) = new_mvar_in ctxt b.mb_mkfree (mbinder_names b) in
-    (x, msubst b (Array.map b.mb_mkfree x), ctxt)
+    let (xs, ctxt) =
+      match policy.constant_binder_name with
+      | Some s ->
+         let size = mbinder_arity b in
+         let xs =  new_mvar b.mb_mkfree (Array.make size s) in
+         (xs, ctxt)
+      | None ->
+         if policy.do_not_record_constant_binder then
+           let xs =  new_mvar b.mb_mkfree (mbinder_names b) in
+           (xs,ctxt)
+         else
+           new_mvar_in ctxt b.mb_mkfree (mbinder_names b)
+    in
+    (xs, msubst b (Array.map b.mb_mkfree xs), ctxt)
 end
 
 module Default_Renaming = struct
   (** Representation of a context, or a list of reserved names. *)
   type ctxt = int list SMap.t
+
+  (** default renaming policy *)
+  let policy = default_renaming_policy
 
   (** [empty_ctxt] is the empty context. *)
   let empty_ctxt = SMap.empty
