@@ -91,10 +91,6 @@ let rec lift : term -> term box = fun t ->
                 abs x (lift t)
   | App(u,v) -> app (lift u) (lift v)
 
-(* Update function to recompute names (required after substitution). *)
-let update : term -> term = fun t ->
-  unbox (lift t)
-
 (* One step evaluation function (call-by-name). *)
 let rec step : term -> term option = fun t ->
   match t with
@@ -128,13 +124,7 @@ let _ =
   Printf.printf "  %a\n%!" print swap_y
 
 let _ =
-  Printf.printf "Substitution is fast, but does not handle renaming:\n%!";
+  Printf.printf "Here are some evaluation... Bindlib is fast.\nRenaming of variables is done at printing using context.\n%!";
   Printf.printf "  %a\n\t→ %a\n%!" print fst_y  print (eval fst_y);
   Printf.printf "  %a\n\t→ %a\n%!" print fst_yx print (eval fst_yx);
   Printf.printf "  %a\n\t→ %a\n%!" print swap_y print (eval swap_y)
-
-let _ =
-  Printf.printf "For printing, it is better to update names first:\n%!";
-  Printf.printf "  %a\n\t→ %a\n%!" print fst_y  print (update (eval fst_y));
-  Printf.printf "  %a\n\t→ %a\n%!" print fst_yx print (update (eval fst_yx));
-  Printf.printf "  %a\n\t→ %a\n%!" print swap_y print (update (eval swap_y))
