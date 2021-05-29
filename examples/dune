@@ -1,0 +1,3 @@
+(tests
+ (names basic fchurch lambda parsed translate bench)
+ (libraries bindlib))

@@ -1,0 +1,25 @@
+Here are some terms:
+  x
+  y
+  λx.x
+  λx.λy.x
+  λx.(x) x
+  (λx.(x) x) λx.(x) x
+  λx.λy.(y) x
+  (λx.λy.x) y
+  ((λx.λy.x) y) x
+  (λx.λy.(y) x) y
+Substitution is fast, but does not handle renaming:
+  (λx.λy.x) y
+	→ λy.y
+  ((λx.λy.x) y) x
+	→ y
+  (λx.λy.(y) x) y
+	→ λy.(y) y
+For printing, it is better to update names first:
+  (λx.λy.x) y
+	→ λy0.y
+  ((λx.λy.x) y) x
+	→ y
+  (λx.λy.(y) x) y
+	→ λy0.(y0) y

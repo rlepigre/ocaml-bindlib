@@ -1,0 +1,5 @@
+(library
+ (name bindlib)
+ (public_name bindlib)
+ (synopsis "An efficient representation of binders")
+ (wrapped false))
