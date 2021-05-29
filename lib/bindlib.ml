@@ -6,16 +6,6 @@
     @author Rodolphe Lepigre *)
 
 
-(** [filter_map pred f l] is equivalent to  [List.map f (List.filter pred m)],
-    but it is more efficient. *)
-let filter_map : ('a -> bool) -> ('a -> 'b) -> 'a list -> 'b list =
-  fun pred f l ->
-    let rec aux acc l =
-      match l with
-      | []   -> List.rev acc
-      | x::l -> if pred x then aux (f x::acc) l else aux acc l
-    in aux [] l
-
 (** [reset_counter ()] resets the counter. This function should only be called
     when previously generated [Bindlib] data structures cannot be accessed any
     more. [fresh_key ()] produces a fresh key, using the hidden counter. *)
@@ -76,9 +66,8 @@ module Env :
 
 (** In the internals, variables are identified by a unique [int] key. Closures
     are then formed by mapping free variables in an [Env.t]. The [varpos] type
-    associates, to each variable, its index in the [Env.t] and an [int] suffix
-    (used while renaming in capture-avoiding substitution). *)
-type varinf = { index : int ; suffix : int }
+    associates, to each variable, its index in the [Env.t]. *)
+type varinf = int
 type varpos = varinf IMap.t
 
 (** A closure of type ['a] is represented as a function taking as input a  map
@@ -127,11 +116,10 @@ type 'a box =
 
 (** Type of a free variable of type ['a]. *)
 and 'a var =
-  { var_key    : int          (* Unique identifier.                *)
-  ; var_prefix : string       (* Name as a free variable (prefix). *)
-  ; var_suffix : int          (* Integer suffix.                   *)
-  ; var_mkfree : 'a var -> 'a (* Function to build a term.         *)
-  ; var_box    : 'a box       (* Bindbox containing the variable.  *) }
+  { var_key    : int          (* Unique identifier.               *)
+  ; var_name   : string       (* Name as a free variable.         *)
+  ; var_mkfree : 'a var -> 'a (* Function to build a term.        *)
+  ; var_box    : 'a box       (* Bindbox containing the variable. *) }
 
 (** Variable of any type (using an existential). *)
 and any_var = V : 'a var -> any_var (* [@@ocaml.unboxed] *)
@@ -140,32 +128,13 @@ and any_var = V : 'a var -> any_var (* [@@ocaml.unboxed] *)
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
 
-(** [merge_name prefix suffix] builds a variable name using a [string]  prefix
-    and an [int] suffix. *)
-let merge_name : string -> int -> string =
-  fun pr sf -> if sf >= 0 then pr ^ (string_of_int sf) else pr
+(** [name_of x] gives the name of the given variable. It avoid captures
+    only if you are using context (type [ctxt] below). Typically, with
+    bindlib, you perform renaming only at printing, not before *)
+let name_of : 'a var -> string = fun x -> x.var_name
 
-(** [split_name s] splits [s] into a [string] prefix and an [int] suffix. Note
-    that we have [split "xyz" = ("xyz", (-1))], [split "xyz12" = ("xyz", 12)],
-    or [split "12" = ("", 12)]. In other words, we take the longest suffix. In
-    particular, [split "xyz007"] and [split "xyz7"] both yield the same value,
-    which is [("xyz", 7)]. *)
-let split_name : string -> string * int = fun name ->
-  let is_digit c = '0' <= c && c <= '9' in
-  let len = String.length name in
-  let last_digit = ref len in
-  while !last_digit > 0 && is_digit name.[!last_digit - 1] do
-    decr last_digit
-  done;
-  if !last_digit = len then (name, (-1)) else
-  let pref = String.sub name 0 !last_digit in
-  let suff = String.sub name !last_digit (len - !last_digit) in
-  (pref, int_of_string suff)
-
-(** [name_of x] computes the full name of the given variable. *)
-let name_of : 'a var -> string = fun x -> merge_name x.var_prefix x.var_suffix
-
-(** [names_of xs] returns printable names for the variables of [xs]. *)
+(** [names_of xs] returns names for the variables of [xs]. The same
+    coment as above applies *)
 let names_of : 'a mvar -> string array = fun xs -> Array.map name_of xs
 
 (** [uid_of x] returns a unique identifier of the given variable. *)
@@ -229,9 +198,9 @@ let minimize : any_var list -> int -> 'a closure -> 'a closure = fun vs n t ->
     let tab = Array.make size 0 in
     let prefix = ref true in
     let f (new_vp, i) (V(var)) =
-      let {index=j; suffix} = IMap.find var.var_key vp in
+      let j = IMap.find var.var_key vp in
       prefix := !prefix && i = j; tab.(i) <- j;
-      (IMap.add var.var_key {index=i; suffix} new_vp, i+1)
+      (IMap.add var.var_key i new_vp, i+1)
     in
     let (new_vp,_) = List.fold_left f (IMap.empty,0) vs in
     let t = t new_vp in
@@ -402,7 +371,7 @@ let unbox : 'a box -> 'a = fun b ->
       let fn vp (V(x)) =
         let i = !cur in incr cur;
         Env.set env i (x.var_mkfree x);
-        IMap.add x.var_key {index=i; suffix=x.var_suffix} vp
+        IMap.add x.var_key i vp
       in
       t (List.fold_left fn IMap.empty vs) env
 
@@ -480,13 +449,12 @@ let dummy_box : 'a box =
 
 (** [build_var key mkfree name] initialises a new ['a var] structure using the
     given data, and updates the [var_box] field accordingly. *)
-let build_var_aux key vp = Env.get (IMap.find key vp).index
+let build_var_aux key vp = Env.get (IMap.find key vp)
 let build_var : int ->  ('a var -> 'a) -> string -> 'a var =
   fun var_key var_mkfree name ->
-    let (var_prefix, var_suffix) = split_name name in
     let rec x =
-      let var_box = Env([V x], 0, build_var_aux var_key) in
-      {var_key; var_prefix; var_suffix; var_mkfree; var_box}
+      let var_box = Env([V(x)], 0, build_var_aux var_key) in
+      {var_key; var_name = name; var_mkfree; var_box}
     in x
 
 (** [new_var mkfree name] create a new free variable using a wrapping function
@@ -505,26 +473,11 @@ let new_mvar : ('a var -> 'a) -> string array -> 'a mvar =
 let copy_var : 'b var -> ('a var -> 'a) -> string -> 'a var =
   fun x mkfree -> build_var x.var_key mkfree
 
-(** [get_suffix vs vp x] finds a non-colliding suffix for variable [x],  given
-    a list of variables with name collisions,  the [varpos] with corresponding
-    suffixes (and the positioning in the environment of the variables). *)
-let get_suffix : any_var list -> varpos -> 'a var -> int = fun vs vp x ->
-  let pred (V(y)) = x.var_prefix = y.var_prefix in
-  let fn (V(x)) = (IMap.find x.var_key vp).suffix in
-  let vs = filter_map pred fn vs in
-  let rec search suffix vs =
-    match vs with
-    | x::vs when x < suffix -> search suffix vs
-    | x::vs when x = suffix -> search (suffix+1) vs
-    | _                     -> suffix
-  in
-  search x.var_suffix (List.sort (-) vs)
-
 (** [build_binder x rank bind value] constructs a binder with the given values
     (the variable [x] is used to obtain the name of the bound variable). *)
 let build_binder : 'a var -> int -> bool -> ('a -> 'b) -> ('a,'b) binder =
   fun x b_rank b_bind b_value ->
-    let b_name = merge_name x.var_prefix x.var_suffix in
+    let b_name = x.var_name in
     {b_name; b_rank; b_bind; b_value; b_mkfree = x.var_mkfree}
 
 (** [bind_var x b] produces a [binder] (in a [box]) by binding [x] in [b].
@@ -563,7 +516,7 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
         | [V(y)] ->
             if x.var_key <> y.var_key then raise Not_found;
             (* The variable to bind is the last one. *)
-            let r = {index = 0; suffix = x.var_suffix} in
+            let r = 0 in
             let t = t (IMap.singleton x.var_key r) in
             let value = bind_var_aux1 n t in
             Box(build_binder x 0 true value)
@@ -571,9 +524,8 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
             let vs = remove x vs in
             (* General case. *)
             let cl vp =
-              let x = {x with var_suffix = get_suffix vs vp x} in
               let rank = List.length vs in
-              let r = {index = rank; suffix = x.var_suffix} in
+              let r = rank in
               let t = t (IMap.add x.var_key r vp) in
               bind_var_aux3 x rank t
             in
@@ -581,7 +533,6 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
       with Not_found ->
         (* The variable does not occur. *)
         let value vp =
-          let x = {x with var_suffix = get_suffix vs vp x} in
           let t = t vp in
           let rank = List.length vs in
           bind_var_aux5 x rank t
@@ -674,11 +625,10 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
         let cur_pos = ref 0 in
         let vp = ref IMap.empty in
         let f i key =
-          let suffix = get_suffix vss.(i) !vp xs.(i) in
-          mb_names.(i) <- merge_name xs.(i).var_prefix suffix;
+          mb_names.(i) <- xs.(i).var_name;
           if key >= 0 then
             begin
-              vp := IMap.add key {index = !cur_pos; suffix} !vp;
+              vp := IMap.add key !cur_pos !vp;
               incr cur_pos; true
             end
           else false
@@ -691,7 +641,7 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
         let cl vp =
           let mb_rank = List.length vs in
           let mb_binds = Array.map (fun _ -> false) xs in
-          let fn x = merge_name x.var_prefix (get_suffix vs vp x) in
+          let fn x = x.var_name in
           let mb_names = Array.map fn xs in
           let t = t vp in
           bind_mvar_aux3 xs t mb_names mb_rank mb_binds mb_mkfree
@@ -703,10 +653,9 @@ let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
           let cur_pos = ref mb_rank in
           let vp = ref vp in
           let f i key =
-            let suffix = get_suffix vss.(i) !vp xs.(i) in
-            mb_names.(i) <- merge_name xs.(i).var_prefix suffix;
+            mb_names.(i) <- xs.(i).var_name;
             if key >= 0 then
-              (vp := IMap.add key {index = !cur_pos; suffix} !vp;
+              (vp := IMap.add key !cur_pos !vp;
                incr cur_pos; true)
             else false
           in
@@ -790,16 +739,85 @@ let bind_apply : ('a,'b) binder box -> 'a box -> 'b box =
 let mbind_apply : ('a,'b) mbinder box -> 'a array box -> 'b box =
   fun b args -> box_apply2 msubst b args
 
-(** Representation of a context, or a list of reserved names. *)
-type ctxt = int list SMap.t
+module type Renaming = sig
+  (** A type to represent set of variables *)
+  type ctxt
 
-(** [empty_ctxt] is the empty context. *)
-let empty_ctxt = SMap.empty
+  (** [empty_ctxt] is the empty context. *)
+  val empty_ctxt : ctxt
 
-(** [new_var_in ctxt mkfree name] is similar to [new_var mkfree name], but the
+  (** [new_name n s] From the original name [n] and a set [s], create a new free
+     variable [n'] (not occuring in [s]) and returns [(n',s')] where [s'] is
+     [s] with [n'] added *)
+  val new_name : string -> ctxt -> string * ctxt
+end
+
+module Ctxt(R:Renaming) = struct
+  include R
+
+  (** [new_var_in ctxt mkfree name] is similar to [new_var mkfree name], but the
     variable names is chosen not to collide with the context [ctxt]. Note that
     the context that is returned contains the new variable name. *)
-let new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt =
+  let new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt =
+    fun ctxt mkfree name ->
+      let (fresh_name, ctxt) = new_name name ctxt in
+      let x = new_var mkfree fresh_name in
+      (x, ctxt)
+
+  (** [new_mvar_in ctxt mkfree names] is similar to [new_mvar mkfree names], but
+      it handles the context (see [new_var_in]). *)
+  let new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt =
+    fun ctxt mkfree names ->
+    let ctxt = ref ctxt in
+    let f name =
+      let (v, new_ctxt) = new_var_in !ctxt mkfree name in
+      ctxt := new_ctxt; v
+    in
+    (Array.map f names, !ctxt)
+
+  (** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
+    explained in the documentation of [new_mvar_in]. *)
+  let unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt = fun ctxt b ->
+    let (x, ctxt) = new_var_in ctxt b.b_mkfree (binder_name b) in
+    (x, subst b (b.b_mkfree x), ctxt)
+
+  (** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
+      context (see [new_mvar_in]). *)
+  let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
+    fun ctxt b ->
+    let (x, ctxt) = new_mvar_in ctxt b.mb_mkfree (mbinder_names b) in
+    (x, msubst b (Array.map b.mb_mkfree x), ctxt)
+end
+
+module Default_Renaming = struct
+  (** Representation of a context, or a list of reserved names. *)
+  type ctxt = int list SMap.t
+
+  (** [empty_ctxt] is the empty context. *)
+  let empty_ctxt = SMap.empty
+
+  (** [split_name s] splits [s] into a [string] prefix and an [int] suffix. Note
+    that we have [split "xyz" = ("xyz", (-1))], [split "xyz12" = ("xyz", 12)],
+    or [split "12" = ("", 12)]. In other words, we take the longest suffix. In
+    particular, [split "xyz007"] and [split "xyz7"] both yield the same value,
+    which is [("xyz", 7)]. *)
+  let split_name : string -> string * int = fun name ->
+    let is_digit c = '0' <= c && c <= '9' in
+    let len = String.length name in
+    let last_digit = ref len in
+    while !last_digit > 0 && is_digit name.[!last_digit - 1] do
+      decr last_digit
+    done;
+    if !last_digit = len then (name, (-1)) else
+      let pref = String.sub name 0 !last_digit in
+      let suff = String.sub name !last_digit (len - !last_digit) in
+      (pref, int_of_string suff)
+
+  (** [merge_name prefix suffix] builds a variable name using a [string]  prefix
+      and an [int] suffix. *)
+  let merge_name : string -> int -> string =
+    fun pr sf -> if sf >= 0 then pr ^ (string_of_int sf) else pr
+
   let get_suffix name suffix ctxt =
     let rec search acc suf l =
       match l with
@@ -812,35 +830,17 @@ let new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt =
       let (suffix, l) = search [] suffix (SMap.find name ctxt) in
       (suffix, SMap.add name l ctxt)
     with Not_found -> (suffix, SMap.add name [suffix] ctxt)
-  in
-  fun ctxt mkfree name ->
-    let x = new_var mkfree name in
-    let (var_suffix, ctxt) = get_suffix x.var_prefix x.var_suffix ctxt in
-    ({x with var_suffix}, ctxt)
 
-(** [new_mvar_in ctxt mkfree names] is similar to [new_mvar mkfree names], but
-    it handles the context (see [new_var_in]). *)
-let new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt =
-  fun ctxt mkfree names ->
-    let ctxt = ref ctxt in
-    let f name =
-      let (v, new_ctxt) = new_var_in !ctxt mkfree name in
-      ctxt := new_ctxt; v
-    in
-    (Array.map f names, !ctxt)
+  let new_name : string -> ctxt -> string * ctxt =
+    fun name ctxt ->
+      let prefix, suffix = split_name name in
+      let suffix, ctxt = get_suffix prefix suffix ctxt in
+      (merge_name prefix suffix, ctxt)
+end
 
-(** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
-    explained in the documentation of [new_mvar_in]. *)
-let unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt = fun ctxt b ->
-  let (x, ctxt) = new_var_in ctxt b.b_mkfree (binder_name b) in
-  (x, subst b (b.b_mkfree x), ctxt)
+module Default_Ctxt = Ctxt(Default_Renaming)
 
-(** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
-    context (see [new_mvar_in]). *)
-let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
-  fun ctxt b ->
-    let (x, ctxt) = new_mvar_in ctxt b.mb_mkfree (mbinder_names b) in
-    (x, msubst b (Array.map b.mb_mkfree x), ctxt)
+include Default_Ctxt
 
 (** [binder_compose b f] postcomposes the binder [b] with the function [f]. In
     the process, the binding structure is not changed. Note that this function
