@@ -25,12 +25,15 @@ let rec eval : term -> term = fun t ->
 let mkfree : term var -> term = fun x -> Var(x)
 
 (* Conversion of a λ-term into a [string]. *)
-let rec to_string : term -> string = fun t ->
-  match t with
-  | Var(x)   -> name_of x
-  | Abs(b)   -> let (x,t) = unbind b in
-                "λ" ^ name_of x ^ "." ^ to_string t
-  | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u
+let to_string : term -> string = fun t ->
+  let rec fn ctxt t =
+    match t with
+    | Var(x)   -> name_of x
+    | Abs(b)   -> let (x,t,ctxt) = unbind_in ctxt b in
+                  "λ" ^ name_of x ^ "." ^ fn ctxt t
+    | App(t,u) -> "(" ^ fn ctxt t ^ ") " ^ fn ctxt u
+  in
+  fn empty_ctxt t
 
 (* Smart constructors. *)
 let var : term var -> term box =
