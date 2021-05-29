@@ -778,6 +778,7 @@ module Ctxt(R:Renaming) = struct
   (** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
     explained in the documentation of [new_mvar_in]. *)
   let unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt = fun ctxt b ->
+    let ctxt = if binder_closed b then empty_ctxt else ctxt in
     let (x, ctxt) = new_var_in ctxt b.b_mkfree (binder_name b) in
     (x, subst b (b.b_mkfree x), ctxt)
 
@@ -785,6 +786,7 @@ module Ctxt(R:Renaming) = struct
       context (see [new_mvar_in]). *)
   let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
     fun ctxt b ->
+    let ctxt = if mbinder_closed b then empty_ctxt else ctxt in
     let (x, ctxt) = new_mvar_in ctxt b.mb_mkfree (mbinder_names b) in
     (x, msubst b (Array.map b.mb_mkfree x), ctxt)
 end
