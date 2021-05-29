@@ -9,17 +9,36 @@ Here are some terms:
   (λx.λy.x) y
   ((λx.λy.x) y) x
   (λx.λy.(y) x) y
-Substitution is fast, but does not handle renaming:
+  λy.λx.(y) (y) x
+  (λy.λx.(y) (y) x) λy.λx.(y) (y) x
+Here are some sevaluation... Bindlib is fast.
+Renaming of variables is done at printing using context.
   (λx.λy.x) y
 	→ λy.y
   ((λx.λy.x) y) x
 	→ y
   (λx.λy.(y) x) y
 	→ λy.(y) y
-For printing, it is better to update names first:
-  (λx.λy.x) y
-	→ λy0.y
-  ((λx.λy.x) y) x
+  (λy.λx.(y) (y) x) λy.λx.(y) (y) x
+	→ λx.λx0.(x) (x) (x) (x) x0
+Same as above with the custom renaming:
+  x
+  y
+  λx.x
+  λx.λ_.x
+  λx.(x) x
+  (λx.(x) x) λx.(x) x
+  λx.λy.(y) x
+  (λx.λ_.x) y
+  ((λx.λ_.x) y) x
+  (λx.λy.(y) x) y
+  λy.λx.(y) (y) x
+  (λy.λx.(y) (y) x) λy.λx.(y) (y) x
+  (λx.λ_.x) y
+	→ λ_.y
+  ((λx.λ_.x) y) x
 	→ y
   (λx.λy.(y) x) y
-	→ λy0.(y0) y
+	→ λy.(y) y
+  (λy.λx.(y) (y) x) λy.λx.(y) (y) x
+	→ λx.λx'.(x) (x) (x) (x) x'
