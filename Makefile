@@ -20,6 +20,14 @@ tests:
 	@dune runtest
 .PHONY: tests
 
+bench: all
+	@ulimit -s unlimited && perf stat _build/default/benchmark/church.exe  > /dev/null 2>  perf.log
+	@ulimit -s unlimited && perf stat _build/default/benchmark/scott.exe   > /dev/null 2>> perf.log
+	@ulimit -s unlimited && perf stat _build/default/benchmark/lambdas.exe > /dev/null 2>> perf.log
+	@cat perf.log
+	@rm perf.log
+.PHONY: bench
+
 promote:
 	@dune promote
 .PHONY: promote

@@ -1,0 +1,14 @@
+(executable
+ (name church)
+ (modules Church)
+ (libraries bindlib))
+
+(executable
+ (name scott)
+ (modules Scott)
+ (libraries bindlib))
+
+(executable
+ (name lambdas)
+ (modules Lambdas)
+ (libraries bindlib))

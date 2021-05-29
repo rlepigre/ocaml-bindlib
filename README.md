@@ -23,7 +23,7 @@ Dependencies
 ------------
 
 List of dependencies:
- - OCaml (at least version 4.02.0),
+ - OCaml (at least version 4.07.0),
  - The Dune build system (at least version 2.7.0).
 
 Installation
