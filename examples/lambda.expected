@@ -20,7 +20,7 @@ Renaming of variables is done at printing using context.
   (λx.λy.(y) x) y
 	→ λy.(y) y
   (λy.λx.(y) (y) x) λy.λx.(y) (y) x
-	→ λx.λx0.(x) (x) (x) (x) x0
+	→ λx.λx1.(x) (x) (x) (x) x1
 Same as above with the custom renaming:
   x
   y
