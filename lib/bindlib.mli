@@ -81,10 +81,13 @@ val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
     variables of type [term var] could be defined as follows.
     {[ let mkfree : term var -> term = fun x -> Var(x) ]} *)
 
-(** [name_of x] returns a printable name for variable [x]. *)
-val name_of  : 'a var  -> string
+(** [name_of x] gives the name of the given variable. It avoid captures
+    only if you are using context (type [ctxt] below). Typically, with
+    bindlib, you perform renaming only at printing, not before *)
+val name_of : 'a var -> string
 
-(** [names_of xs] returns printable names for the variables of [xs]. *)
+(** [names_of xs] returns names for the variables of [xs]. The same
+    coment as above applies *)
 val names_of : 'a mvar -> string array
 
 (** [unbind b] substitutes the binder [b] using a fresh variable. The variable
@@ -377,10 +380,9 @@ val mbind_apply : ('a, 'b) mbinder box -> 'a array box -> 'b box
 (** {2 Working in a context} *)
 
 
-(** It is sometimes convenient to work in a context for variables, for example
-    when one wishes to reserve variable names.  The [Bindlib] library provides
-    a type of contexts, together with functions for creating variables and for
-    binding variables in a context. *)
+(** It is mandatory to work in a context to print variables without name clash,
+   The [Bindlib] library provides a type of contexts, together with functions
+   for creating variables and for binding variables in a context. *)
 
 (** Type of a context. *)
 type ctxt
@@ -398,13 +400,87 @@ val new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt
 val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
 
 (** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
-    explained in the documentation of [new_mvar_in]. *)
+   explained in the documentation of [new_mvar_in]. If you want to print terms
+   in a accurate way while traversing them, you must use unbind_in and
+   unmbind_in *)
 val unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt
 
 (** [unmbind_in ctxt b] is like [unmbind b],  but it handles the context as is
     explained in the documentation of [new_mvar_in]. *)
 val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
 
+(** Record controling renaming policy *)
+type renaming_policy = {
+   reset_context_for_closed_term : bool;
+    (** If true, contexts are reset to empty when using [unbind_in] or
+       [munbind_in] on a closed binder (which have no free variables and
+       therefore can not capture name). This allows for printing lx.lx.x and
+       lx.(x lx x). *)
+
+   do_not_record_constant_binder : bool;
+   (** If true, names of constant binders are not recorded in the context,
+      permitting to reuse the name in a lower binder. This allows for printing
+      lx.lx.x but not lx.(x lx x). *)
+
+   constant_binder_name          : string option
+   (** If this field is [Some s], [s] is used as name for all constant binders
+      and [s] is not recorded in the context. This allows for printing l_.lx.x
+      if you use [Some "_"].
+
+      If this field is not [None], the field [do_not_record_constant_binder] is
+      ignored.*)
+  }
+
+(** Default renaming policy, use by the default context function *)
+val default_renaming_policy : renaming_policy
+(** value is: [
+  { reset_context_for_closed_term = false;
+    do_not_record_constant_binder = false;
+    constant_binder_name          = None }] *)
+
+(** If you are not happy with the default renaming proposed by the function
+   above, a functorial interface allows you to customize the type ctxt and the
+   five above functions *)
+module type Renaming = sig
+  (** A type to represent set of variables *)
+  type ctxt
+
+  (** The renaming policy of your custom renaming *)
+  val policy : renaming_policy
+
+  (** [empty_ctxt] is the empty context. *)
+  val empty_ctxt : ctxt
+
+  (** [new_name n s] From the original name [n] and a set [s], create a new free
+     variable [n'] (not occuring in [s]) and returns [(n',s')] where [s'] is
+     [s] with [n'] added *)
+  val new_name : string -> ctxt -> string * ctxt
+end
+
+module Ctxt(R:Renaming) : sig
+  (** equal to R.ctxt *)
+  type ctxt
+
+  (** equal to R.empty_ctxt *)
+  val empty_ctxt : ctxt
+
+  val new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt
+  val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
+  val unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt
+  val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
+end
+
+(** This is the default renaming policy used for the function [new_var_in,
+   new_mvar_in, unbind_in, munbind_in] which are not in functors.
+
+This renaming uses the default policy defined above.
+
+For names, it splits variables in [(prefix,suffix)] where [suffix] is the
+   longuest suffix only with digits. Then the suffix is replaced if renaming is
+   needed by the first [n > suffix] such that [prefix ^ (string_of_int n)] is
+   not in the context. When the [suffix] is empty it is replaced by the first
+   positive integers. Leading zeros are not preserved in suffix. *)
+module Default_Renaming : Renaming
 
 (** {2 Unsafe, advanced features} *)
 

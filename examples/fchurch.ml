@@ -96,25 +96,32 @@ let rec lift_te : te -> te box = fun t ->
 let update_ty : ty -> ty = fun a -> unbox (lift_ty a)
 let update_te : te -> te = fun t -> unbox (lift_te t)
 
-let rec print_ty : out_channel -> ty -> unit = fun oc a ->
-  match a with
-  | TyVar(x)   -> output_string oc (name_of x)
-  | TyArr(a,b) -> Printf.fprintf oc "(%a) ⇒ (%a)" print_ty a print_ty b
-  | TyAll(f)   -> let (x,a) = unbind f in
-                  Printf.fprintf oc "∀%s.%a" (name_of x) print_ty a
+let print_ty : ?ctxt:ctxt -> out_channel -> ty -> unit =
+  fun ?(ctxt=empty_ctxt) oc a ->
+  let rec fn ctxt oc a =
+    match a with
+    | TyVar(x)   -> output_string oc (name_of x)
+    | TyArr(a,b) -> Printf.fprintf oc "(%a) ⇒ (%a)" (fn ctxt) a (fn ctxt) b
+    | TyAll(f)   -> let (x,a,ctxt) = unbind_in ctxt f in
+                    Printf.fprintf oc "∀%s.%a" (name_of x) (fn ctxt) a
+  in
+  fn ctxt oc a
 
-let rec print_te : out_channel -> te -> unit = fun oc t ->
+let print_te : out_channel -> te -> unit = fun oc t ->
+  let rec fn ctxt oc t =
   match t with
   | TeVar(x)   -> output_string oc (name_of x)
-  | TeAbs(a,f) -> let (x,t) = unbind f in
+  | TeAbs(a,f) -> let (x,t,ctxt) = unbind_in ctxt f in
                   let x = name_of x in
-                  Printf.fprintf oc "λ%s:%a.%a" x print_ty a print_te t
-  | TeApp(t,u) -> Printf.fprintf oc "(%a) %a" print_te t print_te u
-  | TeLam(f)   -> let (x,t) = unbind f in
-                  Printf.fprintf oc "Λ%s.%a" (name_of x) print_te t
-  | TeSpe(t,a) -> Printf.fprintf oc "(%a)<%a>" print_te t print_ty a
+                  Printf.fprintf oc "λ%s:%a.%a" x (print_ty ~ctxt) a (fn ctxt) t
+  | TeApp(t,u) -> Printf.fprintf oc "(%a) %a" (fn ctxt) t (fn ctxt) u
+  | TeLam(f)   -> let (x,t,ctxt) = unbind_in ctxt f in
+                  Printf.fprintf oc "Λ%s.%a" (name_of x) (fn ctxt) t
+  | TeSpe(t,a) -> Printf.fprintf oc "(%a)<%a>" (fn ctxt) t (print_ty ~ctxt) a
+  in
+  fn empty_ctxt oc t
 
-let print_ty : out_channel -> ty -> unit = fun oc a ->
+let print_ty :  out_channel -> ty -> unit = fun oc a ->
   print_ty oc (update_ty a)
 
 let print_te : out_channel -> te -> unit = fun oc t ->

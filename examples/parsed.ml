@@ -23,12 +23,15 @@ let app : term box -> term box -> term box =
   fun t u -> box_apply2 (fun t u -> App(t,u)) t u
 
 (* Printing function. *)
-let rec print : out_channel -> term -> unit = fun ch t ->
-  match t with
-  | Var(x)   -> Printf.fprintf ch "%s" (name_of x)
-  | Abs(b)   -> let (x,t) = unbind b in
-                Printf.fprintf ch "λ%s.%a" (name_of x) print t
-  | App(t,u) -> Printf.fprintf ch "(%a) %a" print t print u
+let print : out_channel -> term -> unit = fun ch t ->
+  let rec fn ctxt ch t =
+    match t with
+    | Var(x)   -> Printf.fprintf ch "%s" (name_of x)
+    | Abs(b)   -> let (x,t,ctxt) = unbind_in ctxt b in
+                  Printf.fprintf ch "λ%s.%a" (name_of x) (fn ctxt) t
+    | App(t,u) -> Printf.fprintf ch "(%a) %a" (fn ctxt) t (fn ctxt) u
+  in
+  fn empty_ctxt ch t
 
 (* Example of parsing time AST for our language. *)
 type pterm =
