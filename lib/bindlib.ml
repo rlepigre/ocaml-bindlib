@@ -848,8 +848,10 @@ module Ctxt(R:Renaming) = struct
 end
 
 module Default_Renaming = struct
-  (** Representation of a context, or a list of reserved names. *)
-  type ctxt = int list SMap.t
+  (** Representation of a context:
+      if [(x,n)] is bound in the map we assume that all names
+      [x ^ string_of_int p] with [p <= n] may be used *)
+  type ctxt = int SMap.t
 
   (** default renaming policy *)
   let policy = default_renaming_policy
@@ -858,40 +860,39 @@ module Default_Renaming = struct
   let empty_ctxt = SMap.empty
 
   (** [split_name s] splits [s] into a [string] prefix and an [int] suffix. Note
-    that we have [split "xyz" = ("xyz", (-1))], [split "xyz12" = ("xyz", 12)],
-    or [split "12" = ("", 12)]. In other words, we take the longest suffix. In
-    particular, [split "xyz007"] and [split "xyz7"] both yield the same value,
-    which is [("xyz", 7)]. *)
+     that we have [split "xyz" = ("xyz", 0)], [split "xyz12" = ("xyz", 12)], or
+     [split "12" = ("", 12)]. The suffix is take as long as possible, but
+     leading zeros are kept in the prefix: [split "xyz007" = ("xyz00",7)]. *)
   let split_name : string -> string * int = fun name ->
     let is_digit c = '0' <= c && c <= '9' in
     let len = String.length name in
     let last_digit = ref len in
+    let last_non_zero = ref len in
     while !last_digit > 0 && is_digit name.[!last_digit - 1] do
-      decr last_digit
+      decr last_digit;
+      if name.[!last_digit] <> '0' then last_non_zero := !last_digit
     done;
-    if !last_digit = len then (name, (-1)) else
-      let pref = String.sub name 0 !last_digit in
-      let suff = String.sub name !last_digit (len - !last_digit) in
+    let i = !last_non_zero in
+    if i = len then (name, 0) else
+      let pref = String.sub name 0 i in
+      let suff = String.sub name i (len - i) in
       (pref, int_of_string suff)
 
   (** [merge_name prefix suffix] builds a variable name using a [string]  prefix
       and an [int] suffix. *)
   let merge_name : string -> int -> string =
-    fun pr sf -> if sf >= 0 then pr ^ (string_of_int sf) else pr
+    fun pr sf -> if sf > 0 then pr ^ (string_of_int sf) else pr
 
+  (** Get the first available suffix in the map and update the map *)
   let get_suffix name suffix ctxt =
-    let rec search acc suf l =
-      match l with
-      | []                -> (suf, List.rev_append acc [suf])
-      | x::_ when x > suf -> (suf, List.rev_append acc (suf::l))
-      | x::l when x = suf -> search (x::acc) (suf+1) l
-      | x::l (*x < suf*)  -> search (x::acc) suf l
-    in
     try
-      let (suffix, l) = search [] suffix (SMap.find name ctxt) in
-      (suffix, SMap.add name l ctxt)
-    with Not_found -> (suffix, SMap.add name [suffix] ctxt)
+      let n = SMap.find name ctxt in
+      if suffix > n then (suffix, ctxt) else
+        let suffix = n+1 in
+        (suffix, SMap.add name suffix ctxt)
+    with Not_found -> (suffix, SMap.add name suffix ctxt)
 
+  (** The main function of the renaming module *)
   let new_name : string -> ctxt -> string * ctxt =
     fun name ctxt ->
       let prefix, suffix = split_name name in
