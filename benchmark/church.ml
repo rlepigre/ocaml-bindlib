@@ -65,6 +65,8 @@ let norm : term -> term = fun t ->
   in
   Bindlib.unbox (norm t [])
 
+let top0 = Gc.(stat ()).minor_words
+
 (** Examples of terms. *)
 
 let (>>=) x t = abs (Bindlib.bind_var x t)
@@ -120,6 +122,6 @@ let bench () =
   let _ = norm (App(App(mult, fh), ch_1000)) in
   let zz = norm (App(App(ch_1000,pred),ch_1000)) in
   Printf.printf "Result: %a\n%!" print_term zz;
-  Printf.printf "Top heap: %d\n%!" Gc.((stat ()).top_heap_words)
+  Printf.printf "Minor words: %f\n%!" Gc.((stat ()).minor_words -. top0)
 
 let _ = bench ()
