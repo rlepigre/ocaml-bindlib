@@ -30,16 +30,18 @@ let app : tbox -> tbox -> tbox =
 (** Printing function for terms. *)
 let print_term : out_channel -> term -> unit =
   let open Printf in
-  let rec print (p : [`Atm | `App | `Fun]) oc t =
+  let rec print ctx (p : [`Atm | `App | `Fun]) oc t =
     match (t, p) with
     | (Var(x)  , _   ) -> output_string oc (Bindlib.name_of x)
-    | (Abs(b)  , `Fun) -> let (x, t) = Bindlib.unbind b in
-                          fprintf oc "λ%s.%a" (Bindlib.name_of x) (print p) t
+    | (Abs(b)  , `Fun) -> let (x, t,ctx) = Bindlib.unbind_in ctx b in
+                          fprintf oc "λ%s.%a" (Bindlib.name_of x)
+                                              (print ctx p) t
     | (App(t,u), `Fun)
-    | (App(t,u), `App) -> fprintf oc "%a %a" (print `App) t (print `Atm) u
-    | (_       , _   ) -> fprintf oc "(%a)" (print `Fun) t
+      | (App(t,u), `App) -> fprintf oc "%a %a" (print ctx `App) t
+                                               (print ctx `Atm) u
+    | (_       , _   ) -> fprintf oc "(%a)" (print ctx `Fun) t
   in
-  print `Fun
+  print Bindlib.empty_ctxt `Fun
 
 (** Weak head normalization function. *)
 let wh_norm : term -> term = fun t ->

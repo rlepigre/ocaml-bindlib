@@ -30,16 +30,18 @@ let app : tbox -> tbox -> tbox =
 (** Printing function for terms. *)
 let print_term : out_channel -> term -> unit =
   let open Printf in
-  let rec print (p : [`Atm | `App | `Fun]) oc t =
+  let rec print ctx (p : [`Atm | `App | `Fun]) oc t =
     match (t, p) with
     | (Var(x)  , _   ) -> output_string oc (Bindlib.name_of x)
-    | (Abs(b)  , `Fun) -> let (x, t) = Bindlib.unbind b in
-                          fprintf oc "λ%s.%a" (Bindlib.name_of x) (print p) t
+    | (Abs(b)  , `Fun) -> let (x, t,ctx) = Bindlib.unbind_in ctx b in
+                          fprintf oc "λ%s.%a" (Bindlib.name_of x)
+                                              (print ctx p) t
     | (App(t,u), `Fun)
-    | (App(t,u), `App) -> fprintf oc "%a %a" (print `App) t (print `Atm) u
-    | (_       , _   ) -> fprintf oc "(%a)" (print `Fun) t
+      | (App(t,u), `App) -> fprintf oc "%a %a" (print ctx `App) t
+                                               (print ctx `Atm) u
+    | (_       , _   ) -> fprintf oc "(%a)" (print ctx `Fun) t
   in
-  print `Fun
+  print Bindlib.empty_ctxt `Fun
 
 (** Weak head normalization function. *)
 let wh_norm : term -> term = fun t ->
@@ -90,7 +92,7 @@ let zero  = Bindlib.unbox (f >>= (x >>= !!x))
 let tfls  = Bindlib.unbox (t >>= (f >>= !!f))
 let ttru  = Bindlib.unbox (t >>= (f >>= !!t))
 let delta_fix
-          = (x >>= (f >>= (app (app !!x !!f) (app !!x !!f))))
+          = (x >>= (f >>= app !!f (app2 !!x !!x !!f)))
 let fix   = Bindlib.unbox (app delta_fix delta_fix)
 
 let succ  =
@@ -103,28 +105,37 @@ let plus  = Bindlib.unbox
 
 let mult  = Bindlib.unbox
               (bb1 fix (r >>= (n >>= (m >>= (
-                   app2 !!n (p >>= bb2 plus (app2 !!r !!m !!p) !!n) (bb zero))))))
+                   app2 !!n (p >>= bb2 plus (app2 !!r !!m !!p) !!m) (bb zero))))))
 
 let pred  = Bindlib.unbox
-              (app2 !!n (p >>= !!p) (bb zero))
+              (n >>= (app2 !!n (p >>= !!p) (bb zero)))
+
+let iter = Bindlib.unbox
+             (bb1 fix (r >>= (n >>= (f >>= (x >>= (
+                   app2 !!n (p >>= app !!f (app2 (app !!r !!p) !!f !!x)) !!x))))))
 
 let ch_2   = App(succ, App(succ, zero))
-let ch_4   = App(ch_2, ch_2)
+let ch_4   = App(App(mult,ch_2), ch_2)
 let ch_8   = App(App(plus, ch_4), ch_4)
 let ch_10  = App(App(plus, ch_2), ch_8)
 let ch_100 = App(App(mult, ch_10), ch_10)
 let ch_1000= App(App(mult, ch_100), ch_10)
+let ch_10000= App(App(mult, ch_100), ch_100)
+let ch_1000000= App(App(mult, ch_1000), ch_1000)
 
 let bench () =
+  let res  = norm (App(pred,ch_4)) in
+  Printf.printf "Result: %a\n%!" print_term res;
   let fh = App(App(mult, ch_4), ch_100 ) in
   let ft = App(App(mult, ch_4), ch_1000) in
-  let res = norm (App(App(ft, pred), ft)) in
+  let res = norm (App(App(App(iter,ft), pred), ft)) in
   Printf.printf "Result: %a\n%!" print_term res;
-  (*let res = norm (App(App(mult, fh), ch_1000)) in
-  Printf.printf "Result: %a\n%!" print_term res;*)
   let _ = norm (App(App(mult, fh), ch_100)) in
   Printf.printf "Result: ...\n%!";
-  let _ = norm (App(App(mult, fh), ch_1000)) in
+  let _ = norm (App(App(mult, fh), fh)) in
+  Printf.printf "Result: ...\n%!";
+  let res = norm (App(App(App(iter,ch_10000),pred),ch_10000)) in
+  Printf.printf "Result: %a\n%!" print_term res;
   Printf.printf "Minor words: %f\n%!" Gc.((stat ()).minor_words -. top0)
 
 let _ = bench ()
