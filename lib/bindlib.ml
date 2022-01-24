@@ -67,8 +67,7 @@ module Env :
 (** In the internals, variables are identified by a unique [int] key. Closures
     are then formed by mapping free variables in an [Env.t]. The [varpos] type
     associates, to each variable, its index in the [Env.t]. *)
-type varinf = int
-type varpos = varinf IMap.t
+type varpos = int IMap.t
 
 (** A closure of type ['a] is represented as a function taking as input a  map
     ([varpos]) and an environment ([Env.t]). *)
