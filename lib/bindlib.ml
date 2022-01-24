@@ -430,12 +430,12 @@ let mbinder_occurs : ('a,'b) mbinder -> bool array = fun b -> b.mb_binds
 (** [mbinder_constant b] indicates whether the [mbinder] [b] is constant. This
     means that none of its variables are used. *)
 let mbinder_constant : ('a,'b) mbinder -> bool =
-  fun b -> Array.fold_left (||) false b.mb_binds
+  fun b -> not (Array.fold_left (||) false b.mb_binds)
 
 (** [mbinder_closed b] indicates whether [b] is closed. *)
 let mbinder_closed : ('a,'b) mbinder -> bool = fun b -> b.mb_rank = 0
 
-(* [mbinder_rank b] gives the number of free variables contained in [b]. *)
+(** [mbinder_rank b] gives the number of free variables contained in [b]. *)
 let mbinder_rank : ('a,'b) mbinder -> int = fun b -> b.mb_rank
 
 (** [dummy_box] can be used for initialising structures like arrays. Note that
