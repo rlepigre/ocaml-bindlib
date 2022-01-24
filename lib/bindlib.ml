@@ -466,7 +466,7 @@ let mbinder_constant : ('a,'b) mbinder -> bool =
 (** [mbinder_closed b] indicates whether [b] is closed. *)
 let mbinder_closed : ('a,'b) mbinder -> bool = fun b -> b.mb_rank = 0
 
-(* [mbinder_rank b] gives the number of free variables contained in [b]. *)
+(** [mbinder_rank b] gives the number of free variables contained in [b]. *)
 let mbinder_rank : ('a,'b) mbinder -> int = fun b -> b.mb_rank
 
 (** [dummy_box] can be used for initialising structures like arrays. Note that
