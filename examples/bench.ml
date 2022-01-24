@@ -115,11 +115,11 @@ let bench () =
   Printf.printf "Result: %a\n%!" print_term res;
   (*let res = norm (App(App(mult, fh), ch_1000)) in
   Printf.printf "Result: %a\n%!" print_term res;*)
-  (*let _ = norm (App(App(mult, fh), ch_1000)) in*)
   let _ = norm (App(App(mult, fh), ch_100)) in
-  Printf.printf "Result: ...\n%!"
-  (*
+  Printf.printf "Result: ...\n%!";
+  let _ = norm (App(App(mult, fh), ch_1000)) in
+  let zz = norm (App(App(ch_1000,pred),ch_1000)) in
+  Printf.printf "Result: %a\n%!" print_term zz;
   Printf.printf "Top heap: %d\n%!" Gc.((stat ()).top_heap_words)
-  *)
 
 let _ = bench ()
