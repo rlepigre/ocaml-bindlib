@@ -10,7 +10,7 @@ type term =
   | Abs of (term, term) binder
   | App of term * term
 
-(* Evaluation function. *)
+(* Call-by-name evaluation function. *)
 let rec eval : term -> term = fun t ->
   match t with
   | App(f,a) ->
