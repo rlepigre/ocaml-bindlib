@@ -23,9 +23,6 @@ module IMap = Map.Make(
 (** Maps with [string] keys. *)
 module SMap = Map.Make(String)
 
-(** Type of anything. *)
-type any = Obj.t
-
 (** An environment is used to store the value of every bound variables. We use
     the [Obj] module to store variables with potentially different types in  a
     single array. However, this module is only used in a safe way. *)
@@ -56,7 +53,7 @@ module Env :
     val set_next_free : t -> int -> unit
   end =
   struct
-    type t = {tab : any array; mutable next_free : int}
+    type t = {tab : Obj.t array; mutable next_free : int}
     let create ?(next_free=0) size =
       {tab = Array.make size (Obj.repr ()); next_free}
     let set env i e = Array.set env.tab i (Obj.repr e)
@@ -102,7 +99,7 @@ let (<*>) : ('a -> 'b) closure -> 'a closure -> 'b closure =
 type 'a box =
   | Box of 'a
   (* Element of type ['a] with no free variable. *)
-  | Env of any var list * int * 'a closure
+  | Env of any_var list * int * 'a closure
   (* Element of type ['a] with free variables stored in an environment. *)
 
 (** Note that in [Env(vs,nb,t)] we store the list [vs] of every free variables
@@ -121,7 +118,11 @@ and 'a var =
   { var_key         : int          (* Unique identifier.                *)
   ; var_name        : string       (* Name as a free variable (prefix). *)
   ; var_mkfree      : 'a var -> 'a (* Function to build a term.         *)
-  ; mutable var_box : 'a box       (* Bindbox containing the variable.  *) }
+  ; var_box : 'a box       (* Bindbox containing the variable.  *) }
+
+(** Variable of any type (using an existential). *)
+and any_var = V : 'a var -> any_var (* [@@ocaml.unboxed] *)
+(* FIXME the unboxed tag above is rejected due to an OCaml bug. *)
 
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
@@ -158,23 +159,24 @@ let box_var : 'a var -> 'a box = fun x -> x.var_box
 
 (** [merge_uniq l1 l2] merges two sorted lists of variables that must not have
     any repetitions. The produced list does not have repetition either. *)
-let merge_uniq : any var list -> any var list -> any var list =
+let merge_uniq : any_var list -> any_var list -> any_var list =
   let rec merge_uniq acc l1 l2 =
     match (l1, l2) with
-    | ([]   , _    ) -> List.rev_append acc l2
-    | (_    , []   ) -> List.rev_append acc l1
-    | (x::xs, y::ys) when x.var_key = y.var_key -> merge_uniq (x::acc) xs ys
-    | (x::xs, y::_ ) when x.var_key < y.var_key -> merge_uniq (x::acc) xs l2
-    | (_::_ , y::ys) (*x.var_key > y.var_key*)  -> merge_uniq (y::acc) l1 ys
+    | ([]              , _               ) -> List.rev_append acc l2
+    | (_               , []              ) -> List.rev_append acc l1
+    | ((V(x) as vx)::xs, (V(y) as vy)::ys) ->
+        if x.var_key = y.var_key then merge_uniq (vx::acc) xs ys else
+        if x.var_key < y.var_key then merge_uniq (vx::acc) xs l2 else
+        (* x.var_key > y.var_key*)    merge_uniq (vy::acc) l1 ys
   in merge_uniq []
 
 (** [remove x l] removes variable [x] from the list [l]. If [x] is not in [l],
     then the exception [Not_found] is raised. *)
-let remove : 'a var -> any var list -> any var list = fun {var_key ; _} ->
+let remove : 'a var -> any_var list -> any_var list = fun {var_key ; _} ->
   let rec remove acc = function
-    | v::l when v.var_key < var_key -> remove (v::acc) l
-    | v::l when v.var_key = var_key -> List.rev_append acc l
-    | _                             -> raise Not_found
+    | (V(x) as v)::l when x.var_key < var_key -> remove (v::acc) l
+    | (V(x)     )::l when x.var_key = var_key -> List.rev_append acc l
+    | _                                       -> raise Not_found
   in remove []
 
 (** [minimize vs n cl] builds a minimal closure that is equivalent to [cl] and
@@ -188,13 +190,13 @@ let minimize_aux tab n t = fun env ->
   let new_env = Env.create ~next_free:size (size + n) in
   Array.iteri (fun i x -> Env.set new_env i (Env.get x env)) tab;
   t new_env
-let minimize : any var list -> int -> 'a closure -> 'a closure = fun vs n t ->
+let minimize : any_var list -> int -> 'a closure -> 'a closure = fun vs n t ->
   if n = 0 then t else
   fun vp ->
     let size = List.length vs in
     let tab = Array.make size 0 in
     let prefix = ref true in
-    let f (new_vp, i) var =
+    let f (new_vp, i) (V(var)) =
       let j = IMap.find var.var_key vp in
       prefix := !prefix && i = j; tab.(i) <- j;
       (IMap.add var.var_key i new_vp, i+1)
@@ -225,7 +227,7 @@ let apply_box : ('a -> 'b) box -> 'a box -> 'b box = fun f a ->
 let occur : 'a var -> 'b box -> bool = fun v b ->
   match b with
   | Box(_)      -> false
-  | Env(vs,_,_) -> List.exists (eq_vars v) vs
+  | Env(vs,_,_) -> List.exists (fun (V(x)) -> x.var_key = v.var_key) vs
 
 (** [is_closed b] checks whether the [box] [b] is closed. *)
 let is_closed : 'a box -> bool = fun b ->
@@ -254,7 +256,7 @@ let box_opt o =
   | Some(e) -> box_apply (fun e -> Some(e)) e
 
 (** Type of the data collected by the [gather_data] utility function. *)
-type data = bool * any var list * int
+type data = bool * any_var list * int
 
 (** [gather_data acc b] collects some data about a [box] [b]. The informations
     obtained contain a boolean indicating whether the binding box is formed of
@@ -365,7 +367,7 @@ let unbox : 'a box -> 'a = fun b ->
       let nbvs = List.length vs in
       let env = Env.create ~next_free:nbvs (nbvs + nb) in
       let cur = ref 0 in
-      let fn vp x =
+      let fn vp (V(x)) =
         let i = !cur in incr cur;
         Env.set env i (x.var_mkfree x);
         IMap.add x.var_key i vp
@@ -444,17 +446,16 @@ let dummy_box : 'a box =
   let fail _ = failwith "Invalid use of dummy_box" in
   Env([], 0, fail)
 
-(** This is safe as we can not go in the opposite direction *)
-let to_any : 'a var -> any var = Obj.magic
-
 (** [build_var key mkfree name] initialises a new ['a var] structure using the
     given data, and updates the [var_box] field accordingly. *)
 let build_var_aux key vp = Env.get (IMap.find key vp)
 let build_var : int ->  ('a var -> 'a) -> string -> 'a var =
   fun var_key var_mkfree name ->
-    let var_box = Env([], 0, fun _ -> assert false) in
-    let x = {var_key; var_name = name; var_mkfree; var_box} in
-    x.var_box <- Env([to_any x], 0, build_var_aux var_key); x
+    let (var_prefix, var_suffix) = split_name name in
+    let rec x =
+      let var_box = Env([V x], 0, build_var_aux var_key) in
+      {var_key; var_name=name; var_mkfree; var_box}
+    in x
 
 (** [new_var mkfree name] create a new free variable using a wrapping function
     [mkfree] and a default [name]. *)
@@ -512,14 +513,14 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
   | Env(vs,n,t) ->
       try
         match vs with
-        | [y] ->
+        | [V(y)] ->
             if x.var_key <> y.var_key then raise Not_found;
             (* The variable to bind is the last one. *)
             let r = 0 in
             let t = t (IMap.singleton x.var_key r) in
             let value = bind_var_aux1 n t in
             Box(build_binder x 0 true value)
-        | _   ->
+        | _      ->
             let vs = remove x vs in
             (* General case. *)
             let cl vp =
