@@ -174,43 +174,45 @@ type ctxt
 val empty_ctxt : ctxt
 
 (** [new_var_in ctxt mkfree name] is similar to [new_var mkfree name], but the
-    variable names is chosen not to collide with the context [ctxt]. Note that
-    the context that is returned contains the new variable name. *)
+    name actually used for the newly created variable is chosen to not collide
+    with the variables of context [ctxt]. Said otherwise, argument [name] only
+    gives a preferred name: if it is not available then a fresh name is picked
+    by appending a decimal number at the end of [name]. Moreover, the obtained
+    variable has a name that is safe for printing (see [name_of]), at least as
+    long as binders are not substituted in objects containing it. Finally, the
+    context that is returned is extended to contain the new variable name. *)
 val new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt
 
 (** [new_mvar_in ctxt mkfree names] is similar to [new_mvar mkfree names], but
-    it handles the context (see [new_var_in]). *)
+    it handles renaming based on context [ctxt] (see [new_var_in]). *)
 val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
 
 (** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
     explained in the documentation of [new_mvar_in]. This function can be used
     for maintaining correct names in printing functions: it is safe to use the
-    [name_of] function on the returned variable. *)
+    [name_of] function on the returned variable (as long as no substitution is
+    performed in the involved objects, see [new_var_in]). *)
 val unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt
 
-(** [unbind2_in ctxt b] is similar to  [unbind2 b], but it handles the context
-   as explained  in the documentation  of [new_mvar_in]. This function  can be
-   used for maintaining correct names in printing functions: it is safe to use
-   the [name_of] function on the returned variable. *)
-val unbind2_in : ctxt -> ('a,'b) binder -> ('a,'c) binder ->
-                 'a var * 'b * 'c * ctxt
+(** [unbind2_in ctxt f g] is similar to [unbind2 f g], but handles the context
+    as explained in the documentation of [new_mvar_in] and [unbind_in]. *)
+val unbind2_in : ctxt -> ('a,'b) binder -> ('a,'c) binder
+  -> 'a var * 'b * 'c * ctxt
 
 (** [unmbind_in ctxt b] is similar to [unmbind b],  but it handles the context
     as is explained in the documentation of [new_mvar_in]. As [unbind_in], the
     [unmbind_in] function can be used to implement printing functions. *)
 val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
 
-(**  [unmbind2_in ctxt  b] is  similar  to [unmbind2  b], but  it handles  the
-   context  as  is  explained  in   the  documentation  of  [new_mvar_in].  As
-   [unbind_in], the  [unmbind_in] function can  be used to  implement printing
-   functions. *)
-val unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder ->
-                  'a mvar * 'b * 'c * ctxt
+(** [unmbind2_in ctxt f g] is similar to [unmbind2 f g], but it uses a context
+    similrly to [new_mvar_in] or [unmbind_in]. *)
+val unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder
+  -> 'a mvar * 'b * 'c * ctxt
 
-(** Going back to our lambda-calculus example, the [unbind_in] function can be
-    used to implement the following function transforming a lambda-term into a
-    [string]. Here, it is safe to use [name_of] to print variables names since
-    using [unbind_in] ensures that variable names do not collide.
+(** Going back to our λ-calculus example, the [unbind_in] function can be used
+    to implement the following function transforming a λ-term into a [string].
+    Here, thanks to the use of [unbind_in], it is safe to rely on [name_of] to
+    print variables.
     {[ let to_string : term -> string = fun t ->
          let rec to_string ctxt t =
            match t with
@@ -228,14 +230,14 @@ val unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder ->
 (** To obtain fast substitutions,  a price must be paid at the construction of
     terms. Indeed,  binders (i.e., element of type [('a,'b) binder]) cannot be
     defined directly. Instead, they are put together in the type ['a box].  It
-    correspond to a term of type ['a] which free variables may be bound in the
-    future. *)
+    correspond to a term of type ['a] whose free variables may be bound. *)
 
 (** Type of a term of type ['a] under construction. Using this representation,
-    the free variable of the term can be bound easily. *)
+    the free variables of the term can be bound easily. *)
 type +'a box
 
-(** [box_var x] builds a ['a box] from the ['a var] [x]. *)
+(** [box_var x] injects variable [x] into the ['a box] type, so that it can be
+    bound using [bind_var]. *)
 val box_var : 'a var -> 'a box
 
 (** [box e] injects the value [e] into the ['a box] type,  assuming that it is
@@ -246,24 +248,24 @@ val box : 'a -> 'a box
 (** [apply_box bf ba] applies the boxed function [bf] to a boxed argument [ba]
     inside the [box] type.  This function is used to build new expressions  by
     applying a function with free variables to an argument with free variables
-    (the ['a box] type is an applicative functor which application operator is
-    [apply_box], and which unit is [box]). *)
+    (the ['a box] type is an applicative functor whose application operator is
+    [apply_box], and whose unit is [box]). *)
 val apply_box : ('a -> 'b) box -> 'a box -> 'b box
 
 (** [box_apply f ba] applies the function [f] to a boxed argument [ba].  It is
     equivalent to [apply_box (box f) ba], but is more efficient. *)
 val box_apply : ('a -> 'b) -> 'a box -> 'b box
 
-(** [box_apply2 f ba bb] applies the function [f] to two boxed arguments  [ba]
+(** [box_apply2 f ba bb] applies the function [f] to two boxed arguments: [ba]
     and [bb]. It is equivalent to [apply_box (apply_box (box f) ba) bb] but it
     is more efficient. *)
 val box_apply2 : ('a -> 'b -> 'c) -> 'a box -> 'b box -> 'c box
 
 (** [bind_var x b] binds the variable [x] in [b], producing a boxed binder. *)
-val bind_var  : 'a var  -> 'b box -> ('a, 'b) binder box
+val bind_var : 'a var -> 'b box -> ('a, 'b) binder box
 
 (** [bind_mvar xs b] binds the variables of [xs] in [b] to get a boxed binder.
-    It is the equivalent of [bind_var] for multiple variables. *)
+    It is the equivalent of [bind_var] to build a multiple binder. *)
 val bind_mvar : 'a mvar -> 'b box -> ('a, 'b) mbinder box
 
 (** [box_binder f b] boxes the binder [b] using the boxing function [f].  Note
@@ -271,7 +273,7 @@ val bind_mvar : 'a mvar -> 'b box -> ('a, 'b) mbinder box
     In that case, the function [f] is not used at all. *)
 val box_binder : ('b -> 'b box) -> ('a,'b) binder -> ('a,'b) binder box
 
-(** [box_mbinder f b] boxes the multiple binder [b] using the boxings function
+(** [box_mbinder f b] boxes the multiple binder [b] using the boxing  function
     [f]. Note that if [b] is closed then it is immediately boxed (with [box]),
     without relying on [f] at all. *)
 val box_mbinder : ('b -> 'b box) -> ('a,'b) mbinder -> ('a,'b) mbinder box
@@ -289,11 +291,11 @@ val box_mbinder : ('b -> 'b box) -> ('a,'b) mbinder -> ('a,'b) mbinder box
        let app : term box -> term box -> term box =
          fun t u -> box_apply2 (fun t u -> App(t,u)) t u ]} *)
 
-(** [unbox e] can be called when the construction of a term is finished (e.g.,
-    when the desired variables have all been bound). *)
+(** [unbox e] can be called when the construction of a term is finished (i.e.,
+    when the desired variable bindings have been created). *)
 val unbox : 'a box -> 'a
 
-(** We can then easily define terms of the lambda-calculus as follows.
+(** We can then easily define terms of the λ-calculus as follows.
     {[ let id    : term = (* λx.x *)
          let x = new_var "x" mkfree in
          unbox (abs x (var x))
@@ -345,32 +347,28 @@ val box_pair : 'a box -> 'b box -> ('a * 'b) box
 val box_triple : 'a box -> 'b box -> 'c box -> ('a * 'b * 'c) box
 
 (** Type of a module equipped with a [map] function. *)
-module type Map =
-  sig
-    type 'a t
-    val map : ('a -> 'b) -> 'a t -> 'b t
-  end
+module type Map = sig
+  type 'a t
+  val map : ('a -> 'b) -> 'a t -> 'b t
+end
 
 (** Functorial interface used to build lifting functions for any type equipped
     with a [map] function. In other words,  this function can be used to allow
     the permutation of the ['a box] type with another type constructor. *)
-module Lift(M : Map) :
-  sig
-    val lift_box : 'a box M.t -> 'a M.t box
-  end
+module Lift(M : Map) : sig
+  val lift_box : 'a box M.t -> 'a M.t box
+end
 
 (** Type of a module equipped with a "binary" [map] function. *)
-module type Map2 =
-  sig
-    type ('a, 'b) t
-    val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
-  end
+module type Map2 = sig
+  type ('a, 'b) t
+  val map : ('a -> 'b) -> ('c -> 'd) -> ('a, 'c) t -> ('b, 'd) t
+end
 
 (** Similar to the [Lift] functor, but handles "binary" [map] functions. *)
-module Lift2(M : Map2) :
-  sig
-    val lift_box : ('a box, 'b box) M.t -> ('a, 'b) M.t box
-  end
+module Lift2(M : Map2) : sig
+  val lift_box : ('a box, 'b box) M.t -> ('a, 'b) M.t box
+end
 
 
 (** {2 Attributes of variables and utilities} *)
@@ -378,76 +376,82 @@ module Lift2(M : Map2) :
 
 (** [hash_var x] computes a hash for variable [x]. Note that this function can
     be used with the [Hashtbl] module. *)
-val hash_var  : 'a var -> int
+val hash_var : 'a var -> int
 
 (** [compare_vars x y] safely compares [x] and [y].  Note that it is unsafe to
-    compare variables using [Pervasive.compare]. *)
+    compare variables using [Stdlib.compare]. *)
 val compare_vars : 'a var -> 'b var -> int
 
 (** [eq_vars x y] safely computes the equality of [x] and [y]. Note that it is
-    unsafe to compare variables with the polymorphic equality function. *)
+    unsafe to compare variables with [Stdlib.(=)]. *)
 val eq_vars : 'a var -> 'b var -> bool
 
 
 (** {2 Attributes of binders and utilities} *)
 
 
-(** [binder_name] returns the name of the variable bound by the [binder]. *)
+(** [binder_name b] returns the name of the variable bound by binder [b]. This
+    name is generally not safe for printing, since it is not updated after the
+    binder is created, even when a substitution is performed  (see [unbind_in]
+    and [name_of] to learn how to print terms with binders). *)
 val binder_name : ('a,'b) binder -> string
 
-(** [binder_occur b] tests whether the bound variable occurs in [b]. *)
+(** [binder_occur b] returns a boolean indicating if the variable bound by [b]
+    occurs (i.e., is used). This is a constant time operation. *)
 val binder_occur : ('a,'b) binder -> bool
 
-(** [binder_constant b] tests whether the [binder] [b] is constant (i.e.,  its
-    bound variable does not occur). *)
+(** [binder_constant b] is the same as [not (binder_occur b)]. *)
 val binder_constant : ('a,'b) binder -> bool
 
-(** [binder_closed b] test whether the [binder] [b] is closed (i.e.,  does not
-    contain any free variable). *)
+(** [binder_closed b] indicates whether the [b] is closed (i.e., does not have
+    any free variables). This is a constant time operation. *)
 val binder_closed : ('a,'b) binder -> bool
 
-(** [binder_rank b] gives the number of free variables contained in [b]. *)
+(** [binder_rank b] gives the number of free variables contained in [b].  This
+    is a constant time operation. *)
 val binder_rank : ('a,'b) binder -> int
 
-(** [mbinder_arity b] gives the arity of the [mbinder]. *)
+(** [mbinder_arity b] gives the arity of [b] (i.e., the number of variables it
+    is binding). This is a constant time operation. *)
 val mbinder_arity : ('a,'b) mbinder -> int
 
-(** [mbinder_names b] return the array of the names of the variables bound  by
-    the [mbinder] [b]. *)
+(** [mbinder_names b] returns the names of the variables bound by the multiple
+    binder [b] as an array. Similarly the result of [binder_name], these names
+    are not generally safe for printing. *)
 val mbinder_names : ('a,'b) mbinder -> string array
 
-(** [mbinder_occurs b] returns an array of [bool] indicating if the  variables
-    that are bound occur (i.e., are used). *)
+(** [mbinder_occurs b] returns an array of booleans indicating whether each of
+    the variables that are bound occur (i.e., are used). It is a constant time
+    operation. *)
 val mbinder_occurs : ('a,'b) mbinder -> bool array
 
 (** [mbinder_constant b] indicates whether the [mbinder] [b] is constant. This
     means that none of its variables are used. *)
 val mbinder_constant : ('a,'b) mbinder -> bool
 
-(** [mbinder_closed b] indicates whether [b] is closed. *)
+(** [mbinder_closed b] indicates whether the multiple binder [b] is closed. It
+    is a constant time operation. *)
 val mbinder_closed : ('a,'b) mbinder -> bool
 
-(* [mbinder_rank b] gives the number of free variables contained in [b]. *)
+(** [mbinder_rank b] gives the number of free variables contained in [b]. This
+    is a constant time operation. *)
 val mbinder_rank : ('a,'b) mbinder -> int
 
 
 (** {2 Attributes of binding boxes and utilities} *)
 
 
-(** [is_closed b] checks whether the [box] [b] is closed. *)
+(** [is_closed b] checks whether [b] is closed (in constant time). *)
 val is_closed : 'a box -> bool
 
-(** [occur x b] tells whether variable [x] occurs in the [box] [b]. *)
+(** [occur x b] indicates whether variable [x] occurs in [b].  This is done in
+    linear time with respect to the number of free variables in [b]. *)
 val occur : 'a var -> 'b box -> bool
 
-(** [bind_apply bb barg] substitute the boxed binder [bb] with the boxed value
-    [barb] in the [box] type. This function is useful when working with higher
-    order variables, which may be represented as binders themselves. *)
+(** [bind_apply bb barg] is the same as [box_apply2 subst bb barg]. *)
 val bind_apply : ('a, 'b) binder box -> 'a box -> 'b box
 
-(** [mbind_apply bb bargs] substitute the boxed binder [bb] with a boxed array
-    of values [barbs] in the [box] type.  This function is useful when working
-    with higher order variables. *)
+(** [mbind_apply bb bargs] is the same as [box_apply2 msubst bb bargs]. *)
 val mbind_apply : ('a, 'b) mbinder box -> 'a array box -> 'b box
 
 
