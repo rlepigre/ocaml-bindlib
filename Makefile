@@ -23,6 +23,7 @@ tests:
 benchmarks:
 	@bash -c "time dune exec benchmark/church.exe"
 	@bash -c "time dune exec benchmark/scott.exe"
+	@bash -c "time dune exec benchmark/lambdas.exe"
 .PHONY: benchmarks
 
 promote:
