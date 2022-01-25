@@ -451,7 +451,6 @@ let dummy_box : 'a box =
 let build_var_aux key vp = Env.get (IMap.find key vp)
 let build_var : int ->  ('a var -> 'a) -> string -> 'a var =
   fun var_key var_mkfree name ->
-    let (var_prefix, var_suffix) = split_name name in
     let rec x =
       let var_box = Env([V x], 0, build_var_aux var_key) in
       {var_key; var_name=name; var_mkfree; var_box}
