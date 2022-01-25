@@ -50,8 +50,8 @@ val subst  : ('a,'b) binder -> 'a -> 'b
     "Bad arity in msubst"] is raised. *)
 val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
-(** Comming back to our lambda-calculus example,  we can define the evaluation
-    of a lambda-term as a simple recursive function using [subst].
+(** Comming back to our lambda-calculus example, we can implement call-by-name
+    evaluation as a simple recursive function using [subst].
     {[ let rec eval : term -> term = fun t ->
          match t with
          | App(f,a) ->
@@ -64,30 +64,28 @@ val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
 (** [new_var mkfree name] creates a new variable using a function [mkfree] and
     a [name]. The [mkfree] function is used to inject variables in the type of
-    the corresponding elements. It is a form of syntactic wrapper. Note that a
-    variable name is understood as a couple of a prefix string, and a possible
-    natural number suffix (the longest suffix of [name] formed of digits). For
-    example, the variable name ["xzy"] will have no suffix, and ["xyz12"] will
-    have the prefix ["xyz"] and the suffix [12]. Note that the name ["xyz007"]
-    and ["xyz7"] are considered the same,  and are both shown as the latter by
-    the [name_of] function. *)
+    the corresponding objects: it is a form of syntactic wrapper. *)
 val new_var  : ('a var -> 'a) -> string       -> 'a var
 
-(** [new_mvar mkfree names] creates a new array of variables using a  function
-    [mkfree] (see [new_var]) and  a [name]. *)
+(** [new_mvar mkfree names] creates an array of new variables using a function
+    [mkfree] (see [new_var]) and an array of variable [names]. *)
 val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
 
 (** Following on our example of the lambda-calculus, the [mkfree] function for
     variables of type [term var] could be defined as follows.
     {[ let mkfree : term var -> term = fun x -> Var(x) ]} *)
 
-(** [name_of x] gives the name of the given variable. It avoid captures
-    only if you are using context (type [ctxt] below). Typically, with
-    bindlib, you perform renaming only at printing, not before *)
+(** [name_of x] returns the name corresponding to variable [x]. Note that this
+    name is generally not safe for printing since names are not updated when a
+    substitution is performed. For instance, variables may appear to have been
+    captured in the text representation of a structure with variable bindings.
+    To circumvent this issue, one must be particularly careful when converting
+    binders into text, and rely on contexts (see type [ctxt] below). *)
 val name_of : 'a var -> string
 
-(** [names_of xs] returns names for the variables of [xs]. The same
-    coment as above applies *)
+(** [names_of xs] returns names corresponding to variables [xs]. As when using
+    [name_of], care should be taken when converting objects with bindings into
+    a text representation. *)
 val names_of : 'a mvar -> string array
 
 (** [unbind b] substitutes the binder [b] using a fresh variable. The variable
@@ -137,15 +135,69 @@ val unmbind2 : ('a,'b) mbinder -> ('a,'c) mbinder -> 'a mvar * 'b * 'c
 val eq_mbinder : ('b -> 'b -> bool) -> ('a,'b) mbinder -> ('a,'b) mbinder
   -> bool
 
-(** An usual use of [unbind] is the writing of pretty-printing functions.  The
-    function given bellow transforms a lambda-term into a [string].  Note that
-    the [name_of] function is used for variables.
-    {[ let rec to_string : term -> string = fun t ->
+(** The [unbind] function is often useful for term traversals. For instance, a
+    function computing the size of a lambda-term can be defined as follows.
+    {[ let rec size : term -> string = fun t ->
          match t with
-         | Var(x)   -> name_of x
-         | Abs(b)   -> let (x,t) = unbind b in
-                       "λ" ^ name_of x ^ "." ^ to_string t
-         | App(t,u) -> "(" ^ to_string t ^ ") " ^ to_string u ]} *)
+         | Var(_)   -> 0
+         | Abs(b)   -> let (_,t) = unbind b in
+                       1 + size t
+         | App(t,u) -> 1 + size t + size u ]}
+    Note however that it is not a good idea to define a term-printing function
+    using a combination of [unbind] and [name_of]. Indeed, as explained in the
+    documentation of [name_of], contexts must be used to ensure that displayed
+    variable names are correct. *)
+
+
+(** {2 Working in a context and variable printing} *)
+
+
+(** For variable substitution to be as fast as possible, the [Bindlib] library
+    does not do any work to maintain variable names at substitution time. This
+    work is instead delayed until it becomes necessary: at the time of turning
+    objects with binders into a textual representation (e.g., for printing the
+    result of a computation). Such operations must hence maintain a context of
+    variable names using the functions of this section. *)
+
+(** Type of a context. *)
+type ctxt
+
+(** [empty_ctxt] denotes the empty context. *)
+val empty_ctxt : ctxt
+
+(** [new_var_in ctxt mkfree name] is similar to [new_var mkfree name], but the
+    variable names is chosen not to collide with the context [ctxt]. Note that
+    the context that is returned contains the new variable name. *)
+val new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt
+
+(** [new_mvar_in ctxt mkfree names] is similar to [new_mvar mkfree names], but
+    it handles the context (see [new_var_in]). *)
+val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
+
+(** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
+    explained in the documentation of [new_mvar_in]. This function can be used
+    for maintaining correct names in printing functions: it is safe to use the
+    [name_of] function on the returned variable. *)
+val unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt
+
+(** [unmbind_in ctxt b] is similar to [unmbind b],  but it handles the context
+    as is explained in the documentation of [new_mvar_in]. As [unbind_in], the
+    [unmbind_in] function can be used to implement printing functions. *)
+val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
+
+(** Going back to our lambda-calculus example, the [unbind_in] function can be
+    used to implement the following function transforming a lambda-term into a
+    [string]. Here, it is safe to use [name_of] to print variables names since
+    using [unbind_in] ensures that variable names do not collide.
+    {[ let to_string : term -> string = fun t ->
+         let rec to_string ctxt t =
+           match t with
+           | Var(x)   -> name_of x
+           | Abs(b)   -> let (x,t,ctxt) = unbind_in ctxt b in
+                         "λ" ^ name_of x ^ "." ^ to_string ctxt t
+           | App(t,u) -> "(" ^ to_string ctxt t ^ ") " ^ to_string ctxt u
+         in
+         to_string empty_ctxt t ]} *)
 
 
 (** {2 Constructing terms and binders in the binding box} *)
@@ -377,39 +429,10 @@ val bind_apply : ('a, 'b) binder box -> 'a box -> 'b box
 val mbind_apply : ('a, 'b) mbinder box -> 'a array box -> 'b box
 
 
-(** {2 Working in a context} *)
+(** {2 Custom context and variable renaming} *)
 
 
-(** It is mandatory to work in a context to print variables without name clash,
-   The [Bindlib] library provides a type of contexts, together with functions
-   for creating variables and for binding variables in a context. *)
-
-(** Type of a context. *)
-type ctxt
-
-(** [empty_ctxt] denotes the empty context. *)
-val empty_ctxt : ctxt
-
-(** [new_var_in ctxt mkfree name] is similar to [new_var mkfree name], but the
-    variable names is chosen not to collide with the context [ctxt]. Note that
-    the context that is returned contains the new variable name. *)
-val new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt
-
-(** [new_mvar_in ctxt mkfree names] is similar to [new_mvar mkfree names], but
-    it handles the context (see [new_var_in]). *)
-val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
-
-(** [unbind_in ctxt b] is similar to [unbind b], but it handles the context as
-   explained in the documentation of [new_mvar_in]. If you want to print terms
-   in a accurate way while traversing them, you must use unbind_in and
-   unmbind_in *)
-val unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt
-
-(** [unmbind_in ctxt b] is like [unmbind b],  but it handles the context as is
-    explained in the documentation of [new_mvar_in]. *)
-val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
-
-(** Record controling renaming policy *)
+(** Record controlling renaming policy *)
 type renaming_policy = {
    reset_context_for_closed_term : bool;
     (** If true, contexts are reset to empty when using [unbind_in] or
@@ -481,6 +504,7 @@ For names, it splits variables in [(prefix,suffix)] where [suffix] is the
    not in the context. When the [suffix] is empty it is replaced by the first
    positive integers. Leading zeros are not preserved in suffix. *)
 module Default_Renaming : Renaming
+
 
 (** {2 Unsafe, advanced features} *)
 
