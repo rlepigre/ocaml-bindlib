@@ -3,3 +3,17 @@
  (public_name bindlib)
  (synopsis "An efficient representation of binders")
  (wrapped false))
+
+(rule
+	(targets bindlib.ml)
+	(deps bindlib.mlp)
+	(enabled_if
+          (>= %{ocaml_version} 4.11.0))
+	(action (copy bindlib.mlp bindlib.ml)))
+
+(rule
+	(targets bindlib.ml)
+	(deps bindlib.mlp)
+	(enabled_if
+          (< %{ocaml_version} 4.11.0))
+	(action (bash "sed 's/\\[@@unboxed\\]//' bindlib.mlp > bindlib.ml")))
