@@ -10,7 +10,7 @@ type term =
   | Abs of (term, term) binder
   | App of term * term
 
-(* Evaluation function. *)
+(* Call-by-name evaluation function. *)
 let rec eval : term -> term = fun t ->
   match t with
   | App(f,a) ->
@@ -26,14 +26,14 @@ let mkfree : term var -> term = fun x -> Var(x)
 
 (* Conversion of a λ-term into a [string]. *)
 let to_string : term -> string = fun t ->
-  let rec fn ctxt t =
+  let rec to_string ctxt t =
     match t with
     | Var(x)   -> name_of x
     | Abs(b)   -> let (x,t,ctxt) = unbind_in ctxt b in
-                  "λ" ^ name_of x ^ "." ^ fn ctxt t
-    | App(t,u) -> "(" ^ fn ctxt t ^ ") " ^ fn ctxt u
+                  "λ" ^ name_of x ^ "." ^ to_string ctxt t
+    | App(t,u) -> "(" ^ to_string ctxt t ^ ") " ^ to_string ctxt u
   in
-  fn empty_ctxt t
+  to_string empty_ctxt t
 
 (* Smart constructors. *)
 let var : term var -> term box =
