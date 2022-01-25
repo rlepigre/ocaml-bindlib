@@ -2,4 +2,5 @@
  (name bindlib)
  (public_name bindlib)
  (synopsis "An efficient representation of binders")
+ (preprocess (pps ppx_optcomp))
  (wrapped false))

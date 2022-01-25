@@ -92,6 +92,11 @@ let apply_closure_aux f a = fun env -> f env (a env)
 let (<*>) : ('a -> 'b) closure -> 'a closure -> 'b closure =
   fun clf cla vs -> apply_closure_aux (clf vs) (cla vs)
 
+(* The unboxed  tag below is rejected due to an OCaml  bug. This bug was
+   fixed in 4.11.0. *)
+
+[%%if ocaml_version < (4,11,0)]
+
 (** Elements of the type ['a] with bound variables are constructed in the type
     ['a box]. A free variable can only be bound under this constructor. Hence,
     an element of type ['a box] can be understood as an element of  type  ['a]
@@ -121,9 +126,23 @@ and 'a var =
   ; var_box    : 'a box       (* Bindbox containing the variable. *) }
 
 (** Variable of any type (using an existential). *)
-and any_var = V : 'a var -> any_var (* [@@ocaml.unboxed] *)
-(* FIXME the unboxed  tag above is rejected due to an OCaml  bug. This bug was
-   fixed in 4.11.0. *)
+and any_var = V : 'a var -> any_var
+
+[%%else]
+
+type 'a box =
+  | Box of 'a
+  (* Element of type ['a] with no free variable. *)
+  | Env of any_var list * int * 'a closure
+  (* Element of type ['a] with free variables stored in an environment. *)
+and 'a var =
+  { var_key    : int          (* Unique identifier.               *)
+  ; var_name   : string       (* Name as a free variable.         *)
+  ; var_mkfree : 'a var -> 'a (* Function to build a term.        *)
+  ; var_box    : 'a box       (* Bindbox containing the variable. *) }
+and any_var = V : 'a var -> any_var [@@unboxed]
+
+[%%endif]
 
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array

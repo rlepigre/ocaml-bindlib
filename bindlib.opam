@@ -20,6 +20,7 @@ dev-repo: "git+https://github.com/rlepigre/ocaml-bindlib.git"
 depends: [
   "ocaml" { >= "4.02.0" }
   "dune"  { >= "2.7.0" }
+  "ppx_optcomp" { build }
 ]
 
 build: [
