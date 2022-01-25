@@ -121,7 +121,7 @@ and 'a var =
   ; var_box : 'a box       (* Bindbox containing the variable.  *) }
 
 (** Variable of any type (using an existential). *)
-and any_var = V : 'a var -> any_var (* [@@ocaml.unboxed] *)
+and any_var = V : 'a var -> any_var [@@ocaml.unboxed]
 (* FIXME the unboxed tag above is rejected due to an OCaml bug. *)
 
 (** Type of an array of variables of type ['a]. *)
