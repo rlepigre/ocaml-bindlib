@@ -28,7 +28,6 @@ jobs:
         run: |
           eval $(opam env)
           opam update
-          opam install dune
           opam upgrade
           opam pin add -n -k path bindlib .
           opam install --deps-only -d -t bindlib
