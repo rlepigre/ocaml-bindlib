@@ -31,7 +31,7 @@ jobs:
           eval $(opam env)
           opam update
           opam upgrade
-	  opam install dune
+          opam install dune
           opam pin add -n -k path bindlib .
           opam install --deps-only -d -t bindlib
       - name: "Running tests..."
