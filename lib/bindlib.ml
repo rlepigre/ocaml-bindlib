@@ -122,7 +122,8 @@ and 'a var =
 
 (** Variable of any type (using an existential). *)
 and any_var = V : 'a var -> any_var (* [@@ocaml.unboxed] *)
-(* FIXME the unboxed tag above is rejected due to an OCaml bug. *)
+(* FIXME the unboxed  tag above is rejected due to an OCaml  bug. This bug was
+   fixed in 4.11.0. *)
 
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
