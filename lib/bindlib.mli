@@ -1,6 +1,6 @@
 (** The [Bindlib] library provides support for free and bound variables in the
-    OCaml language. The main application is the construction of abstract types
-    containing a binding structure (e.g., abstract syntax trees).
+    OCaml language. The main application is the representation of types with a
+    binding structure (e.g., abstract syntax trees).
 
     @author Christophe Raffalli
     @author Rodolphe Lepigre
@@ -11,12 +11,11 @@
 
 
 (** The [Bindlib] library provides two type constructors for building abstract
-    syntax trees: ['a var] and [('a,'b) binder]. Intuitively, ['a var] will be
-    a representation for a free variable of type ['a],  and [('a,'b) binder] a
-    representation for a term of type ['b] depending on a variable  (or value)
-    of type ['a] (type [('a,'b) binder] can be seen as ['a -> 'b]).  Note that
-    types ['a mvar] and [('a,'b) mbinder] are provided for handling arrays  of
-    variables. *)
+    syntax trees: type ['a var] representing a free variable of type ['a], and
+    type [('a,'b) binder] representing a binding of a variable of type ['a] in
+    a value of type ['b]. Intuitively, type [('a,'b) binder] can be thought of
+    as ['a -> 'b]. Types ['a mvar] and [('a,'b) mbinder] are also provided for
+    handling arrays of variables more efficiently. *)
 
 (** Type of a free variable of type ['a]. *)
 type 'a var
@@ -24,34 +23,36 @@ type 'a var
 (** Type of an array of variables of type ['a]. *)
 type 'a mvar = 'a var array
 
-(** Type of a binder for an element of type ['a] into an element of type ['b].
+(** Type of a binder for a variable of type ['a] into an element of type ['b].
     In terms of higher order abstract syntax, it can be seen as ['a -> 'b]. *)
 type ('a,'b) binder
 
-(** Type of a binder for an array of elements of type ['a] into an element  of
-    type ['b]. *)
+(** Type of a binder for an array of variables of type ['a] into an element of
+    type ['b]. This representation is more efficient than a nesting of binders
+    of type [('a,'b) binder], but substitution can only be performed the whole
+    array of variables at once. *)
 type ('a,'b) mbinder
 
-(** As an example, we give bellow the definition of a simple representation of
-    the terms of the lambda-calculus.
+(** As an example, a type representing the terms of the pure λ-calculus can be
+    defined as follows using types ['a var] and [('a,'b) binder].
     {[ type term =
          | Var of term var
          | Abs of (term, term) binder
          | App of term * term ]} *)
 
 (** [subst b v] substitutes the variable bound by [b] with the value [v]. This
-    is a very efficient operation. *)
-val subst  : ('a,'b) binder -> 'a -> 'b
+    operation is very efficient. *)
+val subst : ('a,'b) binder -> 'a -> 'b
 
 (** [msubst b vs] substitutes the variables bound by [b] with the values [vs].
-    This is a very efficient operation. Note that the length of the [vs] array
-    should match the arity of the multiple binder [b] (it can be obtained with
-    [mbinder_arity]). If that is not the case, the exception [Invalid_argument
-    "Bad arity in msubst"] is raised. *)
+    This operation is very efficient. Note however that the length of the [vs]
+    array should match the arity of [b] (as given by [mbinder_arity b]). If it
+    is not the case, the exception [Invalid_argument "Bad arity in msubst"] is
+    raised. *)
 val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
-(** Coming back to our lambda-calculus example, we can implement call-by-name
-    evaluation as a simple recursive function using [subst].
+(** Coming back to our pure λ-calculus example, call-by-name evaluation can be
+    defined as a simple recursive function using [subst].
     {[ let rec eval : term -> term = fun t ->
          match t with
          | App(f,a) ->
@@ -64,15 +65,16 @@ val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
 (** [new_var mkfree name] creates a new variable using a function [mkfree] and
     a [name]. The [mkfree] function is used to inject variables in the type of
-    the corresponding objects: it is a form of syntactic wrapper. *)
-val new_var  : ('a var -> 'a) -> string       -> 'a var
+    the corresponding objects: it is a form of syntactic wrapper that is often
+    defined to be a constructor (see the example below). *)
+val new_var : ('a var -> 'a) -> string -> 'a var
 
 (** [new_mvar mkfree names] creates an array of new variables using a function
     [mkfree] (see [new_var]) and an array of variable [names]. *)
 val new_mvar : ('a var -> 'a) -> string array -> 'a mvar
 
-(** Following on our example of the lambda-calculus, the [mkfree] function for
-    variables of type [term var] could be defined as follows.
+(** For our pure λ-calculus example, where variables have type [term var], the
+    [mkfree] function would simply be defined as follows.
     {[ let mkfree : term var -> term = fun x -> Var(x) ]} *)
 
 (** [name_of x] returns the name corresponding to variable [x]. Note that this
@@ -90,9 +92,12 @@ val names_of : 'a mvar -> string array
 
 (** [unbind b] substitutes the binder [b] using a fresh variable. The variable
     and the result of the substitution are returned. Note that the name of the
-    fresh variable is based on that of the binder.  The [mkfree] function used
-    to create the fresh variable is that of the variable that was bound by [b]
-    at its construction (see [new_var] and [bind_var]). *)
+    fresh variable is based on that of the binder, but it is not guaranteed to
+    be safe for printing (see [new_var] and [unbind_in]). However, there is no
+    problem for other operations such as re-establishing the binding. When the
+    fresh variable is created, the [mkfree] function that is used is that that
+    was specified when creating the variable that was originally bound by [b],
+    at the time of its creation (see [new_var] and [bind_var]). *)
 val unbind : ('a,'b) binder -> 'a var * 'b
 
 (** [unbind2 f g] is similar to [unbind f], but it substitutes two binders [f]
@@ -102,7 +107,8 @@ val unbind : ('a,'b) binder -> 'a var * 'b
     the variable that was bound to construct [f] (see [bind_var] and [new_var]
     for details on this process). In particular, the use of [unbind2] may lead
     to unexpected results if the binders [f] and [g] were not built using free
-    variables created with the same [mkfree]. *)
+    variables created with the same [mkfree].  Moreover, as with [unbind], the
+    name of the fresh variable is not guaranteed to be safe for printing. *)
 val unbind2 : ('a,'b) binder -> ('a,'c) binder -> 'a var * 'b * 'c
 
 (** [eq_binder eq f g] tests the equality between [f] and [g]. The binders are
@@ -117,13 +123,15 @@ val eq_binder : ('b -> 'b -> bool) -> ('a,'b) binder -> ('a,'b) binder -> bool
     create the fresh variables are based on those of the multiple binder.  The
     syntactic wrapper (of [mkfree]) that is used to build the variables is the
     one that was given when creating the multiple variables that were bound in
-    [b] (see [new_mvar] and [bind_mvar]). *)
+    [b] (see [new_mvar] and [bind_mvar]). Moreover, note that as for [unbind],
+    the names of the fresh variables may not be safe for printing. *)
 val unmbind : ('a,'b) mbinder -> 'a mvar * 'b
 
 (** [unmbind2 f g] is similar to [unmbind f],  but it substitutes two multiple
     binder [f] and [g] at once, using the same fresh variables.  Note that the
     two binders must have the same arity. This function may have an unexpected
-    results in some cases (see the documentation of [unbind2]). *)
+    results in some cases, and the fresh variables may have names that are not
+    safe for printing (see [unbind2]). *)
 val unmbind2 : ('a,'b) mbinder -> ('a,'c) mbinder -> 'a mvar * 'b * 'c
 
 (** [eq_mbinder eq f g] tests the equality of the two multiple binders [f] and
@@ -136,7 +144,7 @@ val eq_mbinder : ('b -> 'b -> bool) -> ('a,'b) mbinder -> ('a,'b) mbinder
   -> bool
 
 (** The [unbind] function is often useful for term traversals. For instance, a
-    function computing the size of a lambda-term can be defined as follows.
+    function computing the size of a pure λ-term can be defined as follows.
     {[ let rec size : term -> string = fun t ->
          match t with
          | Var(_)   -> 0
