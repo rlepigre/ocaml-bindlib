@@ -114,27 +114,27 @@ let iter = Bindlib.unbox
              (bb1 fix (r >>= (n >>= (f >>= (x >>= (
                    app2 !!n (p >>= app !!f (app2 (app !!r !!p) !!f !!x)) !!x))))))
 
-let ch_2   = App(succ, App(succ, zero))
-let ch_4   = App(App(mult,ch_2), ch_2)
-let ch_8   = App(App(plus, ch_4), ch_4)
-let ch_10  = App(App(plus, ch_2), ch_8)
-let ch_100 = App(App(mult, ch_10), ch_10)
-let ch_1000= App(App(mult, ch_100), ch_10)
-let ch_10000= App(App(mult, ch_100), ch_100)
-let ch_1000000= App(App(mult, ch_1000), ch_1000)
+let sc_2   = App(succ, App(succ, zero))
+let sc_4   = App(App(mult,sc_2), sc_2)
+let sc_8   = App(App(plus, sc_4), sc_4)
+let sc_10  = App(App(plus, sc_2), sc_8)
+let sc_100 = App(App(mult, sc_10), sc_10)
+let sc_1000= App(App(mult, sc_100), sc_10)
+let sc_10000= App(App(mult, sc_100), sc_100)
+let sc_1000000= App(App(mult, sc_1000), sc_1000)
 
 let bench () =
-  let res  = norm (App(pred,ch_4)) in
+  let res  = norm (App(pred,sc_4)) in
   Printf.printf "Result: %a\n%!" print_term res;
-  let fh = App(App(mult, ch_4), ch_100 ) in
-  let ft = App(App(mult, ch_4), ch_1000) in
+  let fh = App(App(mult, sc_4), sc_100 ) in
+  let ft = App(App(mult, sc_4), sc_1000) in
   let res = norm (App(App(App(iter,ft), pred), ft)) in
   Printf.printf "Result: %a\n%!" print_term res;
-  let _ = norm (App(App(mult, fh), ch_100)) in
+  let _ = norm (App(App(mult, fh), sc_100)) in
   Printf.printf "Result: ...\n%!";
   let _ = norm (App(App(mult, fh), fh)) in
   Printf.printf "Result: ...\n%!";
-  let res = norm (App(App(App(iter,ch_10000),pred),ch_10000)) in
+  let res = norm (App(App(App(iter,sc_10000),pred),sc_10000)) in
   Printf.printf "Result: %a\n%!" print_term res;
   Printf.printf "Minor words: %f\n%!" Gc.((stat ()).minor_words -. top0)
 
