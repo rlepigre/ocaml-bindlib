@@ -123,8 +123,11 @@ and 'a var = {
   var_box    : 'a box;       (* Variable as a boxed object. *)
 }
 
-and any_var = V : 'a var -> any_var (* [@@ocaml.unboxed] *)
-(* FIXME uncomment the attribute for OCaml >= 4.11.0. *)
+(* Variable of any type (using an existential). In principle, this constructor
+   can be unboxed since it has a single constructor.  However, this only works
+   starting from OCaml 4.11.0. The annotation is erased for prior versions. *)
+and any_var = V : 'a var -> any_var
+[@@unboxed]
 
 let name_of x = x.var_name
 let hash_var x = Hashtbl.hash (`HVar, x.var_key)

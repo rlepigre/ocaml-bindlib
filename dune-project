@@ -22,4 +22,7 @@
     λ-calculus or quantified formulas.")
  (depends
    (ocaml (>= 4.02.0))
-   (dune  (and (>= 2.7.0) :build))))
+   (dune :build)
+   (timed (and (= 1.0) :with-test))
+   (earley (and (= 3.0.0) :with-test))
+   (odoc :with-doc)))
