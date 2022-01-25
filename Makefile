@@ -20,6 +20,11 @@ tests:
 	@dune runtest
 .PHONY: tests
 
+benchmarks:
+	@bash -c "time dune exec benchmark/church.exe"
+	@bash -c "time dune exec benchmark/scott.exe"
+.PHONY: benchmarks
+
 promote:
 	@dune promote
 .PHONY: promote
