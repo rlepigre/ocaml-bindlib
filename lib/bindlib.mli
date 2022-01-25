@@ -50,7 +50,7 @@ val subst  : ('a,'b) binder -> 'a -> 'b
     "Bad arity in msubst"] is raised. *)
 val msubst : ('a,'b) mbinder -> 'a array -> 'b
 
-(** Comming back to our lambda-calculus example, we can implement call-by-name
+(** Coming back to our lambda-calculus example, we can implement call-by-name
     evaluation as a simple recursive function using [subst].
     {[ let rec eval : term -> term = fun t ->
          match t with
@@ -432,38 +432,34 @@ val mbind_apply : ('a, 'b) mbinder box -> 'a array box -> 'b box
 (** {2 Custom context and variable renaming} *)
 
 
+(** If you  are not happy with  the default renaming proposed  by the function
+   above, a functorial interface allows you to customize the type ctxt and the
+   five above functions. *)
+
 (** Record controlling renaming policy *)
 type renaming_policy = {
-   reset_context_for_closed_term : bool;
-    (** If true, contexts are reset to empty when using [unbind_in] or
-       [munbind_in] on a closed binder (which have no free variables and
-       therefore can not capture name). This allows for printing lx.lx.x and
+    reset_context_for_closed_term : bool;
+    (**  If true,  contexts  are  reset to  empty  when  using [unbind_in]  or
+       [munbind_in]  on a  closed binder  (which  have no  free variables  and
+       therefore can not  capture name). This allows for  printing lx.lx.x and
        lx.(x lx x). *)
 
-   do_not_record_constant_binder : bool;
-   (** If true, names of constant binders are not recorded in the context,
-      permitting to reuse the name in a lower binder. This allows for printing
-      lx.lx.x but not lx.(x lx x). *)
+    do_not_record_constant_binder : bool;
+    (** If  true, names of constant  binders are not recorded  in the context,
+       permitting  to reuse  the  name  in a  lower  binder.  This allows  for
+       printing lx.lx.x but not lx.(x lx x). *)
 
-   constant_binder_name          : string option
-   (** If this field is [Some s], [s] is used as name for all constant binders
-      and [s] is not recorded in the context. This allows for printing l_.lx.x
-      if you use [Some "_"].
+    constant_binder_name          : string option
+    (**  If this  field is  [Some s],  [s] is  used as  name for  all constant
+       binders  and [s]  is  not recorded  in the  context.   This allows  for
+       printing l_.lx.x if you use [Some "_"].
 
-      If this field is not [None], the field [do_not_record_constant_binder] is
-      ignored.*)
+       If this field is  not [None], the field [do_not_record_constant_binder]
+       is ignored.*)
   }
 
-(** Default renaming policy, use by the default context function *)
-val default_renaming_policy : renaming_policy
-(** value is: [
-  { reset_context_for_closed_term = false;
-    do_not_record_constant_binder = false;
-    constant_binder_name          = None }] *)
-
-(** If you are not happy with the default renaming proposed by the function
-   above, a functorial interface allows you to customize the type ctxt and the
-   five above functions *)
+(** type  of a module  used by the  functor below to  create new ctxt  and the
+   associated functions *)
 module type Renaming = sig
   (** A type to represent set of variables *)
   type ctxt
@@ -474,9 +470,9 @@ module type Renaming = sig
   (** [empty_ctxt] is the empty context. *)
   val empty_ctxt : ctxt
 
-  (** [new_name n s] From the original name [n] and a set [s], create a new free
-     variable [n'] (not occuring in [s]) and returns [(n',s')] where [s'] is
-     [s] with [n'] added *)
+  (** [new_name n  s] From the original name  [n] and a set [s],  create a new
+     free variable [n'] (not occuring in [s]) and returns [(n',s')] where [s']
+     is [s] with [n'] added *)
   val new_name : string -> ctxt -> string * ctxt
 end
 
@@ -493,16 +489,25 @@ module Ctxt(R:Renaming) : sig
   val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
 end
 
-(** This is the default renaming policy used for the function [new_var_in,
+(**  Default   renaming  policy,  used   by  the  default   context  functions
+   [new_var_in,  new_mvar_in,   unbind_in,  munbind_in]   which  are   not  in
+   functors. *)
+val default_renaming_policy : renaming_policy
+(** value is: [
+  { reset_context_for_closed_term = false;
+    do_not_record_constant_binder = false;
+    constant_binder_name          = None }] *)
+
+(**  This  is  the  default   renaming  used  for  the  function  [new_var_in,
    new_mvar_in, unbind_in, munbind_in] which are not in functors.
 
-This renaming uses the default policy defined above.
+   This renaming uses the default policy defined above.
 
-For names, it splits variables in [(prefix,suffix)] where [suffix] is the
-   longuest suffix only with digits. Then the suffix is replaced if renaming is
-   needed by the first [n > suffix] such that [prefix ^ (string_of_int n)] is
-   not in the context. When the [suffix] is empty it is replaced by the first
-   positive integers. Leading zeros are not preserved in suffix. *)
+   For names, it  splits variables in [(prefix,suffix)] where  [suffix] is the
+   longuest suffix only with digits. Then,  the suffix is replaced if renaming
+   is needed by the first [n >  suffix] such that [prefix ^ (string_of_int n)]
+   is not  in the context. When  the [suffix] is  empty it is replaced  by the
+   first positive integers. Leading zeros are preserved in the prefix. *)
 module Default_Renaming : Renaming
 
 
