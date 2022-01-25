@@ -825,6 +825,28 @@ module Ctxt(R:Renaming) = struct
     in
     (x, subst b (b.b_mkfree x), ctxt)
 
+  (** [unbind2_in ctxt b] is similar to [unbind2 b], but it handles the context as
+    explained in the documentation of [new_mvar_in]. *)
+  let unbind2_in : ctxt -> ('a,'b) binder -> ('a,'c) binder ->
+                   'a var * 'b * 'c * ctxt = fun ctxt b c ->
+    let ctxt = if policy.reset_context_for_closed_term && binder_closed b then
+                 empty_ctxt else ctxt
+    in
+    let (x, ctxt) =
+      match (binder_constant b,
+             policy.do_not_record_constant_binder,
+             policy.constant_binder_name) with
+      | (true, _, Some s) ->
+         let x =  new_var b.b_mkfree s in
+         (x, ctxt)
+      | (true, true, None) ->
+         let x =  new_var b.b_mkfree (binder_name b) in
+         (x,ctxt)
+      | _ ->
+         new_var_in ctxt b.b_mkfree (binder_name b)
+    in
+    (x, subst b (b.b_mkfree x), subst c (c.b_mkfree x), ctxt)
+
   (** [munbind_in ctxt mkfree b] is like [munbind mkfree b],  but it handles the
       context (see [new_mvar_in]). *)
   let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
@@ -843,6 +865,29 @@ module Ctxt(R:Renaming) = struct
            new_mvar_in ctxt b.mb_mkfree (mbinder_names b)
     in
     (xs, msubst b (Array.map b.mb_mkfree xs), ctxt)
+
+  (** [munbind2_in ctxt mkfree b] is like [munbind2 mkfree b],  but it handles the
+      context (see [new_mvar_in]). *)
+  let unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder ->
+                   'a mvar * 'b * 'c * ctxt =
+    fun ctxt b c ->
+    let (xs, ctxt) =
+      match policy.constant_binder_name with
+      | Some s ->
+         let size = mbinder_arity b in
+         let xs =  new_mvar b.mb_mkfree (Array.make size s) in
+         (xs, ctxt)
+      | None ->
+         if policy.do_not_record_constant_binder then
+           let xs =  new_mvar b.mb_mkfree (mbinder_names b) in
+           (xs,ctxt)
+         else
+           new_mvar_in ctxt b.mb_mkfree (mbinder_names b)
+    in
+    (xs
+    , msubst b (Array.map b.mb_mkfree xs)
+    , msubst c (Array.map c.mb_mkfree xs)
+    , ctxt)
 end
 
 module Default_Renaming = struct

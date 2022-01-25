@@ -188,10 +188,24 @@ val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
     [name_of] function on the returned variable. *)
 val unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt
 
+(** [unbind2_in ctxt b] is similar to  [unbind2 b], but it handles the context
+   as explained  in the documentation  of [new_mvar_in]. This function  can be
+   used for maintaining correct names in printing functions: it is safe to use
+   the [name_of] function on the returned variable. *)
+val unbind2_in : ctxt -> ('a,'b) binder -> ('a,'c) binder ->
+                 'a var * 'b * 'c * ctxt
+
 (** [unmbind_in ctxt b] is similar to [unmbind b],  but it handles the context
     as is explained in the documentation of [new_mvar_in]. As [unbind_in], the
     [unmbind_in] function can be used to implement printing functions. *)
 val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
+
+(**  [unmbind2_in ctxt  b] is  similar  to [unmbind2  b], but  it handles  the
+   context  as  is  explained  in   the  documentation  of  [new_mvar_in].  As
+   [unbind_in], the  [unmbind_in] function can  be used to  implement printing
+   functions. *)
+val unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder ->
+                  'a mvar * 'b * 'c * ctxt
 
 (** Going back to our lambda-calculus example, the [unbind_in] function can be
     used to implement the following function transforming a lambda-term into a
@@ -494,7 +508,11 @@ module Ctxt(R:Renaming) : sig
   val new_var_in : ctxt -> ('a var -> 'a) -> string -> 'a var * ctxt
   val new_mvar_in : ctxt -> ('a var -> 'a) -> string array -> 'a mvar * ctxt
   val unbind_in : ctxt -> ('a,'b) binder -> 'a var * 'b * ctxt
+  val unbind2_in : ctxt -> ('a,'b) binder -> ('a,'c) binder ->
+                   'a var * 'b * 'c * ctxt
   val unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt
+  val unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder ->
+                    'a mvar * 'b * 'c * ctxt
 end
 
 (**  Default   renaming  policy,  used   by  the  default   context  functions
