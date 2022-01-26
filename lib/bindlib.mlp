@@ -818,7 +818,7 @@ module Ctxt(R:Renaming) = struct
          let x =  new_var b.b_mkfree s in
          (x, ctxt)
       | (true, true, None) ->
-         let x =  new_var b.b_mkfree (binder_name b) in
+         let x, _ =  new_var_in ctxt b.b_mkfree (binder_name b) in
          (x,ctxt)
       | _ ->
          new_var_in ctxt b.b_mkfree (binder_name b)
@@ -829,18 +829,19 @@ module Ctxt(R:Renaming) = struct
     explained in the documentation of [new_mvar_in]. *)
   let unbind2_in : ctxt -> ('a,'b) binder -> ('a,'c) binder ->
                    'a var * 'b * 'c * ctxt = fun ctxt b c ->
-    let ctxt = if policy.reset_context_for_closed_term && binder_closed b then
+    let ctxt = if policy.reset_context_for_closed_term && binder_closed b
+                  && binder_closed c then
                  empty_ctxt else ctxt
     in
     let (x, ctxt) =
-      match (binder_constant b,
+      match (binder_constant b && binder_constant c,
              policy.do_not_record_constant_binder,
              policy.constant_binder_name) with
       | (true, _, Some s) ->
          let x =  new_var b.b_mkfree s in
          (x, ctxt)
       | (true, true, None) ->
-         let x =  new_var b.b_mkfree (binder_name b) in
+         let x, _ =  new_var_in ctxt b.b_mkfree (binder_name b) in
          (x,ctxt)
       | _ ->
          new_var_in ctxt b.b_mkfree (binder_name b)
@@ -851,43 +852,52 @@ module Ctxt(R:Renaming) = struct
       context (see [new_mvar_in]). *)
   let unmbind_in : ctxt -> ('a,'b) mbinder -> 'a mvar * 'b * ctxt =
     fun ctxt b ->
-    let (xs, ctxt) =
-      match policy.constant_binder_name with
-      | Some s ->
-         let size = mbinder_arity b in
-         let xs =  new_mvar b.mb_mkfree (Array.make size s) in
-         (xs, ctxt)
-      | None ->
-         if policy.do_not_record_constant_binder then
-           let xs =  new_mvar b.mb_mkfree (mbinder_names b) in
-           (xs,ctxt)
-         else
-           new_mvar_in ctxt b.mb_mkfree (mbinder_names b)
+    let ctxt = if policy.reset_context_for_closed_term && mbinder_closed b then
+                 empty_ctxt else ctxt
     in
-    (xs, msubst b (Array.map b.mb_mkfree xs), ctxt)
+    let ctxt_ref = ref ctxt in
+    let xs =
+      Array.mapi (fun i name ->
+          match (not b.mb_binds.(i),
+                 policy.do_not_record_constant_binder,
+                 policy.constant_binder_name) with
+          | (true, _, Some s) ->
+             new_var b.mb_mkfree s
+          | (true, true, None) ->
+             fst (new_var_in !ctxt_ref b.mb_mkfree name)
+          | _ ->
+             let (x,ctxt) = new_var_in !ctxt_ref b.mb_mkfree name in
+             ctxt_ref := ctxt; x) b.mb_names
+    in
+    (xs, msubst b (Array.map b.mb_mkfree xs), !ctxt_ref)
 
   (** [munbind2_in ctxt mkfree b] is like [munbind2 mkfree b],  but it handles the
       context (see [new_mvar_in]). *)
   let unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder ->
                    'a mvar * 'b * 'c * ctxt =
     fun ctxt b c ->
-    let (xs, ctxt) =
-      match policy.constant_binder_name with
-      | Some s ->
-         let size = mbinder_arity b in
-         let xs =  new_mvar b.mb_mkfree (Array.make size s) in
-         (xs, ctxt)
-      | None ->
-         if policy.do_not_record_constant_binder then
-           let xs =  new_mvar b.mb_mkfree (mbinder_names b) in
-           (xs,ctxt)
-         else
-           new_mvar_in ctxt b.mb_mkfree (mbinder_names b)
+    let ctxt = if policy.reset_context_for_closed_term && mbinder_closed b
+                  && mbinder_closed c then
+                 empty_ctxt else ctxt
+    in
+    let ctxt_ref = ref ctxt in
+    let xs =
+      Array.mapi (fun i name ->
+          match (not b.mb_binds.(i) && not c.mb_binds.(i),
+                 policy.do_not_record_constant_binder,
+                 policy.constant_binder_name) with
+          | (true, _, Some s) ->
+             new_var b.mb_mkfree s
+          | (true, true, None) ->
+             fst (new_var_in !ctxt_ref b.mb_mkfree name)
+          | _ ->
+             let (x,ctxt) = new_var_in !ctxt_ref b.mb_mkfree name in
+             ctxt_ref := ctxt; x) b.mb_names
     in
     (xs
     , msubst b (Array.map b.mb_mkfree xs)
     , msubst c (Array.map c.mb_mkfree xs)
-    , ctxt)
+    , !ctxt_ref)
 end
 
 module Default_Renaming = struct
