@@ -12,3 +12,12 @@
  (name lambdas)
  (modules Lambdas)
  (libraries bindlib))
+
+(executable
+ (name bench_de_bruijn)
+ (modules Bench_de_bruijn))
+
+(executable
+ (name bench)
+ (modules Bench)
+ (libraries bindlib))

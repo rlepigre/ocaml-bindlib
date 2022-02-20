@@ -1,24 +1,11 @@
 open Term
 open Bindlib
 open Timed
-
-type pterm (* term out of parsing *) =
-  | PApp of pterm * pterm
-  | PLam of string * pterm
-  | PVar of string
-  | PNrm of pterm       (* normalisation of a term *)
-(* TODO: give a way to reuse an existing meta with a non empty context
-   with m[a1,...,an] *)
-
-type cmd =
-  | Decl of string * pterm (* declaration of a meta variable *)
-  | Prnt of pterm          (* printing (normalize too *)
-  | Undo
-  | Goal                   (* printing all goals (unset meta var *)
+open Ast
 
 type env = { glob : meta list ref (* assoc list of all meta var *)
            ; ctxt : ctxt ref      (* bindlib context to use bindlib renaming *)
-           ; locl : (string * term bindbox) list
+           ; locl : (string * term box) list
                                   (* local environment *)
            ; mutable undo : Time.t list
                                   (* do not manage undo list via Timed *)
@@ -30,7 +17,7 @@ let print_mta ch m =
     Array.iteri (fun i s ->
         Printf.fprintf ch "%s%s" (if i > 0 then "," else "") s) a
   in
-  Printf.fprintf ch "%s[%a]" m.mname parray m.ctxte;
+  Printf.fprintf ch "%s[%a]" m.mname parray m.ctxte
 
 (* creation of a fresh meta variable. Its context is
    computed from the local environment *)
@@ -68,7 +55,7 @@ let pterm_to_term env t =
     | PApp(t,u) -> app (fn env t) (fn env u)
     | PLam(name, t) ->
        let v = new_var var name in
-       let env = { env with locl = (name, box_of_var v) :: env.locl } in
+       let env = { env with locl = (name, box_var v) :: env.locl } in
        lam v (fn env t)
     | PVar name -> search name env
     | PNrm t    -> norm (unbox (fn env t)) (* local normalisation of a subterm
@@ -79,7 +66,7 @@ let pterm_to_term env t =
 let undo env = match env.undo with
   | [] -> Printf.eprintf "Nothing to undo\n%!"
   | time::undo ->
-     Time.rollback time; env.undo <- undo
+     Time.restore time; env.undo <- undo
 
 let declare env name t =
   let mta = (* search the mta *)
@@ -96,7 +83,7 @@ let declare env name t =
     let env = (* prepare the initial local env with the context of the meta *)
       { env with
         locl = Array.to_list
-                 (Array.mapi (fun i name -> (name, box_of_var vars.(i)))
+                 (Array.mapi (fun i name -> (name, box_var vars.(i)))
                              mta.ctxte)
                @ env.locl
       }
@@ -120,8 +107,19 @@ let run env = function
      let save = Time.save () in
      Printf.printf "%a\n%!" (print_term !(env.ctxt))
                    (unbox (pterm_to_term env (PNrm t)));
-     Time.rollback save (* do not keep meta var created just for printing *)
+     Time.restore save (* do not keep meta var created just for printing *)
   | Goal ->
      List.iter (fun m -> if !(m.value) = None then
                                Printf.printf "Goal: %a\n%!" print_mta m)
                !(env.glob)
+
+let run =
+  let env =
+    { glob = Timed.ref []
+    ; ctxt = Timed.ref Bindlib.empty_ctxt
+    ; locl = []
+    ; undo = [] }
+  in
+  fun cmd -> run env cmd
+
+
