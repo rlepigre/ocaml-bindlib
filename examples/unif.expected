@@ -1,0 +1,33 @@
+try  c1 = c1
+give c1 = c1
+
+try  c1 = c2
+Clash
+
+try  (\x0 -> x0) c1 = (\x0 -> x0) c1
+give (\x0 -> x0) c1 = (\x0 -> x0) c1
+
+try  (\x0 -> x0) c1 = (\x0 -> x0) c2
+Clash
+
+try  (\x0 -> x0) c1 = ? c1
+give (\x0 -> x0) c1 = (\x0 -> x0) c1
+
+try  (\x0 -> x0) c1 = ? c2
+give (\x0 -> x0) c1 = (\x0 -> c1) c2
+
+try  (\x0 -> x0) c1 = ? c1 (\x0 -> x0)
+give (\x0 -> x0) c1 = (\x0 x1 -> x0) c1 (\x0 -> x0)
+
+try  ? c1 = f (? c1)
+Too_Deep
+
+try  ? (? c1) = f (? (? c1))
+Too_Deep
+
+try  c1 = ? c1 c2
+give c1 = (\x0 x1 -> x0) c1 c2
+
+try  c2 = ? c1 c2
+give c2 = (\x0 x1 -> x1) c1 c2
+
