@@ -4,7 +4,7 @@
 
     @author Christophe Raffalli
     @author Rodolphe Lepigre
-    @version 6.0 *)
+    @version 6.0.0 *)
 
 
 (** {2 Variables, binders and substitution} *)
