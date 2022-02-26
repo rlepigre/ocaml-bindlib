@@ -1,4 +1,4 @@
-VERSION := 5.1.0
+VERSION := 6.0.0
 
 all:
 	@dune build
@@ -43,14 +43,14 @@ uninstall:
 ## Documentation webpage
 
 updatedoc: doc
-	@rm -rf docs/odoc
-	@cp -r _build/default/_doc/_html docs/odoc
+	@rm -rf docs/$(VERSION)
+	@cp -r _build/default/_doc/_html docs/$(VERSION)
 .PHONY: updatedoc
 
 ## Release
 
 release: distclean
 	git push origin
-	git tag -a ocaml-bindlib_$(VERSION)
-	git push origin ocaml-bindlib_$(VERSION)
+	git tag -a $(VERSION)
+	git push origin $(VERSION)
 .PHONY: release

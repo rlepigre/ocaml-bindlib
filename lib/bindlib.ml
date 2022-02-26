@@ -4,7 +4,7 @@
 
     @author Christophe Raffalli
     @author Rodolphe Lepigre
-    @version 6.0 *)
+    @version 6.0.0 *)
 
 (* Counter for generating fresh variable keys (i.e., unique identifiers). *)
 let ((reset_counter : unit -> unit), (fresh_key : unit -> int)) =

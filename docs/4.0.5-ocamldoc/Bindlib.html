@@ -1,0 +1,663 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="Start" href="index.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Bindlib" rel="Chapter" href="Bindlib.html"><link title="Variables, binders and substitution" rel="Section" href="#2_Variablesbindersandsubstitution">
+<link title="Constructing terms and binders in the bindbox" rel="Section" href="#2_Constructingtermsandbindersinthebindbox">
+<link title="More bindbox manipulation functions" rel="Section" href="#2_Morebindboxmanipulationfunctions">
+<link title="Attributes of variables and utilities" rel="Section" href="#2_Attributesofvariablesandutilities">
+<link title="Attributes of binders and utilities" rel="Section" href="#2_Attributesofbindersandutilities">
+<link title="Attributes of bindboxes and utilities" rel="Section" href="#2_Attributesofbindboxesandutilities">
+<link title="Working in a context" rel="Section" href="#2_Workinginacontext">
+<link title="Unsafe, advanced features" rel="Section" href="#2_Unsafeadvancedfeatures">
+<title>Bindlib</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a class="up" href="index.html" title="Index">Up</a>
+&nbsp;</div>
+<h1>Module <a href="type_Bindlib.html">Bindlib</a></h1>
+
+<pre><span id="MODULEBindlib"><span class="keyword">module</span> Bindlib</span>: <code class="code">sig</code> <a href="Bindlib.html">..</a> <code class="code">end</code></pre><div class="info module top">
+<div class="info-desc">
+<p>The <code class="code">Bindlib</code> library provides support for free and bound variables in the
+    OCaml language. The main application is the construction of abstract types
+    containing a binding structure (e.g., abstract syntax trees).</p>
+</div>
+<ul class="info-attributes">
+<li><b>Author(s):</b> Christophe Raffalli, Rodolphe Lepigre</li>
+</ul>
+</div>
+<hr width="100%">
+<h3 id="2_Variablesbindersandsubstitution">Variables, binders and substitution</h3><p>The <code class="code">Bindlib</code> library provides two type constructors for building abstract
+    syntax trees: <code class="code">'a var</code> and <code class="code">('a,'b) binder</code>. Intuitively, <code class="code">'a var</code> will be
+    a representation for a free variable of type <code class="code">'a</code>,  and <code class="code">('a,'b) binder</code> a
+    represention for a term of type <code class="code">'b</code> depdening on a variable (or value) of
+    type <code class="code">'a</code> (the type <code class="code">('a,'b) binder</code> can be seen as <code class="code">'a -&gt; 'b</code>). Note that
+    types <code class="code">'a mvar</code> and <code class="code">('a,'b) mbinder</code> are provided for handling arrays  of
+    variables.</p>
+
+<pre><span id="TYPEvar"><span class="keyword">type</span> <code class="type">'a</code> var</span> </pre>
+<div class="info ">
+<div class="info-desc">
+<p>Type of a free variable of type <code class="code">'a</code>.</p>
+</div>
+</div>
+
+
+<pre><span id="TYPEmvar"><span class="keyword">type</span> <code class="type">'a</code> mvar</span> = <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> array</code> </pre>
+<div class="info ">
+<div class="info-desc">
+<p>Type of an array of variables of type <code class="code">'a</code>.</p>
+</div>
+</div>
+
+
+<pre><span id="TYPEbinder"><span class="keyword">type</span> <code class="type">(-'a, +'b)</code> binder</span> </pre>
+<div class="info ">
+<div class="info-desc">
+<p>Type of a binder for an element of type <code class="code">'a</code> into an element of type <code class="code">'b</code>.
+    In terms of higher-order abstract syntax, it can be seen as <code class="code">'a -&gt; 'b</code>.</p>
+</div>
+</div>
+
+
+<pre><span id="TYPEmbinder"><span class="keyword">type</span> <code class="type">('a, 'b)</code> mbinder</span> </pre>
+<div class="info ">
+<div class="info-desc">
+<p>Type of a binder for an array of elements of type <code class="code">'a</code> into an element  of
+    type <code class="code">'b</code>.</p>
+</div>
+</div>
+
+<p>As an example, we give bellow the definition of a simple representation of
+    the terms of the lambda-calculus.</p>
+<pre class="codepre"><code class="code">    type term =
+      | Var of term var
+      | Abs of (term, term) binder
+      | App of term * term </code></pre>
+<pre><span id="VALsubst"><span class="keyword">val</span> subst</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a -> 'b</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">subst b v</code> substitutes (using application) the variable bound by <code class="code">b</code> with
+    the value <code class="code">b</code>. This is a very efficient operations.</p>
+</div>
+</div>
+
+<pre><span id="VALmsubst"><span class="keyword">val</span> msubst</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a array -> 'b</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">msubst b vs</code> substitutes (using application) the array of variables bound
+    by <code class="code">b</code> with the values <code class="code">vs</code>. This is a very efficient operations. However,
+    the length of the <code class="code">vs</code> array should match the arity of the binder (see the
+    function <code class="code">mbinder_arity</code>).</p>
+</div>
+</div>
+<p>Comming back to our lambda-calculus example,  we can define the evaluation
+    of a lambda-term as a simple recursive function using <code class="code">subst</code>.</p>
+<pre class="codepre"><code class="code">    let rec eval : term -&gt; term = fun t -&gt;
+      match t with
+      | App(f,a) -&gt;
+          begin
+            match eval f with
+            | Abs(b) -&gt; eval (subst b a)
+            | _      -&gt; t
+          end
+      | _        -&gt; t </code></pre>
+<pre><span id="VALnew_var"><span class="keyword">val</span> new_var</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> string -> 'a <a href="Bindlib.html#TYPEvar">var</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">new_var mkfree name</code> creates a new variable using a function <code class="code">mkfree</code> and
+    a <code class="code">name</code>. The <code class="code">mkfree</code> function is used to inject variables in the type of
+    the corresponding elements. It is a form of syntactic wrapper.</p>
+</div>
+</div>
+
+<pre><span id="VALnew_mvar"><span class="keyword">val</span> new_mvar</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> string array -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">new_mvar mkfree names</code> creates a new array of variables using a  function
+    <code class="code">mkfree</code> (see <code class="code">new_var</code>) and  a <code class="code">name</code>.</p>
+</div>
+</div>
+<p>Following on our example of the lambda-calculus, the <code class="code">mkfree</code> function for
+    variables of type <code class="code">term var</code> could be defined as follows.</p>
+<pre class="codepre"><code class="code">    let mkfree : term var -&gt; term = fun x -&gt; Var(x) </code></pre>
+<pre><span id="VALname_of"><span class="keyword">val</span> name_of</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> string</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">name_of x</code> returns a printable name for variable <code class="code">x</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALuid_of"><span class="keyword">val</span> uid_of</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> int</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">uid_of x</code> returns a unique identifier of the given variable.</p>
+</div>
+</div>
+
+<pre><span id="VALunbind"><span class="keyword">val</span> unbind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a <a href="Bindlib.html#TYPEvar">var</a> * 'b</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">unbind mkfree b</code> breaks down the binder <code class="code">b</code> into a variable, and the term
+    in which this variable is now free.  Note that the usual <code class="code">mkfree</code> function
+    is required,  since <code class="code">unbind</code> needs to create a new variable (its name will
+    be that of the previously bound variable).</p>
+</div>
+</div>
+
+<pre><span id="VALunbind2"><span class="keyword">val</span> unbind2</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -><br>       ('a, 'c) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a <a href="Bindlib.html#TYPEvar">var</a> * 'b * 'c</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">unbind2 mkfree f g</code> is similar to <code class="code">unbind mkfree f</code>, but substitutes both
+    <code class="code">f</code> and <code class="code">g</code> using the same fresh variable.</p>
+</div>
+</div>
+
+<pre><span id="VALeq_binder"><span class="keyword">val</span> eq_binder</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('b -> 'b -> bool) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">eq_binder eq f g</code> tests the equality between <code class="code">f</code> and <code class="code">g</code>. The binders
+    are first substituted with the same fresh variable, and <code class="code">eq</code> is called
+    on the resulting terms.</p>
+</div>
+</div>
+
+<pre><span id="VALunmbind"><span class="keyword">val</span> unmbind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">unmbind mkfree b</code> breaks down the binder <code class="code">b</code> into variables, and the term
+    in which these variables are now free. Again,  the usual <code class="code">mkfree</code> function
+    is required, and the name of the new variables is based on that of all the
+    variables that were previously bound.</p>
+</div>
+</div>
+
+<pre><span id="VALunmbind2"><span class="keyword">val</span> unmbind2</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -><br>       ('a, 'c) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b * 'c</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">unmbind2 mkfree f g</code> is similar to <code class="code">unmbind mkfree f</code>, but it substitutes
+    both <code class="code">f</code> and <code class="code">g</code> using the same fresh variables.</p>
+</div>
+</div>
+
+<pre><span id="VALeq_mbinder"><span class="keyword">val</span> eq_mbinder</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('b -> 'b -> bool) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">eq_mbinder eq f g</code> tests the equality between two <code class="code">mbinder</code> <code class="code">f</code> and  <code class="code">g</code>.
+    They are first substituted with the same fresh variables, and then <code class="code">eq</code> is
+    called on the resulting terms.</p>
+</div>
+</div>
+<p>An usual use of <code class="code">unbind</code> is the wrinting of pretty-printing functions. The
+    function given bellow transforms a lambda-term into a <code class="code">string</code>.  Note that
+    the <code class="code">name_of</code> function is used for variables.</p>
+<pre class="codepre"><code class="code">    let rec to_string : term -&gt; string = fun t -&gt;
+      match t with
+      | Var(x)   -&gt; name_of x
+      | Abs(b)   -&gt; let (x,t) = unbind mkfree b in
+                    "\\" ^ name_of x ^ "." ^ to_string t
+      | App(t,u) -&gt; "(" ^ to_string t ^ ") " ^ to_string u </code></pre><h3 id="2_Constructingtermsandbindersinthebindbox">Constructing terms and binders in the bindbox</h3><p>One of the main design priciple of the <code class="code">Bindlib</code> library is efficiency. To
+    obtain very fast substitutions, a price is paid at the construction of the
+    terms. Indeed,  binders (i.e., element of type <code class="code">('a,'b) binder</code>) cannot be
+    defined directly. Instead, they are put together in the type <code class="code">'a bindbox</code>.
+    It correspond to a term of type <code class="code">'a</code> with free variables that may still be
+    bound in the future.</p>
+
+<pre><span id="TYPEbindbox"><span class="keyword">type</span> <code class="type">+'a</code> bindbox</span> </pre>
+<div class="info ">
+<div class="info-desc">
+<p>Type of a term of type <code class="code">'a</code> under construction. Using this representation,
+    the free variable of the term can be bound easily.</p>
+</div>
+</div>
+
+
+<pre><span id="VALbox_of_var"><span class="keyword">val</span> box_of_var</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'a <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_of_var x</code> builds a <code class="code">'a bindbox</code> from the <code class="code">'a var</code> <code class="code">x</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox"><span class="keyword">val</span> box</span> : <code class="type">'a -> 'a <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box e</code> puts the value <code class="code">e</code> into the <code class="code">'a bindbox</code> type, assuming that it is
+    closed. Thus, if <code class="code">e</code> contains variables,  then they will not be considered
+    free. This means that no variable of <code class="code">e</code> will be available for binding.</p>
+</div>
+</div>
+
+<pre><span id="VALapply_box"><span class="keyword">val</span> apply_box</span> : <code class="type">('a -> 'b) <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">apply_box bf ba</code> applies the boxed function <code class="code">bf</code> to a boxed argument <code class="code">ba</code>
+    inside the <code class="code">'a bindbox</code> type. This function is useful for constructing new
+    expressions by applying a function with free variables to an argument with
+    free variables. Note that the <code class="code">'a bindbox</code> type is an applicative functor.
+    Its application operator (sometimes written "&lt;*&gt;") is <code class="code">apply_box</code>, and its
+    unit (sometimes called "pure") is <code class="code">box</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_apply"><span class="keyword">val</span> box_apply</span> : <code class="type">('a -> 'b) -> 'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_apply f ba</code> applies the function <code class="code">f</code> to a boxed argument <code class="code">ba</code>.  It is
+    equivalent to <code class="code">apply_box (box f) ba</code>, but is more efficient.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_apply2"><span class="keyword">val</span> box_apply2</span> : <code class="type">('a -> 'b -> 'c) -><br>       'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'c <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_apply2 f ba bb</code> applies the function <code class="code">f</code> to two boxed arguments  <code class="code">ba</code>
+    and <code class="code">bb</code>. It is equivalent to <code class="code">apply_box (apply_box (box f) ba) bb</code> but it
+    is more efficient.</p>
+</div>
+</div>
+
+<pre><span id="VALbind"><span class="keyword">val</span> bind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       string -><br>       ('a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a>) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">bind mkfree name f</code> constructs a boxed binder from the function <code class="code">f</code>. Note
+    that <code class="code">name</code> and <code class="code">mkfree</code> are required to build the bound variable.</p>
+</div>
+</div>
+
+<pre><span id="VALmbind"><span class="keyword">val</span> mbind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       string array -><br>       ('a <a href="Bindlib.html#TYPEbindbox">bindbox</a> array -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a>) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbind mkfree names f</code> constructs a boxed binder from function <code class="code">f</code>,  using
+    <code class="code">mkfree</code> and <code class="code">names</code> to build the bound variables.</p>
+</div>
+</div>
+<p>As mentioned earlier,  terms with bound variables can only be build in the
+    <code class="code">'a bindbox</code> type. To ease the writing of terms,  it is a good practice to
+    define "smart constructors" at the <code class="code">'a bindbox</code> level.  Coming back to our
+    lambda-calculus example, we can give the following smart constructors.</p>
+<pre class="codepre"><code class="code">    let var : term var -&gt; term bindbox =
+      fun x -&gt; box_of_var x
+
+    let abs : string -&gt; (term bindbox -&gt; term bindbox) -&gt; term bindbox =
+      fun x f -&gt; box_apply (fun b -&gt; Abs(b)) (bind mkfree x f)
+
+    let app : term bindbox -&gt; term bindbox -&gt; term bindbox =
+      fun t u -&gt; box_apply2 (fun t u -&gt; App(t,u)) t u </code></pre>
+<pre><span id="VALunbox"><span class="keyword">val</span> unbox</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'a</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">unbox e</code> can be called when the construction of a term is finished (e.g.,
+    when the desired variables have all been bound).</p>
+</div>
+</div>
+<p>We can then easily define terms of the lambda-calculus as follows.</p>
+<pre class="codepre"><code class="code">    let id    : term = (* \x.x *)
+      unbox (abs "x" (fun x -&gt; x))
+
+    let fst   : term = (* \x.\y.x *)
+      unbox (abs "x" (fun x -&gt; abs "y" (fun _ -&gt; x)))
+
+    let omega : term = (* (\x.(x) x) \x.(x) x *)
+      let delta = abs "x" (fun x -&gt; app x x) in
+      unbox (app delta delta) </code></pre>
+<pre><span id="VALvbind"><span class="keyword">val</span> vbind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       string -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a>) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">vbind mkfree name f</code> constructs a boxed binder from the function <code class="code">f</code>,  as
+    the <code class="code">bind</code> function does. The difference here is that the domain of <code class="code">f</code> is
+    <code class="code">'a var</code>, and not <code class="code">'a bindbox</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALmvbind"><span class="keyword">val</span> mvbind</span> : <code class="type">('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       string array -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> array -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a>) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mvbind mkfree names f</code> constructs a boxed binder from the function <code class="code">f</code> as
+    the <code class="code">mbind</code> function does. However, the domain of <code class="code">f</code> is <code class="code">'a var</code>, and not
+    <code class="code">'a bindbox</code>.</p>
+</div>
+</div>
+<p>Using the <code class="code">vbind</code> function instead of the <code class="code">bind</code> function,  we can give an
+    alternative smart constructor for lambda-abstraction. Note that we need to
+    use the <code class="code">box_of_var</code> to use a variable when defining a term.</p>
+<pre class="codepre"><code class="code">    let abs_var : string -&gt; (term var -&gt; term bindbox) -&gt; term bindbox =
+      fun x f -&gt; box_apply (fun b -&gt; Abs(b)) (vbind mkfree x f)
+
+    let delta : term = (* \x.(x) x *)
+      unbox (abs_var "x" (fun x -&gt; app (var x) (var x))) </code></pre>
+<pre><span id="VALbind_var"><span class="keyword">val</span> bind_var</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -><br>       'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">bind_var x b</code> binds the variable <code class="code">x</code> in <code class="code">b</code> to produce a boxed binder. In
+    fact, is used to implement <code class="code">bind</code> and <code class="code">vbind</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbind_mvar"><span class="keyword">val</span> bind_mvar</span> : <code class="type">'a <a href="Bindlib.html#TYPEmvar">mvar</a> -><br>       'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">bind_mvar xs b</code> binds the variables of <code class="code">xs</code> in <code class="code">b</code> to get a boxed binder.
+    In fact, <code class="code">bind_mvar</code> is used to implement <code class="code">mbind</code> and <code class="code">mvbind</code>.</p>
+</div>
+</div>
+<h3 id="2_Morebindboxmanipulationfunctions">More bindbox manipulation functions</h3><p>In general, it is not difficult to use the <code class="code">box</code> and <code class="code">apply_box</code> functions
+    to manipulate any kind of data in the <code class="code">'a bindbox</code> type.  However, working
+    with these functions alone can be tedious. The functions provided here can
+    be used to manipulate standard data types in an optimised way.</p>
+
+<pre><span id="VALbox_opt"><span class="keyword">val</span> box_opt</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> option -> 'a option <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_opt bo</code> shifts the <code class="code">option</code> type of <code class="code">bo</code> into the <code class="code">bindbox</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_list"><span class="keyword">val</span> box_list</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> list -> 'a list <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_list bs</code> shifts the <code class="code">list</code> type of <code class="code">bs</code> into the <code class="code">bindbox</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_rev_list"><span class="keyword">val</span> box_rev_list</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> list -> 'a list <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_rev_list bs</code> shifts the <code class="code">list</code> type of <code class="code">bs</code> into the <code class="code">bindbox</code>, while
+    reversing the list (for efficiency).</p>
+</div>
+</div>
+
+<pre><span id="VALbox_array"><span class="keyword">val</span> box_array</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> array -> 'a array <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_array bs</code> shifts the <code class="code">array</code> type of <code class="code">bs</code> into the <code class="code">bindbox</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_apply3"><span class="keyword">val</span> box_apply3</span> : <code class="type">('a -> 'b -> 'c -> 'd) -><br>       'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -><br>       'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'c <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'd <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_apply3</code> is similar to <code class="code">box_apply2</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_apply4"><span class="keyword">val</span> box_apply4</span> : <code class="type">('a -> 'b -> 'c -> 'd -> 'e) -><br>       'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -><br>       'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -><br>       'c <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'd <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'e <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_apply4</code> is similar to <code class="code">box_apply2</code> and <code class="code">box_apply3</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_pair"><span class="keyword">val</span> box_pair</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> ('a * 'b) <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_pair ba bb</code> is the same as <code class="code">box_apply2 (fun a b -&gt; (a,b)) ba bb</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbox_triple"><span class="keyword">val</span> box_triple</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -><br>       'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'c <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> ('a * 'b * 'c) <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">box_trible</code> is similar to <code class="code">box_pair</code>, but for triples.</p>
+</div>
+</div>
+
+<pre><span id="MODULETYPEMap"><span class="keyword">module type</span> <a href="Bindlib.Map.html">Map</a></span> = <code class="code">sig</code> <a href="Bindlib.Map.html">..</a> <code class="code">end</code></pre><div class="info">
+<p>Type of a module equipped with a <code class="code">map</code> function.</p>
+
+</div>
+
+<pre><span id="MODULELift"><span class="keyword">module</span> <a href="Bindlib.Lift.html">Lift</a></span> <code class="code">(</code><code class="code">M</code><code class="code"> : </code><code class="type"><a href="Bindlib.Map.html">Map</a></code><code class="code">) </code>: <code class="code">sig</code> <a href="Bindlib.Lift.html">..</a> <code class="code">end</code></pre><div class="info">
+<p>Functorial interface used to build lifting functions (i.e., functions that
+    permute the <code class="code">'a bindbox</code> type with another type constructor) for any  type
+    equipped with a <code class="code">map</code> function.</p>
+
+</div>
+
+<pre><span id="MODULETYPEMap2"><span class="keyword">module type</span> <a href="Bindlib.Map2.html">Map2</a></span> = <code class="code">sig</code> <a href="Bindlib.Map2.html">..</a> <code class="code">end</code></pre><div class="info">
+<p>Type of a module equipped with a "binary" <code class="code">map</code> function.</p>
+
+</div>
+
+<pre><span id="MODULELift2"><span class="keyword">module</span> <a href="Bindlib.Lift2.html">Lift2</a></span> <code class="code">(</code><code class="code">M</code><code class="code"> : </code><code class="type"><a href="Bindlib.Map2.html">Map2</a></code><code class="code">) </code>: <code class="code">sig</code> <a href="Bindlib.Lift2.html">..</a> <code class="code">end</code></pre><div class="info">
+<p>Similar to the <code class="code">Lift</code> functor, but handles "binary" <code class="code">map</code> functions.</p>
+
+</div>
+<h3 id="2_Attributesofvariablesandutilities">Attributes of variables and utilities</h3>
+<pre><span id="VALprefix_of"><span class="keyword">val</span> prefix_of</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> string</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">prefix_of x</code> returns the <code class="code">string</code> prefix of variable <code class="code">x</code>'s name, which is
+    only the first part of its full name (obtained with <code class="code">name_of x</code>). The full
+    name also contain an <code class="code">int</code> suffix,  which is defined as the longest suffix
+    of digits in the full name.</p>
+</div>
+</div>
+
+<pre><span id="VALsuffix_of"><span class="keyword">val</span> suffix_of</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> int</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">suffix_of x</code> returns the <code class="code">int</code> suffix of variable <code class="code">x</code>'s name. It consists
+    in the longest digit suffix in the full name of <code class="code">x</code> (see <code class="code">prefix_of</code>).</p>
+</div>
+</div>
+
+<pre><span id="VALhash_var"><span class="keyword">val</span> hash_var</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> int</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">hash_var x</code> computes a hash for variable <code class="code">x</code>. Note that this function can
+    be used with the <code class="code">Hashtbl</code> module.</p>
+</div>
+</div>
+
+<pre><span id="VALcompare_vars"><span class="keyword">val</span> compare_vars</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEvar">var</a> -> int</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">compare_vars x y</code> safely compares <code class="code">x</code> and <code class="code">y</code>.  Note that it is unsafe to
+    compare variables with <code class="code">Pervasive.compare</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALeq_vars"><span class="keyword">val</span> eq_vars</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEvar">var</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">eq_vars x y</code> safely computes the equality of <code class="code">x</code> and <code class="code">y</code>. Note that it is
+    unsafe to compare variables with the polymorphic equality function.</p>
+</div>
+</div>
+
+<pre><span id="VALcopy_var"><span class="keyword">val</span> copy_var</span> : <code class="type">'b <a href="Bindlib.html#TYPEvar">var</a> -> string -> ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> 'a <a href="Bindlib.html#TYPEvar">var</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">copy_var x name mkfree</code> makes a copy of variable <code class="code">x</code>,  with a potentially
+    different name and <code class="code">mkfree</code> function. However, the copy is treated exactly
+    as the original in terms of binding and substitution.</p>
+</div>
+</div>
+<h3 id="2_Attributesofbindersandutilities">Attributes of binders and utilities</h3>
+<pre><span id="VALbinder_name"><span class="keyword">val</span> binder_name</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> string</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_name</code> returns the name of the variable bound by the <code class="code">binder</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbinder_occur"><span class="keyword">val</span> binder_occur</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_occur b</code> tests whether the bound variable occurs in <code class="code">b</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbinder_constant"><span class="keyword">val</span> binder_constant</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_constant b</code> tests whether the <code class="code">binder</code> <code class="code">b</code> is constant (i.e.,  its
+    bound variable does not occur).</p>
+</div>
+</div>
+
+<pre><span id="VALbinder_closed"><span class="keyword">val</span> binder_closed</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_closed b</code> test whether the <code class="code">binder</code> <code class="code">b</code> is closed (i.e.,  does not
+    contain any free variable).</p>
+</div>
+</div>
+
+<pre><span id="VALbinder_rank"><span class="keyword">val</span> binder_rank</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> int</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_rank b</code> gives the number of free variables contained in <code class="code">b</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbinder_compose_left"><span class="keyword">val</span> binder_compose_left</span> : <code class="type">('a -> 'b) -> ('b, 'c) <a href="Bindlib.html#TYPEbinder">binder</a> -> ('a, 'c) <a href="Bindlib.html#TYPEbinder">binder</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_compose_left f b</code> precomposes the binder <code class="code">b</code> with the function <code class="code">f</code>
+    without changing anything at the binding structure.</p>
+</div>
+</div>
+
+<pre><span id="VALbinder_compose_right"><span class="keyword">val</span> binder_compose_right</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> ('b -> 'c) -> ('a, 'c) <a href="Bindlib.html#TYPEbinder">binder</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_compose_rigth b f</code> postcomposes the binder <code class="code">b</code> with  the  function
+    <code class="code">f</code> without changing anything at the binding structure.</p>
+</div>
+</div>
+
+<pre><span id="VALmbinder_arity"><span class="keyword">val</span> mbinder_arity</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> int</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbinder_arity b</code> gives the arity of the <code class="code">mbinder</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALmbinder_names"><span class="keyword">val</span> mbinder_names</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> string array</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbinder_names b</code> return the array of the names of the variables bound  by
+    the <code class="code">mbinder</code> <code class="code">b</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALmbinder_occurs"><span class="keyword">val</span> mbinder_occurs</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> bool array</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbinder_occurs b</code> returns an array of <code class="code">bool</code> indicating if the  variables
+    that are bound occur (i.e., are used).</p>
+</div>
+</div>
+
+<pre><span id="VALmbinder_constant"><span class="keyword">val</span> mbinder_constant</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbinder_constant b</code> indicates whether the <code class="code">mbinder</code> <code class="code">b</code> is constant. This
+    means that none of its variables are used.</p>
+</div>
+</div>
+
+<pre><span id="VALmbinder_closed"><span class="keyword">val</span> mbinder_closed</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbinder_closed b</code> indicates whether <code class="code">b</code> is closed.</p>
+</div>
+</div>
+
+<pre><span id="VALmbinder_rank"><span class="keyword">val</span> mbinder_rank</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> int</code></pre><h3 id="2_Attributesofbindboxesandutilities">Attributes of bindboxes and utilities</h3>
+<pre><span id="VALis_closed"><span class="keyword">val</span> is_closed</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">is_closed b</code> checks whether the <code class="code">bindbox</code> <code class="code">b</code> is closed.</p>
+</div>
+</div>
+
+<pre><span id="VALis_substituted"><span class="keyword">val</span> is_substituted</span> : <code class="type">(bool -> 'a) <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'a <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">is_subst b</code> checks whether the <code class="code">bindbox</code> <code class="code">b</code> was substituted.</p>
+</div>
+</div>
+
+<pre><span id="VALoccur"><span class="keyword">val</span> occur</span> : <code class="type">'a <a href="Bindlib.html#TYPEvar">var</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> bool</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">occur x b</code> tells whether variable <code class="code">x</code> occurs in the <code class="code">bindbox</code> <code class="code">b</code>.</p>
+</div>
+</div>
+
+<pre><span id="VALbind_apply"><span class="keyword">val</span> bind_apply</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a> -><br>       'a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">bind_apply bb barg</code> substitute the boxed binder <code class="code">bb</code> with the boxed value
+    <code class="code">barb</code> in the <code class="code">bindbox</code> type. This is useful for working with higher-order
+    variables, which may be represented as binders themselves.</p>
+</div>
+</div>
+
+<pre><span id="VALmbind_apply"><span class="keyword">val</span> mbind_apply</span> : <code class="type">('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a> -><br>       'a array <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbind_apply bb bargs</code> substitute the boxed binder  <code class="code">bb</code>  with  the  boxed
+    array of values <code class="code">barbs</code> in the <code class="code">bindbox</code> type.  This is useful for working
+    with higher-order variables.</p>
+</div>
+</div>
+
+<pre><span id="VALfixpoint"><span class="keyword">val</span> fixpoint</span> : <code class="type">(('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a>, ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a>) <a href="Bindlib.html#TYPEbinder">binder</a><br>       <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">fixpoint bb</code> constructs a binder fixpoint. This very advanced feature can
+    be used to build recursive definitions (like with OCaml's "let rec").</p>
+</div>
+</div>
+<h3 id="2_Workinginacontext">Working in a context</h3><p>It is sometimes convenient to work in a context for variables, for example
+    when one wishes to reserve variable names.  The <code class="code">Bindlib</code> library provides
+    a type of contexts, together with functions for creating variables and for
+    binding variables in a context.</p>
+
+<pre><span id="TYPEctxt"><span class="keyword">type</span> <code class="type"></code>ctxt</span> </pre>
+<div class="info ">
+<div class="info-desc">
+<p>Type of a context.</p>
+</div>
+</div>
+
+
+<pre><span id="VALempty_ctxt"><span class="keyword">val</span> empty_ctxt</span> : <code class="type"><a href="Bindlib.html#TYPEctxt">ctxt</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">empty_ctxt</code> denotes the empty context.</p>
+</div>
+</div>
+
+<pre><span id="VALnew_var_in"><span class="keyword">val</span> new_var_in</span> : <code class="type"><a href="Bindlib.html#TYPEctxt">ctxt</a> -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> string -> 'a <a href="Bindlib.html#TYPEvar">var</a> * <a href="Bindlib.html#TYPEctxt">ctxt</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">new_var_in ctxt mkfree name</code> is similar to <code class="code">new_var mkfree name</code>, but the
+    variable names is chosen not to collide with the context <code class="code">ctxt</code>. Note that
+    the context that is returned contains the new variable name.</p>
+</div>
+</div>
+
+<pre><span id="VALnew_mvar_in"><span class="keyword">val</span> new_mvar_in</span> : <code class="type"><a href="Bindlib.html#TYPEctxt">ctxt</a> -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -> string array -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * <a href="Bindlib.html#TYPEctxt">ctxt</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">new_mvar_in ctxt mkfree names</code> is similar to <code class="code">new_mvar mkfree names</code>, but
+    it handles the context (see <code class="code">new_var_in</code>).</p>
+</div>
+</div>
+
+<pre><span id="VALunbind_in"><span class="keyword">val</span> unbind_in</span> : <code class="type"><a href="Bindlib.html#TYPEctxt">ctxt</a> -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> -> 'a <a href="Bindlib.html#TYPEvar">var</a> * 'b * <a href="Bindlib.html#TYPEctxt">ctxt</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">unbind_in ctxt mkfree b</code> is similar to <code class="code">unbind mkfree b</code>,  but it handles
+    the context (see <code class="code">new_mvar_in</code>).</p>
+</div>
+</div>
+
+<pre><span id="VALunmbind_in"><span class="keyword">val</span> unmbind_in</span> : <code class="type"><a href="Bindlib.html#TYPEctxt">ctxt</a> -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> -> 'a <a href="Bindlib.html#TYPEmvar">mvar</a> * 'b * <a href="Bindlib.html#TYPEctxt">ctxt</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">munbind_in ctxt mkfree b</code> is like <code class="code">munbind mkfree b</code>,  but it handles the
+    context (see <code class="code">new_mvar_in</code>).</p>
+</div>
+</div>
+
+<pre><span id="VALbind_in"><span class="keyword">val</span> bind_in</span> : <code class="type"><a href="Bindlib.html#TYPEctxt">ctxt</a> -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       string -><br>       ('a <a href="Bindlib.html#TYPEbindbox">bindbox</a> -> <a href="Bindlib.html#TYPEctxt">ctxt</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a>) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">bind_in ctxt mkfree name f</code> is like <code class="code">bind mkfree name f</code>,  but it handles
+    the context.</p>
+</div>
+</div>
+
+<pre><span id="VALmbind_in"><span class="keyword">val</span> mbind_in</span> : <code class="type"><a href="Bindlib.html#TYPEctxt">ctxt</a> -><br>       ('a <a href="Bindlib.html#TYPEvar">var</a> -> 'a) -><br>       string array -><br>       ('a <a href="Bindlib.html#TYPEbindbox">bindbox</a> array -> <a href="Bindlib.html#TYPEctxt">ctxt</a> -> 'b <a href="Bindlib.html#TYPEbindbox">bindbox</a>) -><br>       ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a> <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbind_in ctxt mkfree names f</code> is similar to  <code class="code">mbind mkfree names f</code>,  but
+    it handles the context.</p>
+</div>
+</div>
+<h3 id="2_Unsafeadvancedfeatures">Unsafe, advanced features</h3>
+<pre><span id="VALreset_counter"><span class="keyword">val</span> reset_counter</span> : <code class="type">unit -> unit</code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">reset_counter ()</code> resets the unique identifier counter on which <code class="code">Bindlib</code>
+    relies. This function should only be called when previously generated data
+    (e.g., variables) cannot be accessed anymore.</p>
+</div>
+</div>
+
+<pre><span id="VALdummy_bindbox"><span class="keyword">val</span> dummy_bindbox</span> : <code class="type">'a <a href="Bindlib.html#TYPEbindbox">bindbox</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">dummy_bindbox</code> can be used for initialising structires (e.g., arrays). If
+    <code class="code">unbox</code> is called on a data structure containing  a  <code class="code">dummy_bindbox</code>,  the
+    exception <code class="code">Failure "Invalid use of dummy_bindbox"</code> is raised.</p>
+</div>
+</div>
+
+<pre><span id="VALbinder_from_fun"><span class="keyword">val</span> binder_from_fun</span> : <code class="type">string -> ('a -> 'b) -> ('a, 'b) <a href="Bindlib.html#TYPEbinder">binder</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">binder_from_fun name f</code> transform a function into a binder. Note that the
+    function is only called when the binder is substituted (see <code class="code">subst</code>). This
+    is not the recommended way of building binders. Nonetheless,  it is useful
+    for simple tasks such as contracting two binders into one, without copying
+    the whole structure (e.g., transform \x.\y.t(x,y) into \x.t(x,x)).</p>
+</div>
+</div>
+
+<pre><span id="VALmbinder_from_fun"><span class="keyword">val</span> mbinder_from_fun</span> : <code class="type">string array -> ('a array -> 'b) -> ('a, 'b) <a href="Bindlib.html#TYPEmbinder">mbinder</a></code></pre><div class="info ">
+<div class="info-desc">
+<p><code class="code">mbinder_from_fun</code> is similar to <code class="code">binder_from_fun</code>.</p>
+</div>
+</div>
+</body></html>
