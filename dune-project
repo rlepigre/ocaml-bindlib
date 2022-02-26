@@ -16,12 +16,11 @@
  (name bindlib)
  (synopsis "OCaml Bindlib library for bound variables")
  (description
-   "Bindlib is a library allowing the manipulation of data structures \
-    with bound variables. It is particularly useful when writing ASTs \
-    for programming languages, but also for manipulating terms of the \
-    λ-calculus or quantified formulas.")
+   "The Bindlib library provides support for free and bound variables in the
+    OCaml language. The main application is the representation of types with
+    a binding structure (e.g., abstract syntax trees).")
  (depends
-   (ocaml (>= 4.02.0))
+   (ocaml (>= 4.07.0))
    (dune :build)
    (timed (and (= 1.0) :with-test))
    (earley (and (= 3.0.0) :with-test))

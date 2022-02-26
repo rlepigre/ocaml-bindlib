@@ -1,5 +1,5 @@
-Bindlib 6.0.0 (upcoming)
-========================
+Bindlib 6.0.0
+=============
 
 Breaking changes:
 - Major change of semantics that impacts variable renaming (and printing). The

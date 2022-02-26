@@ -53,4 +53,5 @@ release: distclean
 	git push origin
 	git tag -a $(VERSION)
 	git push origin $(VERSION)
+	opam publish
 .PHONY: release
