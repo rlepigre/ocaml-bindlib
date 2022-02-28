@@ -7,7 +7,7 @@
 (maintainers
   "Rodolphe Lepigre <lepigre@mpi-sws.org>"
   "Christophe Raffalli <christophe@raffalli.eu")
-(source (github rlepigre/bindlib))
+(source (github rlepigre/ocaml-bindlib))
 (license "LGPL-3.0")
 
 (generate_opam_files true)

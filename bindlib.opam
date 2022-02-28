@@ -14,8 +14,8 @@ authors: [
   "Christophe Raffalli <christophe@raffalli.eu"
 ]
 license: "LGPL-3.0"
-homepage: "https://github.com/rlepigre/bindlib"
-bug-reports: "https://github.com/rlepigre/bindlib/issues"
+homepage: "https://github.com/rlepigre/ocaml-bindlib"
+bug-reports: "https://github.com/rlepigre/ocaml-bindlib/issues"
 depends: [
   "ocaml" {>= "4.07.0"}
   "dune" {>= "2.7" & build}
@@ -37,4 +37,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/rlepigre/bindlib.git"
+dev-repo: "git+https://github.com/rlepigre/ocaml-bindlib.git"
