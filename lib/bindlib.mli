@@ -242,18 +242,18 @@ val unbox : 'a box -> 'a
 (** We can then easily define terms of the λ-calculus as follows.
     {[ (* λx.x *)
        let id : term =
-         let x = new_var "x" mkfree in
+         let x = new_var mkfree "x" in
          unbox (abs x (var x))
 
        (* λx.λy.x *)
        let fst   : term =
-         let x = new_var "x" mkfree in
-         let y = new_var "y" mkfree in
+         let x = new_var mkfree "x" in
+         let y = new_var mkfree "y" in
          unbox (abs x (abs y (var x)))
 
        (* λx.(x) x) (boxed) *)
        let delta : term box =
-         let x = new_var "x" mkfree in
+         let x = new_var mkfree "x" in
          abs x (app (var x) (var x))
 
        (* (λx.(x) x) λx.(x) x *)
@@ -328,7 +328,7 @@ val unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder
     to implement the following function transforming a λ-term into a [string].
     Here, thanks to the use of [unbind_in], it is safe to rely on [name_of] to
     print variables.
-    {[ let to_string : ctxt -> term -> string = fun ctxt t ->
+    {[ let rec to_string : ctxt -> term -> string = fun ctxt t ->
          match t with
          | Var(x)   -> name_of x
          | Abs(b)   -> let (x,t,ctxt) = unbind_in ctxt b in
@@ -338,7 +338,7 @@ val unmbind2_in : ctxt -> ('a,'b) mbinder -> ('a,'c) mbinder
     second argument),  but also a context containing all free variables in the
     term. To avoid maintain such a context we can rely on function [free_vars]
     together with the term boxing function [box_term] defined earlier.
-    {[ let to_string : term -> term = fun t ->
+    {[ let to_string : term -> string = fun t ->
          to_string (free_vars (box_term t)) t ]} *)
 
 
