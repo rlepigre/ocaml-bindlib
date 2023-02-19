@@ -3,13 +3,14 @@ open Bindlib
 open Timed
 open Ast
 
-type env = { glob : meta list ref (* assoc list of all meta var *)
-           ; ctxt : ctxt ref      (* bindlib context to use bindlib renaming *)
-           ; locl : (string * term box) list
-                                  (* local environment *)
-           ; mutable undo : Time.t list
-                                  (* do not manage undo list via Timed *)
-           }
+type env =
+  { glob : meta list ref (* assoc list of all meta var *)
+  ; ctxt : ctxt ref      (* bindlib context to use bindlib renaming *)
+  ; locl : (string * term box) list
+                         (* local environment *)
+  ; mutable undo : Time.t list
+                         (* do not manage undo list via Timed *)
+  }
 
 (* printing of meta var *)
 let print_mta ch m =

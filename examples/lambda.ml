@@ -166,7 +166,8 @@ let _ =
   Printf.printf "  %a\n%!" print four
 
 let _ =
-  Printf.printf "Here are some sevaluation... Bindlib is fast.\nRenaming of variables is done at printing using context.\n%!";
+  Printf.printf "Here are some sevaluation... Bindlib is fast.\n";
+  Printf.printf "Renaming of variables is done at printing using context.\n";
   Printf.printf "  %a\n\t→ %a\n%!" print fst_y  print (seval fst_y);
   Printf.printf "  %a\n\t→ %a\n%!" print fst_yx print (seval fst_yx);
   Printf.printf "  %a\n\t→ %a\n%!" print swap_y print (seval swap_y);

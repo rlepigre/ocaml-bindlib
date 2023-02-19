@@ -81,7 +81,8 @@ let rec print_term : out_channel -> term -> unit = fun oc t ->
   | Var(x)   -> pp "%s" (Bindlib.name_of x)
   | Fun(s,a) -> pp "%s(%a)" s.name (pp_array print_term ", ") a
 
-let rec print_form : Bindlib.ctxt -> out_channel -> form -> unit = fun ctxt oc f ->
+let rec print_form : Bindlib.ctxt -> out_channel -> form -> unit =
+    fun ctxt oc f ->
   let pp fmt = Printf.fprintf oc fmt in
   match f with
   | Imply(a,b) -> pp "(%a) ⇒ (%a)" (print_form ctxt) a (print_form ctxt) b
@@ -166,7 +167,9 @@ let type_infer p =
     let r =
       match p with
       | Imply_i(f,p) ->
-         let (ax, ctxt) = Bindlib.new_var_in ctxt (axiom f) (Bindlib.binder_name p) in
+         let (ax, ctxt) =
+           Bindlib.new_var_in ctxt (axiom f) (Bindlib.binder_name p)
+         in
          let tax = axiom f ax in
          imply (box_form f) (fn ((ax,tax)::hyps) ctxt (Bindlib.subst p tax))
       | Imply_e(p1,p2) ->
@@ -190,8 +193,11 @@ let type_infer p =
           | _ -> raise (Bad_proof("Univ1"))
         end
       | Univ2_i(arity,f) ->
-         let t,ctxt = Bindlib.new_var_in ctxt (fvar2 arity) (Bindlib.binder_name f) in
-         univ2 arity (Bindlib.bind_var t (fn hyps ctxt (Bindlib.subst f (fvar2 arity t))))
+         let t,ctxt =
+           Bindlib.new_var_in ctxt (fvar2 arity) (Bindlib.binder_name f)
+         in
+         univ2 arity (Bindlib.bind_var t (
+           fn hyps ctxt (Bindlib.subst f (fvar2 arity t))))
       | Univ2_e(p,pred) ->
          begin
           match Bindlib.unbox (fn hyps ctxt p) with
@@ -213,11 +219,14 @@ let type_check p f =
 (** Example of second order predicate: leibniz equality *)
 let leq =
   let uv = Bindlib.new_mvar fvar1 [| "u"; "v" |] in
+  let tu = Bindlib.box_var uv.(0) in
+  let tv = Bindlib.box_var uv.(1) in
   let x = Bindlib.new_var (fvar2 1) "X" in
-  Bindlib.bind_mvar uv (
-    univ2 1 (Bindlib.bind_var x (
-      imply (Bindlib.mbind_apply (Bindlib.box_var x) (Bindlib.box_array [|Bindlib.box_var uv.(0)|]))
-            (Bindlib.mbind_apply (Bindlib.box_var x) (Bindlib.box_array [|Bindlib.box_var uv.(1)|])))))
+  let tx = Bindlib.box_var x in
+  Bindlib.bind_mvar uv @@
+  univ2 1 @@ Bindlib.bind_var x @@
+  imply (Bindlib.mbind_apply tx (Bindlib.box_array [|tu|]))
+        (Bindlib.mbind_apply tx (Bindlib.box_array [|tv|]))
 
 let equal_transitive =
   let x = Bindlib.new_var fvar1 "x" in
@@ -226,13 +235,13 @@ let equal_transitive =
   let tx = Bindlib.box_var x in
   let ty = Bindlib.box_var y in
   let tz = Bindlib.box_var z in
-  Bindlib.unbox (
-    univ1 (Bindlib.bind_var x (
-      univ1 (Bindlib.bind_var y (
-        univ1 (Bindlib.bind_var z (
-          imply (Bindlib.mbind_apply leq (Bindlib.box_array [|tx; ty|]))
-                (imply (Bindlib.mbind_apply leq (Bindlib.box_array [|ty; tz|]))
-                       (Bindlib.mbind_apply leq (Bindlib.box_array [|tx; tz|]))))))))))
+  Bindlib.unbox @@
+  univ1 @@ Bindlib.bind_var x @@
+  univ1 @@ Bindlib.bind_var y @@
+  univ1 @@ Bindlib.bind_var z @@
+  imply (Bindlib.mbind_apply leq (Bindlib.box_array [|tx; ty|]))
+        (imply (Bindlib.mbind_apply leq (Bindlib.box_array [|ty; tz|]))
+               (Bindlib.mbind_apply leq (Bindlib.box_array [|tx; tz|])))
 
 let equal_transitive_proof =
   let x = Bindlib.new_var fvar1 "x" in
@@ -241,24 +250,26 @@ let equal_transitive_proof =
   let tx = Bindlib.box_var x in
   let ty = Bindlib.box_var y in
   let tz = Bindlib.box_var z in
-  Bindlib.unbox (
-    univ1_i (Bindlib.bind_var x (
-      univ1_i (Bindlib.bind_var y (
-        univ1_i (Bindlib.bind_var z (
-          let f = Bindlib.mbind_apply leq (Bindlib.box_array [|tx; ty|]) in
-          let h1 = Bindlib.new_var (axiom (Bindlib.unbox f)) "h1" in
-          imply_i f (Bindlib.bind_var h1 (
-            let g = Bindlib.mbind_apply leq (Bindlib.box_array [|ty; tz|]) in
-            let h2 = Bindlib.new_var (axiom (Bindlib.unbox g)) "h2" in
-            imply_i g  (Bindlib.bind_var h2 (
-              let pX = Bindlib.new_var (fvar2 1) "X" in
-              univ2_i 1 (Bindlib.bind_var pX (
-                let p = Bindlib.mbind_apply (Bindlib.box_var pX) (Bindlib.box_array [|tx|]) in
-                let h3 = Bindlib.new_var (axiom (Bindlib.unbox p)) "h3" in
-                imply_i p (Bindlib.bind_var h3 (
-                  imply_e (univ2_e (Bindlib.box_var h2) (Bindlib.box_var pX))
-                          (imply_e (univ2_e (Bindlib.box_var h1) (Bindlib.box_var pX))
-                          (Bindlib.box_var h3)))))))))))))))))
+  Bindlib.unbox @@
+  univ1_i @@ Bindlib.bind_var x @@
+  univ1_i @@ Bindlib.bind_var y @@
+  univ1_i @@ Bindlib.bind_var z @@
+  let f = Bindlib.mbind_apply leq (Bindlib.box_array [|tx; ty|]) in
+  let h1 = Bindlib.new_var (axiom (Bindlib.unbox f)) "h1" in
+  imply_i f (Bindlib.bind_var h1 (
+    let g = Bindlib.mbind_apply leq (Bindlib.box_array [|ty; tz|]) in
+    let h2 = Bindlib.new_var (axiom (Bindlib.unbox g)) "h2" in
+    imply_i g  (Bindlib.bind_var h2 (
+      let pX = Bindlib.new_var (fvar2 1) "X" in
+      univ2_i 1 (Bindlib.bind_var pX (
+        let p =
+          Bindlib.mbind_apply (Bindlib.box_var pX) (Bindlib.box_array [|tx|])
+        in
+        let h3 = Bindlib.new_var (axiom (Bindlib.unbox p)) "h3" in
+        imply_i p (Bindlib.bind_var h3 (
+          imply_e (univ2_e (Bindlib.box_var h2) (Bindlib.box_var pX))
+                  (imply_e (univ2_e (Bindlib.box_var h1) (Bindlib.box_var pX))
+                  (Bindlib.box_var h3))))))))))
 
 let _ =
   Printf.printf "INFERING\n\n%!";

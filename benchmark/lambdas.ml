@@ -101,43 +101,58 @@ let fix   = Bindlib.unbox (app delta_fix delta_fix)
 let succ  =
   Bindlib.unbox (n >>= (f >>= (x >>= (app !!f !!n))))
 
-let plus  = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                   app2 !!n (p >>= bb1 succ (app2 !!r !!m !!p)) !!m)))))
+let plus  =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 !!n (p >>= bb1 succ (app2 !!r !!m !!p)) !!m)))))
 
-let mult  = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                   app2 !!n (p >>= bb2 plus (app2 !!r !!m !!p) !!m) (bb zero))))))
+let mult  =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 !!n (p >>= bb2 plus (app2 !!r !!m !!p) !!m) (bb zero))))))
 
-let pred  = Bindlib.unbox
-              (n >>= (app2 !!n (p >>= !!p) (bb zero)))
+let pred  =
+  Bindlib.unbox
+    (n >>= (app2 !!n (p >>= !!p) (bb zero)))
 
-let minus = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                   app2 !!m (p >>= bb1 pred (app2 !!r !!n !!p)) !!n)))))
+let minus =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 !!m (p >>= bb1 pred (app2 !!r !!n !!p)) !!n)))))
 
-let leq   = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                                        app2 !!n (p >>= app2 !!m (q >>= app2 !!r !!p !!q) (bb tfls)) (bb ttru))))))
+let leq   =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 !!n (p >>= app2 !!m (q >>=
+           app2 !!r !!p !!q) (bb tfls)) (bb ttru))))))
 
-let le   = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                                        app2 !!m (q >>= app2 !!n (p >>= app2 !!r !!p !!q) (bb ttru)) (bb tfls))))))
+let le   =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 !!m (q >>= app2 !!n (p >>=
+           app2 !!r !!p !!q) (bb ttru)) (bb tfls))))))
 
-let modul = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                   app2 (app2 (bb le) !!n !!m) !!n (app2 !!r (app2 (bb minus) !!n !!m) !!m))))))
+let modul =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 (app2 (bb le) !!n !!m) !!n
+           (app2 !!r (app2 (bb minus) !!n !!m) !!m))))))
 
-let iter   = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (f >>= (x >>= (
-                   app2 !!n (p >>= app !!f (app2 (app !!r !!p) !!f !!x)) !!x))))))
+let iter   =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (f >>= (x >>= (
+         app2 !!n (p >>= app !!f (app2 (app !!r !!p) !!f !!x)) !!x))))))
 
 let nil    = zero
-let cons   = Bindlib.unbox (y >>= (l >>= (f >>= (x >>= app2 !!f !!y !!l))))
+let cons   =
+  Bindlib.unbox (y >>= (l >>= (f >>= (x >>= app2 !!f !!y !!l))))
 
-let ltree  = Bindlib.unbox
-               (app (bb1 fix (r >>= (l >>= (n >>= (
-                   app2 !!n (p >>= (y >>= (z >>= app2 !!y (app2 !!r (app2 (bb cons) !!y !!l) !!p) (app2 !!r (app2 (bb cons) !!z !!l) !!p)))) !!l))))) (bb nil))
+let ltree  =
+  Bindlib.unbox
+    (app (bb1 fix (r >>= (l >>= (n >>= (
+         app2 !!n (p >>= (y >>= (z >>=
+           app2 !!y (app2 !!r (app2 (bb cons) !!y !!l) !!p)
+           (app2 !!r (app2 (bb cons) !!z !!l) !!p)))) !!l))))) (bb nil))
 let sc_1   = App(succ, zero)
 let sc_2   = App(succ, sc_1)
 let sc_3   = App(succ, sc_2)
