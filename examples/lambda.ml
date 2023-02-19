@@ -167,7 +167,8 @@ let _ =
 
 let _ =
   Printf.printf "Here are some sevaluation... Bindlib is fast.\n";
-  Printf.printf "Renaming of variables is done at printing using context.\n";
+  Printf.printf "Renaming of variables is delayed until printing.\n";
+  Printf.printf "It uses context and policies to allow fine control.\n";
   Printf.printf "  %a\n\t→ %a\n%!" print fst_y  print (seval fst_y);
   Printf.printf "  %a\n\t→ %a\n%!" print fst_yx print (seval fst_yx);
   Printf.printf "  %a\n\t→ %a\n%!" print swap_y print (seval swap_y);
