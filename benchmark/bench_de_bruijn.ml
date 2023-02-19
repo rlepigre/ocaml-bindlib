@@ -249,14 +249,14 @@ module Simple4 : Lambda = struct
     | Var of int
 
   type term = S.t * term_
-  
+
   let get_num t =
     match t with
     | Abs(n,_,_)
     | App(n,_,_) -> n
     | Idx(_)     -> 1
     | Var(_)     -> 0
-  
+
   let msubst lt nb t0 =
     let rec msubst d t0 =
       let n = get_num t0 in
@@ -273,26 +273,26 @@ module Simple4 : Lambda = struct
       | Var(_)     -> t0
     in
     if nb = 0 then t0 else msubst 0 t0
-  
+
   let app (s1,t1) (s2,t2) =
     let ns = S.union s1 s2 in
     (ns, App(S.cardinal ns, t1, t2))
-  
+
   (* lifting of a set (and remove and tell if the variable 0 occurs) *)
   let lift s =
     let b = ref false in
     let fn x s = if x > 0 then S.add (x-1) s else (b:= true; s) in
     let ns = S.fold fn s S.empty in
     (!b, ns)
-  
+
   let abs (s1,t1) =
     let b, ns = lift s1 in
     (ns, Abs(S.cardinal ns, b, t1))
-  
+
   let idx n =
     let ns = S.add n S.empty in
     ns, Idx n
-  
+
   let norm t =
     let rec norm stack depth t =
       match t with
@@ -317,7 +317,7 @@ module Simple4 : Lambda = struct
     snd (norm [] 0 t)
 
   let norm (s, t) = assert (S.is_empty s); (s, norm t)
-  
+
   let pp_term : out_channel -> term -> unit = fun oc (_, t) ->
     let pp fmt = Printf.fprintf oc fmt in
     let paren_if b = if b then ("(", ")") else ("", "") in
@@ -390,7 +390,9 @@ end
 module T1 = Test(Simple1)
 
 let _ =
-  let error () = Printf.eprintf "Usage: %s N\n%!" Sys.argv.(0); exit 1 in
+  let error () =
+    Printf.eprintf "Usage: %s [1|2|3|4]\n%!" Sys.argv.(0); exit 1
+  in
   let n =
     match Sys.argv with
     | [|_; n|] -> (try int_of_string n with Failure(_) -> error ())
