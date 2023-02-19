@@ -99,20 +99,24 @@ let succ  =
   Bindlib.unbox (n >>= (f >>= (x >>= (app !!f !!n))))
 
 
-let plus  = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                   app2 !!n (p >>= bb1 succ (app2 !!r !!m !!p)) !!m)))))
+let plus  =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 !!n (p >>= bb1 succ (app2 !!r !!m !!p)) !!m)))))
 
-let mult  = Bindlib.unbox
-              (bb1 fix (r >>= (n >>= (m >>= (
-                   app2 !!n (p >>= bb2 plus (app2 !!r !!m !!p) !!m) (bb zero))))))
+let mult  =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (m >>= (
+         app2 !!n (p >>= bb2 plus (app2 !!r !!m !!p) !!m) (bb zero))))))
 
-let pred  = Bindlib.unbox
-              (n >>= (app2 !!n (p >>= !!p) (bb zero)))
+let pred  =
+  Bindlib.unbox
+    (n >>= (app2 !!n (p >>= !!p) (bb zero)))
 
-let iter = Bindlib.unbox
-             (bb1 fix (r >>= (n >>= (f >>= (x >>= (
-                   app2 !!n (p >>= app !!f (app2 (app !!r !!p) !!f !!x)) !!x))))))
+let iter =
+  Bindlib.unbox
+    (bb1 fix (r >>= (n >>= (f >>= (x >>= (
+         app2 !!n (p >>= app !!f (app2 (app !!r !!p) !!f !!x)) !!x))))))
 
 let sc_2   = App(succ, App(succ, zero))
 let sc_4   = App(App(mult,sc_2), sc_2)

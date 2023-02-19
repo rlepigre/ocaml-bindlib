@@ -39,19 +39,23 @@ let rec print_term wrap ctxt ch =
   let pterm = print_term false ctxt in
   let wterm = print_term true ctxt in
   let parray ch =
-    Array.iteri (fun i t ->
-        Printf.fprintf ch "%s%a"
-                       (if i > 0 then "," else "")
-                       pterm t)
+    let pelt i =
+      Printf.fprintf ch "%s%a" (if i > 0 then "," else "") pterm
+    in
+    Array.iteri pelt
   in
   function
-  | Var x      -> Printf.fprintf ch "%s" (name_of x)
-  | Lam b      -> let (x, t, ctxt) = unbind_in ctxt b in
-                  if wrap then Printf.fprintf ch "(";
-                  Printf.fprintf ch "λ%s.%a" (name_of x) (print_term false ctxt) t;
-                  if wrap then Printf.fprintf ch ")";
-  | App(t,u)   -> Printf.fprintf ch "%a %a" pterm t wterm u
-  | Mta(mta,a) -> Printf.fprintf ch "%s[%a]" mta.mname parray a
+  | Var x      ->
+      Printf.fprintf ch "%s" (name_of x)
+  | Lam b      ->
+      let (x, t, ctxt) = unbind_in ctxt b in
+      if wrap then Printf.fprintf ch "(";
+      Printf.fprintf ch "λ%s.%a" (name_of x) (print_term false ctxt) t;
+      if wrap then Printf.fprintf ch ")";
+  | App(t,u)   ->
+      Printf.fprintf ch "%a %a" pterm t wterm u
+  | Mta(mta,a) ->
+      Printf.fprintf ch "%s[%a]" mta.mname parray a
 
 let print_term = print_term false
 

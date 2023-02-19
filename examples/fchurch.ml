@@ -110,14 +110,19 @@ let print_ty : ?ctxt:ctxt -> out_channel -> ty -> unit =
 let print_te : out_channel -> te -> unit = fun oc t ->
   let rec fn ctxt oc t =
   match t with
-  | TeVar(x)   -> output_string oc (name_of x)
-  | TeAbs(a,f) -> let (x,t,ctxt) = unbind_in ctxt f in
-                  let x = name_of x in
-                  Printf.fprintf oc "λ%s:%a.%a" x (print_ty ~ctxt) a (fn ctxt) t
-  | TeApp(t,u) -> Printf.fprintf oc "(%a) %a" (fn ctxt) t (fn ctxt) u
-  | TeLam(f)   -> let (x,t,ctxt) = unbind_in ctxt f in
-                  Printf.fprintf oc "Λ%s.%a" (name_of x) (fn ctxt) t
-  | TeSpe(t,a) -> Printf.fprintf oc "(%a)<%a>" (fn ctxt) t (print_ty ~ctxt) a
+  | TeVar(x)   ->
+      output_string oc (name_of x)
+  | TeAbs(a,f) ->
+      let (x,t,ctxt) = unbind_in ctxt f in
+      let x = name_of x in
+      Printf.fprintf oc "λ%s:%a.%a" x (print_ty ~ctxt) a (fn ctxt) t
+  | TeApp(t,u) ->
+      Printf.fprintf oc "(%a) %a" (fn ctxt) t (fn ctxt) u
+  | TeLam(f)   ->
+      let (x,t,ctxt) = unbind_in ctxt f in
+      Printf.fprintf oc "Λ%s.%a" (name_of x) (fn ctxt) t
+  | TeSpe(t,a) ->
+      Printf.fprintf oc "(%a)<%a>" (fn ctxt) t (print_ty ~ctxt) a
   in
   fn empty_ctxt oc t
 
