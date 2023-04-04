@@ -19,7 +19,7 @@ bug-reports: "https://github.com/rlepigre/ocaml-bindlib/issues"
 depends: [
   "ocaml" {>= "4.07.0"}
   "dune" {>= "2.7" & build}
-  "timed" {= "1.0" & with-test}
+  "timed" {>= "1.0" & with-test}
   "earley" {= "3.0.0" & with-test}
   "odoc" {with-doc}
 ]
