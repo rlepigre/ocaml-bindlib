@@ -1,5 +1,5 @@
-(* This example illustrates the use of [Bindlib] to represent and manipulate a
-   simple abstract syntax tree corresponding to the pure λ-calculus. *)
+(* This example shows how to keep information of the free variables of a
+   term using bindlib *)
 
 open Bindlib
 
@@ -9,47 +9,73 @@ type term =
   | Abs of (term, term) binder
   | App of term * term
 
+module Var = struct
+  type t = term var
+  let compare = compare_vars
+end
+module VarMap = Map.Make(Var)
+
+type tvar = term var
+type tbox = { t : term box; m : int VarMap.t }
+
+let free_vars : tbox -> int VarMap.t = fun t -> t.m
+
+let unbox t = unbox t.t
+
 (* The often required [mkfree] function. *)
-let mkfree : term var -> term =
+let mkfree : tvar -> term =
   fun x -> Var(x)
 
 (* Smart constructors to build terms in the [box]. *)
-let var : term var -> term box =
-  box_var
+let var : tvar -> tbox =
+  fun v ->
+  let m = VarMap.singleton v 1 in
+  let t = box_var v in
+  {t; m}
 
-let abs : term var -> term box -> term box =
-  fun x t -> box_apply (fun b -> Abs(b)) (bind_var x t)
+let box : term -> tbox =
+  fun t -> {t = box t; m = VarMap.empty}
 
-let app : term box -> term box -> term box =
-  fun t u -> box_apply2 (fun t u -> App(t,u)) t u
+let abs : tvar -> tbox -> tbox =
+  fun x t ->
+    let m = VarMap.remove x t.m in
+    let t = box_apply (fun b -> Abs(b)) (bind_var x t.t) in
+    {t; m}
+
+let app : tbox -> tbox -> tbox =
+  fun t u ->
+  let merge _ n1 n2 = Some(n1 + n2) in
+  let m = VarMap.union merge t.m u.m in
+  let t = box_apply2 (fun t u -> App(t,u)) t.t u.t in
+  {t; m}
 
 (* A function to create a fresh variable. *)
-let fresh_var : string -> term var =
+let fresh_var : string -> tvar =
   fun x -> new_var mkfree x
 
 (* NOTE two calls to [fresh_var] will produce two distinct variables. *)
 
 (* Some examples of terms (not unboxed). *)
-let x     : term var = fresh_var "x"
-let y     : term var = fresh_var "y"
-let id    : term box = abs x (var x)
-let fst   : term box = abs x (abs y (var x))
-let delta : term box = abs x (app (var x) (var x))
-let omega : term box = app delta delta
-let two   : term box = abs y (abs x (app (var y) (app (var y) (var x))))
-let four  : term box = app two two
+let x     : tvar = fresh_var "x"
+let y     : tvar = fresh_var "y"
+let id    : tbox = abs x (var x)
+let fst   : tbox = abs x (abs y (var x))
+let delta : tbox = abs x (app (var x) (var x))
+let omega : tbox = app delta delta
+let two   : tbox = abs y (abs x (app (var y) (app (var y) (var x))))
+let four  : tbox = app two two
 
 (* An example of term constructed using [var] and [abs_var]. *)
-let swap : term box =
+let swap : tbox =
   let x = fresh_var "x" in
   let y = fresh_var "y" in
   let t = app (var y) (var x) in
   abs x (abs y t)
 
 (* Examples producing capture during evaluation. *)
-let fst_y  : term box = app fst (var y)
-let fst_yx : term box = app fst_y (var x)
-let swap_y : term box = app swap (var y)
+let fst_y  : tbox = app fst (var y)
+let fst_yx : tbox = app fst_y (var x)
+let swap_y : tbox = app swap (var y)
 
 (* Unboxed terms. *)
 let x      : term = unbox (var x)
@@ -88,7 +114,7 @@ let print : out_channel -> term -> unit = fun ch t ->
   fn empty_ctxt ch t
 
 (* Lifting to the [box]. We use an optimisation for closed binders *)
-let rec lift : term -> term box = fun t ->
+let rec lift : term -> tbox = fun t ->
   match t with
   | Var(x)   -> var x
   | Abs(b)   -> if binder_closed b then box t
@@ -97,10 +123,10 @@ let rec lift : term -> term box = fun t ->
   | App(u,v) -> app (lift u) (lift v)
 
 (* One step evaluation function (call-by-name).
-   We have to normalise under binder and therefore to use the type term box.
+   We have to normalise under binder and therefore to use the type tbox.
    Notice the use of the lift function when we do not perform normalisation.
   *)
-let rec step : term -> term box option = fun t ->
+let rec step : term -> tbox option = fun t ->
   match t with
   | App(Abs(b), u) -> Some (lift (subst b u))
   | App(t     , u) ->
