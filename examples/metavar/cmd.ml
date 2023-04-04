@@ -29,8 +29,7 @@ let create_mta name env =
     let v, ctxt = new_var_in !(env.ctxt) var name in
     let name' = name_of v in
     if name' <> name then
-      Printf.eprintf
-        "Warning meta variable %s created as %s\n%!" name name';
+      Printf.printf "Warning: meta variable %s created as %s.\n%!" name name';
     let m = { mname = name'; ctxte = names; value = ref None } in
     Printf.printf "New meta %a\n%!" print_mta m;
     (* update the environment *)
@@ -65,7 +64,7 @@ let pterm_to_term env t =
 
 (* undo provided by Timed *)
 let undo env = match env.undo with
-  | [] -> Printf.eprintf "Nothing to undo\n%!"
+  | [] -> Printf.printf "Warning: nothing to undo.\n%!"
   | time::undo ->
      Time.restore time; env.undo <- undo
 
@@ -78,7 +77,7 @@ let declare env name t =
       m
   in
   if !(mta.value) <> None then (* can not reset a meta ... use undo *)
-    Printf.eprintf "Meta variable %s already set\n%!" name
+    Printf.printf "Warning: meta variable %s already set.\n%!" name
   else
     let vars = new_mvar var mta.ctxte in
     let env = (* prepare the initial local env with the context of the meta *)
