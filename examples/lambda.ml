@@ -90,7 +90,7 @@ let print : out_channel -> term -> unit = fun ch t ->
 (* Lifting to the [box]. We use an optimisation for closed binders *)
 let rec lift : term -> term box = fun t ->
   match t with
-  | Var(x)   -> box_var x
+  | Var(x)   -> var x
   | Abs(b)   -> if binder_closed b then box t
                 else let (x,t) = unbind b in
                      abs x (lift t)
