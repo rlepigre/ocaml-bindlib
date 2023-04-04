@@ -1,3 +1,4 @@
 (tests
- (names basic fchurch lambda parsed translate unif pred2 more_lambda hashcons)
+ (names basic fchurch lambda parsed translate unif pred2
+  more_lambda hashcons occur_count)
  (libraries bindlib))
