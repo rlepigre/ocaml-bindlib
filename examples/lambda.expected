@@ -43,3 +43,8 @@ Same as above with the custom renaming:
 	→ λy.(y) y
   (λy.λx.(y) (y) x) λy.λx.(y) (y) x
 	→ λx.λx'.(x) (x) (x) (x) x'
+Number of x in x1: 1
+Number of x in x2: 2
+Number of x in x3: 3
+Number of x in xy: 3
+Number of y in xy: 1
