@@ -123,11 +123,8 @@ and 'a var = {
   var_box    : 'a box;       (* Variable as a boxed object. *)
 }
 
-(* Variable of any type (using an existential). In principle, this constructor
-   can be unboxed since it has a single constructor.  However, this only works
-   starting from OCaml 4.11.0. The annotation is erased for prior versions. *)
-and any_var = V : 'a var -> any_var
-[@@unboxed]
+(* Variable of any type (using an existential). *)
+and any_var = V : 'a var * int -> any_var
 
 let name_of x = x.var_name
 let hash_var x = Hashtbl.hash (`HVar, x.var_key)
@@ -148,19 +145,19 @@ let uids_of xs = Array.map uid_of xs
 let merge_uniq : any_var list -> any_var list -> any_var list =
   let rec merge_uniq acc l1 l2 =
     match (l1, l2) with
-    | ([]              , _               ) -> List.rev_append acc l2
-    | (_               , []              ) -> List.rev_append acc l1
-    | ((V(x) as vx)::xs, (V(y) as vy)::ys) ->
-        if x.var_key = y.var_key then merge_uniq (vx::acc) xs ys else
+    | ([]                  , _                   ) -> List.rev_append acc l2
+    | (_                   , []                  ) -> List.rev_append acc l1
+    | ((V(x,n) as vx) :: xs, (V(y,m) as vy) :: ys) ->
+        if x.var_key = y.var_key then merge_uniq (V(x, n+m) :: acc) xs ys else
         if x.var_key < y.var_key then merge_uniq (vx::acc) xs l2 else
         (* x.var_key > y.var_key*)    merge_uniq (vy::acc) l1 ys
   in merge_uniq []
 
 let remove : 'a var -> any_var list -> any_var list = fun {var_key ; _} ->
   let rec remove acc = function
-    | (V(x) as v)::l when x.var_key < var_key -> remove (v::acc) l
-    | (V(x)     )::l when x.var_key = var_key -> List.rev_append acc l
-    | _                                       -> raise Not_found
+    | (V(x,_) as v)::l when x.var_key < var_key -> remove (v::acc) l
+    | (V(x,_)     )::l when x.var_key = var_key -> List.rev_append acc l
+    | _                                         -> raise Not_found
   in remove []
 
 (* Function [minimize vs n cl] constructs a minimal closure equivalent to [cl]
@@ -181,7 +178,7 @@ let minimize : any_var list -> int -> 'a closure -> 'a closure = fun vs n t ->
     let size = List.length vs in
     let tab = Array.make size 0 in
     let prefix = ref true in
-    let f (new_vp, i) (V(var)) =
+    let f (new_vp, i) (V(var,_)) =
       let j = IMap.find var.var_key vp in
       if i <> j then prefix := false;
       tab.(i) <- j;
@@ -204,7 +201,15 @@ let apply_box : ('a -> 'b) box -> 'a box -> 'b box = fun f a ->
 let occur : 'a var -> 'b box -> bool = fun v b ->
   match b with
   | Box(_)      -> false
-  | Env(vs,_,_) -> List.exists (fun (V(x)) -> x.var_key = v.var_key) vs
+  | Env(vs,_,_) -> List.exists (fun (V(x,_)) -> x.var_key = v.var_key) vs
+
+let nb_occurs : 'a var -> 'b box -> int = fun v b ->
+  match b with
+  | Box(_)      -> 0
+  | Env(vs,_,_) ->
+      match List.find (fun (V(x,_)) -> x.var_key = v.var_key) vs with
+      | V(_,n)              -> n
+      | exception Not_found -> 0
 
 let is_closed : 'a box -> bool = fun b ->
   match b with Box(_) -> true | Env(_,_,_) -> false
@@ -235,7 +240,7 @@ let unbox b =
   let nbvs = List.length vs in
   let env = Env.create nbvs (nbvs + nb) in
   let cur = ref 0 in
-  let fn vp (V(x)) =
+  let fn vp (V(x,_)) =
     let i = !cur in incr cur;
     Env.set env i (x.var_mkfree x);
     IMap.add x.var_key i vp
@@ -384,7 +389,7 @@ let mbind_apply b args = box_apply2 msubst b args
 let build_var_aux key vp = Env.get (IMap.find key vp)
 let build_var var_key var_mkfree name =
   let rec x =
-    let var_box = Env([V(x)], 0, build_var_aux var_key) in
+    let var_box = Env([V(x,1)], 0, build_var_aux var_key) in
     {var_key; var_name = name; var_mkfree; var_box}
   in x
 
@@ -455,14 +460,14 @@ let bind_var : 'a var -> 'b box -> ('a, 'b) binder box = fun x b ->
   | Env(vs,n,t) ->
       try
         match vs with
-        | [V(y)] ->
+        | [V(y,_)] ->
             if x.var_key <> y.var_key then raise Not_found;
             (* The variable to bind is the last one. *)
             let r = 0 in
             let t = t (IMap.singleton x.var_key r) in
             let value = bind_var_aux1 n t in
             Box(build_binder x 0 true value)
-        | _      ->
+        | _        ->
             let vs = remove x vs in
             (* General case. *)
             let cl vp =
@@ -634,7 +639,7 @@ module Ctxt(R:Renaming) = struct
     match b with
     | Box(_)      -> empty_ctxt
     | Env(vs,_,_) ->
-        let add ctxt (V(x)) = reserve_name (name_of x) ctxt in
+        let add ctxt (V(x,_)) = reserve_name (name_of x) ctxt in
         List.fold_left add empty_ctxt vs
 
   let new_var_in ctxt mkfree name =

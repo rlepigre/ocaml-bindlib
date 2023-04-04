@@ -479,6 +479,9 @@ val is_closed : 'a box -> bool
     linear time with respect to the number of free variables in [b]. *)
 val occur : 'a var -> 'b box -> bool
 
+(** [nb_occurs x b] indicates how many times variable [x] occurs in [b]. *)
+val nb_occurs : 'a var -> 'b box -> int
+
 (** [bind_apply bb barg] is the same as [box_apply2 subst bb barg]. *)
 val bind_apply : ('a, 'b) binder box -> 'a box -> 'b box
 

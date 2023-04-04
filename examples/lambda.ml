@@ -225,3 +225,17 @@ let _ =
   Printf.printf "  %a\n\t→ %a\n%!" print2 fst_yx print2 (seval fst_yx);
   Printf.printf "  %a\n\t→ %a\n%!" print2 swap_y print2 (seval swap_y);
   Printf.printf "  %a\n\t→ %a\n%!" print2 four print2 (seval four)
+
+(* Testing number of occurences. *)
+let _ =
+  let vx = fresh_var "x" in
+  let vy = fresh_var "y" in
+  let x1 = var vx in
+  let x2 = app x1 x1 in
+  let x3 = app x1 x2 in
+  let xy = app x3 (var vy) in
+  Printf.printf "Number of x in x1: %i\n" (Bindlib.nb_occurs vx x1);
+  Printf.printf "Number of x in x2: %i\n" (Bindlib.nb_occurs vx x2);
+  Printf.printf "Number of x in x3: %i\n" (Bindlib.nb_occurs vx x3);
+  Printf.printf "Number of x in xy: %i\n" (Bindlib.nb_occurs vx xy);
+  Printf.printf "Number of y in xy: %i\n" (Bindlib.nb_occurs vy xy)

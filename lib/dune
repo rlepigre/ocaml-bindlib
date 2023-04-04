@@ -2,9 +2,5 @@
  (name bindlib)
  (public_name bindlib)
  (synopsis "An efficient representation of binders")
- (preprocess
-  (action
-   (run ocaml %{project_root}/lib/pp.ml %{ocaml_version} %{input-file})))
- (preprocessor_deps pp.ml)
  (modules bindlib)
  (wrapped false))
