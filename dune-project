@@ -23,5 +23,5 @@
    (ocaml (>= 4.07.0))
    (dune :build)
    (timed (and (>= 1.0) :with-test))
-   (earley (and (= 3.0.0) :with-test))
+   (pacomb (and (>= 1.1) :with-test))
    (odoc :with-doc)))

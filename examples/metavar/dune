@@ -1,5 +1,5 @@
 (test
  (name main)
- (preprocess (per_module ((action (run pa_ocaml %{input-file})) parser)))
- (libraries bindlib earley.core timed)
+ (preprocess (per_module ((pps pacomb.ppx) parser)))
+ (libraries bindlib unix pacomb timed)
  (action (with-stdin-from test.txt (run %{test}))))
