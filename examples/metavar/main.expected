@@ -1,0 +1,88 @@
+New meta id[]
+Set meta id[]
+New meta 0[]
+Set meta 0[]
+New meta s[]
+New meta s_in1[x,f,n]
+Set meta s[]
+New meta 10[]
+Warning: meta variable 9 created as 11.
+New meta 11[]
+Set meta 10[]
+Warning: meta variable 9 created as 12.
+New meta 12[]
+Warning: meta variable 8 created as 13.
+New meta 13[]
+Set meta 12[]
+Warning: meta variable 8 created as 14.
+New meta 14[]
+Warning: meta variable 7 created as 15.
+New meta 15[]
+Set meta 14[]
+Warning: meta variable 7 created as 16.
+New meta 16[]
+Warning: meta variable 6 created as 17.
+New meta 17[]
+Set meta 16[]
+Warning: meta variable 6 created as 18.
+New meta 18[]
+Warning: meta variable 5 created as 19.
+New meta 19[]
+Set meta 18[]
+Warning: meta variable 5 created as 20.
+New meta 20[]
+Warning: meta variable 4 created as 21.
+New meta 21[]
+Set meta 20[]
+Warning: meta variable 4 created as 22.
+New meta 22[]
+Warning: meta variable 3 created as 23.
+New meta 23[]
+Set meta 22[]
+Warning: meta variable 3 created as 24.
+New meta 24[]
+Warning: meta variable 2 created as 25.
+New meta 25[]
+Set meta 24[]
+Warning: meta variable 2 created as 26.
+New meta 26[]
+Warning: meta variable 1 created as 27.
+New meta 27[]
+Set meta 26[]
+Warning: meta variable 1 created as 28.
+New meta 28[]
+Set meta 28[]
+New meta big[]
+Warning: meta variable 4 created as 29.
+New meta 29[]
+Warning: meta variable 4 created as 30.
+New meta 30[]
+Set meta big[]
+30[] 29[]
+Goal: 30[]
+Goal: 29[]
+Goal: 27[]
+Goal: 25[]
+Goal: 23[]
+Goal: 21[]
+Goal: 19[]
+Goal: 17[]
+Goal: 15[]
+Goal: 13[]
+Goal: 11[]
+Goal: s_in1[x,f,n]
+New meta s_in2[x,f,n]
+Set meta s_in1[x,f,n]
+λn.λf.λx.f s_in2[x,f,n]
+Set meta s_in2[x,f,n]
+λn.λf.λx.f n f x
+30[] 29[]
+Set meta s_in1[x,f,n]
+30[] 29[]
+New meta r[]
+New meta s_in2[]
+Set meta r[]
+New meta q[]
+Warning: meta variable s_in1 created as s_in3.
+New meta s_in3[]
+Set meta q[]
