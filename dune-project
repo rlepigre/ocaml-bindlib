@@ -22,6 +22,6 @@
  (depends
    (ocaml (>= 4.07.0))
    (dune :build)
-   (timed (and (= 1.0) :with-test))
+   (timed (and (>= 1.0) :with-test))
    (earley (and (= 3.0.0) :with-test))
    (odoc :with-doc)))
