@@ -1,39 +1,36 @@
-(*
-Term syntax:
-
-- lident (lowercase ident) for variable.
-  If the variable is not bound and is not an existing meta variable
-  in an empty context, a new variable is created using the current
-  context.
-
-  When a meta variable already exists with the same name, the
-  name is changed and a warning is printed.
-
-- u v: application
-
-- λx y.t or %x y.t: abstraction
-
-Command syntax:
-
-- $s id = term;
-  Set a meta variable (can use its context variables)
-
-  If id does not exists, a fresh meta variable with an
-  empty context is created and set immediately
-
-- $p t;   Print a term
-
-- $u;     Undo the last $s command
-
-- $g;     Print the unset meta variable (the goals)
-
-- feature : a meta variable can use itself creating recursive terms
-
-*)
+// Term syntax:
+//
+// - lident (lowercase ident) for variable.
+//   If the variable is not bound and is not an existing meta variable
+//   in an empty context, a new variable is created using the current
+//   context.
+//
+//   When a meta variable already exists with the same name, the
+//   name is changed and a warning is printed.
+//
+// - u v: application
+//
+// - λx y.t or %x y.t: abstraction
+//
+// Command syntax:
+//
+// - $s id = term;
+//   Set a meta variable (can use its context variables)
+//
+//   If id does not exists, a fresh meta variable with an
+//   empty context is created and set immediately
+//
+// - $p t;   Print a term
+//
+// - $u;     Undo the last $s command
+//
+// - $g;     Print the unset meta variable (the goals)
+//
+// - feature : a meta variable can use itself creating recursive terms
 
 $s id = λx.x;
 $s 0  = λf x.x;
-(* successor with a hole *)
+// successor with a hole
 $s s  = λn f x.s_in1;
 $s 10 = s 9;
 $s 9  = s 8;
@@ -47,24 +44,24 @@ $s 2  = s 1;
 $s 1  = s 0;
 $s big = 4 4;
 $p big;
-(* the goal *)
+// the goal
 $g;
 
-(* fill the hole in two steps *)
+// fill the hole in two steps
 $s s_in1 = f s_in2;
 $p s;
 $s s_in2 = n f x;
 $p s;
 $p big;
 
-(* undo and try another successor *)
+// undo and try another successor
 $u;
 $u;
 $s s_in1 = n f (f x);
 $p big;
 
-(* check renaming of meta var *)
-(* s_in2 was erased by undo, this is ok *)
+// check renaming of meta var
+// s_in2 was erased by undo, this is ok
 $s r = s_in2;
-(* renamed because s_in1 already exists *)
+// renamed because s_in1 already exists
 $s q = s_in1;
