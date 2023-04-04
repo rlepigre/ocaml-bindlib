@@ -18,6 +18,8 @@ module VarMap = Map.Make(Var)
 type tvar = term var
 type tbox = { t : term box; m : int VarMap.t }
 
+let free_vars : tbox -> int VarMap.t = fun t -> t.m
+
 let unbox t = unbox t.t
 
 (* The often required [mkfree] function. *)
