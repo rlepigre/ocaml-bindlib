@@ -45,7 +45,7 @@ let b_to_a_var : B.term var -> A.term var =
 let translate : A.term -> B.term =
   let rec tr : A.term -> B.term box = fun t ->
     match t with
-    | A.A_Var(x)   -> box_var (a_to_b_var x)
+    | A.A_Var(x)   -> B.var (a_to_b_var x)
     | A.A_Abs(b)   -> let (x,t) = unbind b in
                       B.abs (a_to_b_var x) (tr t)
     | A.A_App(t,u) -> B.app (tr t) (tr u)
