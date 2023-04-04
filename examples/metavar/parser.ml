@@ -25,5 +25,6 @@ let parser command =
 let parser commands = {command ";"}*
 
 let parse_channel : in_channel -> cmd list = fun ic ->
-  let parse = Earley.parse_buffer commands Blanks.ocaml_blank in
+  let blank = Blanks.line_comments "//" in
+  let parse = Earley.parse_buffer commands blank in
   Earley.handle_exception parse (Input.from_channel ic)
