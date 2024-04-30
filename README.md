@@ -34,3 +34,15 @@ You can either pin the repository with opam or run the following.
 make
 make install
 ```
+
+Contributors
+------------
+
+Main contributors:
+- Christophe Raffalli ([@craff](https://github.com/craff), author of the first version)
+- Rodolphe Lepigre ([@rlepigre](https://github.com/rlepigre))
+
+The project received additional contributions from:
+- Alain ([@adelaett](https://github.com/adelaett))
+- Rémi Nollet ([@rnollet](https://github.com/rnollet))
+- Qiancheng Fu ([@qcfu-bu](https://github.com/qcfu-bu))
