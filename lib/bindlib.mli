@@ -621,6 +621,7 @@ val raw_binder : string -> bool -> int -> ('a var -> 'a)
 
 (** [raw_mbinder names binds rank mk_free value] is similar  to  [raw_binder],
     but it is applied to a multiple binder. As for [raw_binder], this function
-    has to be considered unsafe because the user must enforce invariants. *)
-val raw_mbinder : string array -> bool array -> int -> ('a var -> 'a)
+    has to be considered unsafe because the user must enforce invariants. Note
+    that [names], [binds] and [mk_free] should have the same lenght. *)
+val raw_mbinder : string array -> bool array -> int -> ('a var -> 'a) array
   -> ('a array -> 'b) -> ('a,'b) mbinder
