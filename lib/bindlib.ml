@@ -354,11 +354,11 @@ let binder_rank b = b.b_rank
 let binder_compose b f = {b with b_value = (fun x -> f (b.b_value x))}
 
 type ('a,'b) mbinder = {
-  mb_names  : string array;   (* Preferred names for the bound variables. *)
-  mb_binds  : bool array;     (* Indicates whether the variables occur.   *)
-  mb_rank   : int;            (* Number of remaining free variables.      *)
-  mb_mkfree : 'a var -> 'a;   (* Injection of variables into domain.      *)
-  mb_value  : 'a array -> 'b; (* Substitution function.                   *)
+  mb_names  : string array;   (* Preferred names for the bound variables.   *)
+  mb_binds  : bool array;     (* Indicates whether the variables occur.     *)
+  mb_rank   : int;            (* Number of remaining free variables.        *)
+  mb_mkfree : ('a var -> 'a) array; (* Injections of variables into domain. *)
+  mb_value  : 'a array -> 'b; (* Substitution function.                     *)
 }
 
 let mbinder_arity b = Array.length b.mb_names
@@ -405,14 +405,14 @@ let unbind2 b1 b2 =
 let eq_binder eq f g = f == g || let (_,t,u) = unbind2 f g in eq t u
 
 let unmbind b =
-  let x = new_mvar b.mb_mkfree (mbinder_names b) in
-  (x, msubst b (Array.map b.mb_mkfree x))
+  let xs = Array.map2 new_var b.mb_mkfree (mbinder_names b) in
+  (xs, msubst b (Array.map2 (@@) b.mb_mkfree xs))
 
 let unmbind2 b1 b2 =
   if mbinder_arity b1 <> mbinder_arity b2 then
     invalid_arg "Arity mismatch in unmbind2";
-  let xs = new_mvar b1.mb_mkfree (mbinder_names b1) in
-  let vs = Array.map b1.mb_mkfree xs in
+  let xs = Array.map2 new_var b1.mb_mkfree (mbinder_names b1) in
+  let vs = Array.map2 (@@) b1.mb_mkfree xs in
   (xs, msubst b1 vs, msubst b2 vs)
 
 let eq_mbinder eq f g =
@@ -540,10 +540,7 @@ let bind_mvar_aux5 xs t mb_names mb_rank mb_binds mb_mkfree = fun env ->
   {mb_names; mb_rank; mb_binds; mb_value; mb_mkfree}
 
 let bind_mvar : 'a mvar -> 'b box -> ('a,'b) mbinder box = fun xs b ->
-  let mb_mkfree =
-    if Array.length xs > 0 then xs.(0).var_mkfree
-    else (fun _ -> assert false)
-  in
+  let mb_mkfree = Array.map (fun x -> x.var_mkfree) xs in
   match b with
   | Box(t)      ->
       let mb_binds = Array.map (fun _ -> false) xs in
@@ -681,12 +678,12 @@ module Ctxt(R:Renaming) = struct
     let xs =
       let fn i name =
         let constant = not b.mb_binds.(i) in
-        let (x, ctxt) = unbind_var constant b.mb_mkfree name !ctxt_ref in
+        let (x, ctxt) = unbind_var constant b.mb_mkfree.(i) name !ctxt_ref in
         ctxt_ref := ctxt; x
       in
       Array.mapi fn b.mb_names
     in
-    (xs, msubst b (Array.map b.mb_mkfree xs), !ctxt_ref)
+    (xs, msubst b (Array.map2 (@@) b.mb_mkfree xs), !ctxt_ref)
 
   let unmbind2_in ctxt b1 b2 =
     let ctxt = reset_ctxt (mbinder_closed b1 && mbinder_closed b2) ctxt in
@@ -694,12 +691,12 @@ module Ctxt(R:Renaming) = struct
     let xs =
       let fn i name =
         let constant = not b1.mb_binds.(i) && not b1.mb_binds.(i) in
-        let (x, ctxt) = unbind_var constant b1.mb_mkfree name !ctxt_ref in
+        let (x, ctxt) = unbind_var constant b1.mb_mkfree.(i) name !ctxt_ref in
         ctxt_ref := ctxt; x
       in
       Array.mapi fn b1.mb_names
     in
-    let vs = Array.map b1.mb_mkfree xs in
+    let vs = Array.map2 (@@) b1.mb_mkfree xs in
     (xs, msubst b1 vs, msubst b2 vs, !ctxt_ref)
 end
 
