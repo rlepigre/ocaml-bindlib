@@ -38,4 +38,5 @@ jobs:
       - name: "Running tests..."
         run: |
           eval $(opam env)
+          make
           make tests
