@@ -11,12 +11,6 @@ let ((reset_counter : unit -> unit), (fresh_key : unit -> int)) =
   let c = ref (-1) in
   ((fun () -> c := -1), (fun () -> incr c; !c))
 
-(* FIXME remove in recent enough OCaml. *)
-module Int = struct
-  type t = int
-  let compare = (-)
-end
-
 module IMap = Map.Make(Int)
 module SMap = Map.Make(String)
 
