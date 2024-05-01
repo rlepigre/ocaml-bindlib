@@ -11,12 +11,6 @@ let ((reset_counter : unit -> unit), (fresh_key : unit -> int)) =
   let c = Atomic.make 0 in
   ((fun () -> Atomic.set c 0), (fun () -> Atomic.fetch_and_add c 1))
 
-(* FIXME remove in recent enough OCaml. *)
-module Int = struct
-  type t = int
-  let compare = (-)
-end
-
 module IMap = Map.Make(Int)
 module SMap = Map.Make(String)
 
