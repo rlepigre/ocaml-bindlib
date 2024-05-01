@@ -515,9 +515,9 @@ let bind_mvar_aux4 xs t mb_rank mb_binds = fun env args ->
     begin
       for i = 0 to Array.length xs - 1 do
         if mb_binds.(i) then begin
-            Env.set env !cur_pos args.(i);
-            incr cur_pos;
-          end
+          Env.set env !cur_pos args.(i);
+          incr cur_pos;
+        end
       done;
       Env.set_next_free env !cur_pos;
       t env
@@ -527,9 +527,9 @@ let bind_mvar_aux4 xs t mb_rank mb_binds = fun env args ->
       let env = Env.copy env in
       for i = 0 to Array.length xs - 1 do
         if mb_binds.(i) then begin
-            Env.set env !cur_pos args.(i);
-            incr cur_pos;
-          end
+          Env.set env !cur_pos args.(i);
+          incr cur_pos;
+        end
       done;
       Env.set_next_free env !cur_pos;
       for i = !cur_pos to next - 1 do Env.set env i 0 done;
