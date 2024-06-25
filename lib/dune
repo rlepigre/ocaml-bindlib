@@ -7,4 +7,5 @@
    (run ocaml %{project_root}/lib/pp.ml %{ocaml_version} %{input-file})))
  (preprocessor_deps pp.ml)
  (modules bindlib)
+ (private_modules intset)
  (wrapped false))
