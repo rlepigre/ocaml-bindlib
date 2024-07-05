@@ -20,8 +20,8 @@
     OCaml language. The main application is the representation of types with
     a binding structure (e.g., abstract syntax trees).")
  (depends
-   (ocaml (>= 4.07.0))
+   (ocaml (>= 4.11.0))
    (dune :build)
-   (timed (and (>= 1.0) :with-test))
-   (pacomb (and (>= 1.1) :with-test))
+   (timed (and (>= 1.1) :with-test))
+   (pacomb (and (>= 1.3) :with-test))
    (odoc :with-doc)))
