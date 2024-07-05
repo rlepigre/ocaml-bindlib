@@ -1,0 +1,3 @@
+(tests
+ (names hashcons2)
+ (libraries bindlib hashcons))
