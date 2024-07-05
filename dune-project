@@ -24,4 +24,5 @@
    (dune :build)
    (timed (and (>= 1.0) :with-test))
    (pacomb (and (>= 1.1) :with-test))
+   (hashcons :with-test)
    (odoc :with-doc)))
