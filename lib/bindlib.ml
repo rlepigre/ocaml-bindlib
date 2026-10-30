@@ -8,8 +8,8 @@
 
 (* Counter for generating fresh variable keys (i.e., unique identifiers). *)
 let ((reset_counter : unit -> unit), (fresh_key : unit -> int)) =
-  let c = ref (-1) in
-  ((fun () -> c := -1), (fun () -> incr c; !c))
+  let c = Atomic.make 0 in
+  ((fun () -> Atomic.set c 0), (fun () -> Atomic.fetch_and_add c 1))
 
 (* FIXME remove in recent enough OCaml. *)
 module Int = struct
