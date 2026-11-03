@@ -17,11 +17,6 @@ jobs:
     steps:
       - name: "Checking out the repo..."
         uses: actions/checkout@v7
-      - name: "Recovering cached opam files..."
-        uses: actions/cache@v6
-        with:
-          path: ~/.opam
-          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
       - name: "Setting up OCaml..."
         uses: ocaml/setup-ocaml@v3
         with:
